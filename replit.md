@@ -59,3 +59,9 @@ The server runs on port 5000 and is configured for the Replit environment:
 - Added cache control headers to prevent caching issues
 - Configured server to bind to 0.0.0.0 for proper proxy access
 - Set up workflow for automatic server startup
+- **Added Geolocation Features**:
+  - Browser-based geolocation to detect user's current position
+  - "Use My Location" button in actor creation/edit dialog to auto-fill coordinates
+  - "Locate Me" button on map to show user's current position
+  - User location marker displayed on map with blue icon
+  - Map automatically centers on user location when obtained

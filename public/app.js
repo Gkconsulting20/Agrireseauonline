@@ -1,6 +1,22 @@
 const tabs=document.querySelectorAll('.tabs button'), sections=document.querySelectorAll('.tab');
 tabs.forEach(b=> b.addEventListener('click',()=>{ tabs.forEach(x=>x.classList.remove('active')); sections.forEach(s=>s.classList.remove('active')); b.classList.add('active'); document.getElementById(b.dataset.tab).classList.add('active'); if(b.dataset.tab==='map') renderMap(); if(b.dataset.tab==='budget') refreshBudgetActs(); }));
 
+document.getElementById('btnLocateMe').onclick = async () => {
+  const btn = document.getElementById('btnLocateMe');
+  btn.disabled = true;
+  btn.textContent = '⏳ Localisation...';
+  try {
+    const loc = await getUserLocation();
+    await renderMap();
+    btn.textContent = '✓ Localisé';
+    setTimeout(() => { btn.disabled = false; btn.textContent = '📍 Me localiser'; }, 2000);
+  } catch(err) {
+    alert(err.message);
+    btn.disabled = false;
+    btn.textContent = '📍 Me localiser';
+  }
+};
+
 const btnLogin=document.getElementById('btnLogin'), btnLogout=document.getElementById('btnLogout'), meEl=document.getElementById('me');
 btnLogin.onclick=openLogin;
 btnLogout.onclick=async()=>{ await fetch('/api/auth/logout',{method:'POST'}); await boot(); };
@@ -29,7 +45,35 @@ async function openLogin(){
 
 document.getElementById('btnSeed').onclick=async()=>{ if(!confirm('Réinitialiser et charger des données de démo ?')) return; const r=await fetch('/api/seed',{method:'POST'}); if(r.ok){ await loadActors(); await loadLogistics(); renderMap(); } };
 
-let REFS={regions:[],products:[]}, ACTORS=[], LOGS=[], ME=null;
+let REFS={regions:[],products:[]}, ACTORS=[], LOGS=[], ME=null, USER_LOCATION=null;
+
+async function getUserLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Géolocalisation non supportée par ce navigateur'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const loc = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+        USER_LOCATION = loc;
+        resolve(loc);
+      },
+      (error) => {
+        let msg = 'Erreur de géolocalisation';
+        if (error.code === 1) msg = 'Permission de géolocalisation refusée';
+        else if (error.code === 2) msg = 'Position indisponible';
+        else if (error.code === 3) msg = 'Délai de géolocalisation dépassé';
+        reject(new Error(msg));
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  });
+}
+
 const aRole=document.getElementById('aRole'), aRegion=document.getElementById('aRegion'), aQ=document.getElementById('aQ');
 [aRole,aRegion,aQ].forEach(el=> el.addEventListener('input', renderActors));
 document.getElementById('btnAddActor').onclick=()=> openActorDialog();
@@ -59,8 +103,24 @@ function openActorDialog(a){ if(!ME) return alert('Connecte-toi d’abord.'); co
   <label>WhatsApp <input name="whatsapp" value="${a?.whatsapp||''}"></label>
   <label>Email <input name="email" type="email" value="${a?.email||''}"></label>
   <label>Vérifié ? <select name="verified"><option value="false" ${!a?.verified?'selected':''}>Non</option><option value="true" ${a?.verified?'selected':''}>Oui</option></select></label></div>
-  <div class="dialog-actions"><button type="submit">Enregistrer</button><button type="button" id="cancelActor">Annuler</button></div></form>`;
+  <div class="dialog-actions"><button type="button" id="btnUseLocation">📍 Utiliser ma position</button><button type="submit">Enregistrer</button><button type="button" id="cancelActor">Annuler</button></div></form>`;
   document.body.appendChild(dlg); dlg.showModal(); dlg.querySelector('#cancelActor').onclick=()=> dlg.close();
+  dlg.querySelector('#btnUseLocation').onclick=async()=>{ 
+    const btn = dlg.querySelector('#btnUseLocation');
+    btn.disabled = true;
+    btn.textContent = '⏳ Récupération...';
+    try {
+      const loc = await getUserLocation();
+      dlg.querySelector('input[name="lat"]').value = loc.lat.toFixed(4);
+      dlg.querySelector('input[name="lng"]').value = loc.lng.toFixed(4);
+      btn.textContent = '✓ Position obtenue';
+      setTimeout(() => { btn.disabled = false; btn.textContent = '📍 Utiliser ma position'; }, 2000);
+    } catch(err) {
+      alert(err.message);
+      btn.disabled = false;
+      btn.textContent = '📍 Utiliser ma position';
+    }
+  };
   dlg.querySelector('#frmActor').onsubmit=async(e)=>{ e.preventDefault(); const data=Object.fromEntries(new FormData(e.target).entries());
     const payload={name:data.name.trim(), role:data.role, region:data.region, localite:(data.localite||'').trim(), products:(data.products||'').split(';').map(s=>s.trim()).filter(Boolean), need:(data.need||'').trim(), volume:data.volume?Number(data.volume):null, lat:data.lat?Number(data.lat):null, lng:data.lng?Number(data.lng):null, phone:(data.phone||'').trim(), whatsapp:(data.whatsapp||'').trim(), email:(data.email||'').trim(), verified:data.verified==='true'};
     if(a&&a.id) await fetch('/api/actors/'+a.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
@@ -90,7 +150,31 @@ function openLogDialog(item){ if(!ME) return alert('Connecte-toi d’abord.'); c
     else await fetch('/api/logistics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     dlg.close(); await loadLogistics(); }; }
 
-let MAP; async function renderMap(){ if(!MAP){ MAP=L.map('leaflet').setView([8.65,1.05],7); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'&copy; OpenStreetMap'}).addTo(MAP);} (window._markers||[]).forEach(m=>MAP.removeLayer(m)); window._markers=[]; ACTORS.forEach(a=>{ if(a.lat&&a.lng){ const m=L.marker([a.lat,a.lng]).addTo(MAP).bindPopup(`<b>${a.name}</b><br>${a.role} – ${a.region}<br><small>${a.need||''}</small>`); window._markers.push(m);} }); }
+let MAP, USER_MARKER; 
+async function renderMap(){ 
+  if(!MAP){ 
+    MAP=L.map('leaflet').setView([8.65,1.05],7); 
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'&copy; OpenStreetMap'}).addTo(MAP);
+  } 
+  (window._markers||[]).forEach(m=>MAP.removeLayer(m)); 
+  window._markers=[]; 
+  ACTORS.forEach(a=>{ 
+    if(a.lat&&a.lng){ 
+      const m=L.marker([a.lat,a.lng]).addTo(MAP).bindPopup(`<b>${a.name}</b><br>${a.role} – ${a.region}<br><small>${a.need||''}</small>`); 
+      window._markers.push(m);
+    } 
+  });
+  if(USER_LOCATION){
+    if(USER_MARKER) MAP.removeLayer(USER_MARKER);
+    const userIcon = L.icon({
+      iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjNDI4NWY0Ij48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI4IiBmaWxsPSIjNDI4NWY0IiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMiIvPjwvc3ZnPg==',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    });
+    USER_MARKER = L.marker([USER_LOCATION.lat, USER_LOCATION.lng], {icon: userIcon}).addTo(MAP).bindPopup('<b>📍 Ma position</b>');
+    MAP.setView([USER_LOCATION.lat, USER_LOCATION.lng], 12);
+  }
+}
 
 let ACTS=[], ACT_ITEMS=[], CURRENT_ACT=null;
 document.getElementById('btnAddAct').onclick=()=> openActDialog();
