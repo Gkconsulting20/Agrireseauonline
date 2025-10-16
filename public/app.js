@@ -2,26 +2,6 @@ const tabs=document.querySelectorAll('.tabs button'), sections=document.querySel
 tabs.forEach(b=> b.addEventListener('click',()=>{ tabs.forEach(x=>x.classList.remove('active')); sections.forEach(s=>s.classList.remove('active')); b.classList.add('active'); document.getElementById(b.dataset.tab).classList.add('active'); if(b.dataset.tab==='map') renderMap(); if(b.dataset.tab==='budget') refreshBudgetActs(); }));
 
 const btnLogin=document.getElementById('btnLogin'), btnLogout=document.getElementById('btnLogout'), meEl=document.getElementById('me');
-btnLogin.onclick=openLogin;
-
-const btnLocateMe = document.getElementById('btnLocateMe');
-if(btnLocateMe) {
-  btnLocateMe.onclick = async () => {
-    btnLocateMe.disabled = true;
-    btnLocateMe.textContent = '⏳ Localisation...';
-    try {
-      const loc = await getUserLocation();
-      await renderMap();
-      btnLocateMe.textContent = '✓ Localisé';
-      setTimeout(() => { btnLocateMe.disabled = false; btnLocateMe.textContent = '📍 Me localiser'; }, 2000);
-    } catch(err) {
-      alert(err.message);
-      btnLocateMe.disabled = false;
-      btnLocateMe.textContent = '📍 Me localiser';
-    }
-  };
-}
-btnLogout.onclick=async()=>{ await fetch('/api/auth/logout',{method:'POST'}); await boot(); };
 
 async function openLogin(){
   const dlg=document.createElement('dialog');
@@ -42,6 +22,27 @@ async function openLogin(){
     if(action==='login'){ r = await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:body.email, password:body.password})}); }
     else { r = await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); }
     if(r.ok){ dlg.close(); await boot(); } else { alert('Erreur authentification'); }
+  };
+}
+
+btnLogin.onclick=openLogin;
+btnLogout.onclick=async()=>{ await fetch('/api/auth/logout',{method:'POST'}); await boot(); };
+
+const btnLocateMe = document.getElementById('btnLocateMe');
+if(btnLocateMe) {
+  btnLocateMe.onclick = async () => {
+    btnLocateMe.disabled = true;
+    btnLocateMe.textContent = '⏳ Localisation...';
+    try {
+      const loc = await getUserLocation();
+      await renderMap();
+      btnLocateMe.textContent = '✓ Localisé';
+      setTimeout(() => { btnLocateMe.disabled = false; btnLocateMe.textContent = '📍 Me localiser'; }, 2000);
+    } catch(err) {
+      alert(err.message);
+      btnLocateMe.disabled = false;
+      btnLocateMe.textContent = '📍 Me localiser';
+    }
   };
 }
 
