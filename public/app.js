@@ -1,0 +1,143 @@
+const tabs=document.querySelectorAll('.tabs button'), sections=document.querySelectorAll('.tab');
+tabs.forEach(b=> b.addEventListener('click',()=>{ tabs.forEach(x=>x.classList.remove('active')); sections.forEach(s=>s.classList.remove('active')); b.classList.add('active'); document.getElementById(b.dataset.tab).classList.add('active'); if(b.dataset.tab==='map') renderMap(); if(b.dataset.tab==='budget') refreshBudgetActs(); }));
+
+const btnLogin=document.getElementById('btnLogin'), btnLogout=document.getElementById('btnLogout'), meEl=document.getElementById('me');
+btnLogin.onclick=openLogin;
+btnLogout.onclick=async()=>{ await fetch('/api/auth/logout',{method:'POST'}); await boot(); };
+
+async function openLogin(){
+  const dlg=document.createElement('dialog');
+  dlg.innerHTML=`<form id="frmLogin" class="dialog-body"><h3>Connexion / Inscription</h3>
+  <div class="grid2"><label>Email <input name="email" type="email" required></label>
+  <label>Mot de passe <input name="password" type="password" required></label>
+  <label>Nom <input name="name" placeholder="(pour inscription)"></label>
+  <label>Région <input name="region" placeholder="ex: Plateaux"></label>
+  <label>Rôle <select name="role"><option></option>${['producteur','transporteur','transformateur','grossiste','detaillant','institution'].map(r=>`<option>${r}</option>`).join('')}</select></label>
+  </div>
+  <div class="dialog-actions"><button name="action" value="login">Se connecter</button><button name="action" value="register" type="submit">Créer un compte</button><button type="button" id="cancelL">Annuler</button></div></form>`;
+  document.body.appendChild(dlg); dlg.showModal(); dlg.querySelector('#cancelL').onclick=()=> dlg.close();
+  dlg.querySelector('#frmLogin').onsubmit=async(e)=>{
+    e.preventDefault();
+    const fd = new FormData(e.target); const action = fd.get('action') || 'register';
+    const body = Object.fromEntries(fd.entries());
+    let r;
+    if(action==='login'){ r = await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:body.email, password:body.password})}); }
+    else { r = await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); }
+    if(r.ok){ dlg.close(); await boot(); } else { alert('Erreur authentification'); }
+  };
+}
+
+document.getElementById('btnSeed').onclick=async()=>{ if(!confirm('Réinitialiser et charger des données de démo ?')) return; const r=await fetch('/api/seed',{method:'POST'}); if(r.ok){ await loadActors(); await loadLogistics(); renderMap(); } };
+
+let REFS={regions:[],products:[]}, ACTORS=[], LOGS=[], ME=null;
+const aRole=document.getElementById('aRole'), aRegion=document.getElementById('aRegion'), aQ=document.getElementById('aQ');
+[aRole,aRegion,aQ].forEach(el=> el.addEventListener('input', renderActors));
+document.getElementById('btnAddActor').onclick=()=> openActorDialog();
+async function loadRefs(){ const r=await fetch('/api/refs'); REFS=await r.json(); document.getElementById('aRegion').innerHTML='<option value=\"\">Toutes régions</option>'+REFS.regions.map(r=>`<option>${r}</option>`).join(''); }
+async function loadActors(){ const r=await fetch('/api/actors'); ACTORS=await r.json(); renderActors(); }
+function renderActors(){ const list=document.getElementById('actorList'); list.innerHTML=''; const role=aRole.value.toLowerCase(), reg=aRegion.value.toLowerCase(), q=aQ.value.toLowerCase();
+  ACTORS.filter(a=>{ const okRole=role? (a.role||'').toLowerCase()===role:true; const okReg=reg? (a.region||'').toLowerCase()===reg:true; const txt=(a.name+' '+(a.products||[]).join(';')+' '+(a.need||'')+' '+(a.localite||'')).toLowerCase(); const okQ=q? txt.includes(q):true; return okRole&&okReg&&okQ; })
+  .forEach(a=> list.appendChild(actorCard(a))); }
+function actorCard(a){ const el=document.createElement('div'); el.className='card'; const digits=s=>(s||'').replace(/\D/g,''); el.innerHTML=`<div class="name"><strong>${a.name}</strong> ${a.verified?'<span class="badge">✔︎ vérifié</span>':''}</div>
+  <div><span class="badge">${a.role}</span> <span class="badge">${a.region}</span> ${a.localite? '· '+a.localite:''}</div><div>${(a.products||[]).join('; ')}</div><div>${a.need||''}</div>
+  <div class="links">${a.whatsapp? `<a target="_blank" href="https://wa.me/${digits(a.whatsapp)}">WhatsApp</a>`:''}${a.email? `<a href="mailto:${a.email}">Email</a>`:''}${a.phone? `<a href="tel:${digits(a.phone)}">Appeler</a>`:''}
+  ${ME? `<a href="#" data-id="${a.id}" class="edit">Modifier</a> <a href="#" data-id="${a.id}" class="del">Supprimer</a>`:''}</div>`;
+  if(ME){ el.querySelector('.edit').onclick=(e)=>{e.preventDefault(); openActorDialog(a);};
+  el.querySelector('.del').onclick=async(e)=>{e.preventDefault(); if(!confirm('Supprimer ?')) return; await fetch('/api/actors/'+a.id,{method:'DELETE'}); await loadActors(); renderMap();}; }
+  return el; }
+function openActorDialog(a){ if(!ME) return alert('Connecte-toi d’abord.'); const dlg=document.createElement('dialog'); dlg.innerHTML=`<form id="frmActor" class="dialog-body"><h3>${a?'Modifier':'Nouvel'} acteur</h3>
+  <div class="grid2"><label>Nom <input name="name" required value="${a?.name||''}"></label>
+  <label>Rôle <select name="role" required>${['producteur','transporteur','transformateur','grossiste','detaillant','institution'].map(r=>`<option ${a?.role===r?'selected':''}>${r}</option>`).join('')}</select></label>
+  <label>Région <select name="region" required>${(REFS.regions||[]).map(r=>`<option ${a?.region===r?'selected':''}>${r}</option>`).join('')}</select></label>
+  <label>Localité <input name="localite" value="${a?.localite||''}"></label>
+  <label>Produits (séparés par ;) <input name="products" value="${(a?.products||[]).join(';')}"></label>
+  <label>Besoin <input name="need" value="${a?.need||''}"></label>
+  <label>Volume (kg) <input name="volume" type="number" min="0" value="${a?.volume||''}"></label>
+  <label>Latitude <input name="lat" type="number" step="0.0001" value="${a?.lat??''}"></label>
+  <label>Longitude <input name="lng" type="number" step="0.0001" value="${a?.lng??''}"></label>
+  <label>Téléphone <input name="phone" value="${a?.phone||''}"></label>
+  <label>WhatsApp <input name="whatsapp" value="${a?.whatsapp||''}"></label>
+  <label>Email <input name="email" type="email" value="${a?.email||''}"></label>
+  <label>Vérifié ? <select name="verified"><option value="false" ${!a?.verified?'selected':''}>Non</option><option value="true" ${a?.verified?'selected':''}>Oui</option></select></label></div>
+  <div class="dialog-actions"><button type="submit">Enregistrer</button><button type="button" id="cancelActor">Annuler</button></div></form>`;
+  document.body.appendChild(dlg); dlg.showModal(); dlg.querySelector('#cancelActor').onclick=()=> dlg.close();
+  dlg.querySelector('#frmActor').onsubmit=async(e)=>{ e.preventDefault(); const data=Object.fromEntries(new FormData(e.target).entries());
+    const payload={name:data.name.trim(), role:data.role, region:data.region, localite:(data.localite||'').trim(), products:(data.products||'').split(';').map(s=>s.trim()).filter(Boolean), need:(data.need||'').trim(), volume:data.volume?Number(data.volume):null, lat:data.lat?Number(data.lat):null, lng:data.lng?Number(data.lng):null, phone:(data.phone||'').trim(), whatsapp:(data.whatsapp||'').trim(), email:(data.email||'').trim(), verified:data.verified==='true'};
+    if(a&&a.id) await fetch('/api/actors/'+a.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    else await fetch('/api/actors',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    dlg.close(); await loadActors(); renderMap(); }; }
+
+document.getElementById('btnAddLog').onclick=()=> openLogDialog();
+async function loadLogistics(){ const r=await fetch('/api/logistics'); LOGS=await r.json(); renderLogistics(); }
+function renderLogistics(){ const list=document.getElementById('logList'); list.innerHTML=''; LOGS.forEach(l=>{ const el=document.createElement('div'); el.className='card'; const digits=s=>(s||'').replace(/\D/g,'');
+  el.innerHTML=`<div><strong>${l.title}</strong> <span class="badge">${l.type==='need'?'BESOIN':'OFFRE'}</span> <span class="badge">${l.region}</span></div>
+  <div>${l.details||''}</div><div class="links">${l.whatsapp? `<a target="_blank" href="https://wa.me/${digits(l.whatsapp)}">WhatsApp</a>`:''}${l.contact? `<a href="tel:${digits(l.contact)}">Appeler</a>`:''}${ME? ` <a href="#" data-id="${l.id}" class="del">Supprimer</a>`:''}</div>`;
+  if(ME){ el.querySelector('.del').onclick=async(e)=>{e.preventDefault(); if(!confirm('Supprimer ?')) return; await fetch('/api/logistics/'+l.id,{method:'DELETE'}); await loadLogistics(); }; }
+  list.appendChild(el);
+}); }
+function openLogDialog(item){ if(!ME) return alert('Connecte-toi d’abord.'); const dlg=document.createElement('dialog'); dlg.innerHTML=`<form id="frmLog" class="dialog-body"><h3>${item?'Modifier':'Nouvelle'} demande/offre logistique</h3><div class="grid2">
+  <label>Titre <input name="title" required value="${item?.title||''}"></label>
+  <label>Type <select name="type"><option value="need" ${item?.type==='need'?'selected':''}>Besoin</option><option value="offer" ${item?.type==='offer'?'selected':''}>Offre</option></select></label>
+  <label>Région <input name="region" value="${item?.region||''}"></label>
+  <label>Détails <textarea name="details">${item?.details||''}</textarea></label>
+  <label>Téléphone <input name="contact" value="${item?.contact||''}"></label>
+  <label>WhatsApp <input name="whatsapp" value="${item?.whatsapp||''}"></label></div>
+  <div class="dialog-actions"><button type="submit">Enregistrer</button><button type="button" id="cancelLog">Annuler</button></div></form>`;
+  document.body.appendChild(dlg); dlg.showModal(); dlg.querySelector('#cancelLog').onclick=()=> dlg.close();
+  dlg.querySelector('#frmLog').onsubmit=async(e)=>{ e.preventDefault(); const data=Object.fromEntries(new FormData(e.target).entries());
+    const payload={title:data.title.trim(), type:data.type, region:data.region, details:(data.details||'').trim(), contact:(data.contact||'').trim(), whatsapp:(data.whatsapp||'').trim()};
+    if(item&&item.id) await fetch('/api/logistics/'+item.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    else await fetch('/api/logistics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    dlg.close(); await loadLogistics(); }; }
+
+let MAP; async function renderMap(){ if(!MAP){ MAP=L.map('leaflet').setView([8.65,1.05],7); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'&copy; OpenStreetMap'}).addTo(MAP);} (window._markers||[]).forEach(m=>MAP.removeLayer(m)); window._markers=[]; ACTORS.forEach(a=>{ if(a.lat&&a.lng){ const m=L.marker([a.lat,a.lng]).addTo(MAP).bindPopup(`<b>${a.name}</b><br>${a.role} – ${a.region}<br><small>${a.need||''}</small>`); window._markers.push(m);} }); }
+
+let ACTS=[], ACT_ITEMS=[], CURRENT_ACT=null;
+document.getElementById('btnAddAct').onclick=()=> openActDialog();
+async function loadActs(){ const r=await fetch('/api/activities'); if(r.status===401){ ACTS=[]; renderActs(); return; } ACTS=await r.json(); renderActs(); refreshBudgetActs(); }
+function renderActs(){ const list=document.getElementById('actList'); list.innerHTML=''; ACTS.forEach(a=>{ const el=document.createElement('div'); el.className='card'; el.innerHTML=`<div><strong>${a.label}</strong> <span class="badge">${a.filiere}</span> <span class="badge">${a.periode}</span> <span class="right"><a href="#" data-id="${a.id}" class="open">Ouvrir</a> · <a href="#" data-id="${a.id}" class="del">Supprimer</a></span></div>
+  <div class="muted">Sortie prévue: ${a.output_qty||0} unités · PV envisagé: ${a.price_expected||0} FCFA · Marge cible: ${a.target_margin||0}%</div>`;
+  list.appendChild(el);
+  el.querySelector('.open').onclick=(e)=>{ e.preventDefault(); openAct(a); };
+  el.querySelector('.del').onclick=async(e)=>{ e.preventDefault(); if(!confirm('Supprimer ?')) return; await fetch('/api/activities/'+a.id,{method:'DELETE'}); await loadActs(); document.getElementById('actEditor').innerHTML='<p class="muted">Sélectionne une activité…</p>'; };
+}); }
+function openActDialog(){ if(!ME) return alert('Connecte-toi d’abord.'); const dlg=document.createElement('dialog'); dlg.innerHTML=`<form id="frmAct" class="dialog-body"><h3>Nouvelle activité</h3><div class="grid2">
+  <label>Filière <select name="filiere"><option>Maïs</option><option>Manioc</option><option>Riz</option><option>Maraîchage</option><option>Soja</option><option>Volailles</option></select></label>
+  <label>Libellé <input name="label" required></label>
+  <label>Période <select name="periode"><option>Mensuel</option><option>Trimestriel</option><option>Annuel</option></select></label>
+  <label>Production totale (unités) <input name="output_qty" type="number" min="1" value="1000"></label>
+  <label>Prix de vente envisagé (FCFA) <input name="price_expected" type="number" value="300"></label>
+  <label>Marge cible (%) <input name="target_margin" type="number" value="15"></label>
+  <label>Transport (FCFA) <input name="transport" type="number" value="0"></label>
+  <label>Autres coûts (FCFA) <input name="autres" type="number" value="0"></label>
+  <label>Frais généraux (%) <input name="overhead_pct" type="number" value="10"></label>
+</div><div class="dialog-actions"><button type="submit">Créer</button><button type="button" id="cancelAct">Annuler</button></div></form>`;
+  document.body.appendChild(dlg); dlg.showModal(); dlg.querySelector('#cancelAct').onclick=()=> dlg.close();
+  dlg.querySelector('#frmAct').onsubmit=async(e)=>{ e.preventDefault(); const data=Object.fromEntries(new FormData(e.target).entries()); data.output_qty=Number(data.output_qty||0); data.price_expected=Number(data.price_expected||0); data.target_margin=Number(data.target_margin||0); data.transport=Number(data.transport||0); data.autres=Number(data.autres||0); data.overhead_pct=Number(data.overhead_pct||0);
+    const r=await fetch('/api/activities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}); if(!r.ok){ alert('Erreur'); return; } dlg.close(); await loadActs(); };
+}
+async function openAct(a){ CURRENT_ACT=a; const r=await fetch(`/api/activities/${a.id}/items`); ACT_ITEMS = await r.json(); const sumR=await fetch(`/api/activities/${a.id}/summary`); const S=await sumR.json();
+  const root=document.getElementById('actEditor'); const tableRows = ACT_ITEMS.map(it=>`<tr><td><select data-k="kind"><option value="input" ${it.kind==='input'?'selected':''}>Intrant</option><option value="labor" ${it.kind==='labor'?'selected':''}>Main d'œuvre</option></select></td><td><input data-k="label" value="${it.label||''}"></td><td><input type="number" step="0.01" data-k="qty" value="${it.qty||0}"></td><td><input data-k="unit" value="${it.unit||''}"></td><td><input type="number" step="0.01" data-k="unit_price" value="${it.unit_price||0}"></td><td class="sum">${((it.qty||0)*(it.unit_price||0)).toFixed(2)}</td><td><button class="save" data-id="${it.id}">💾</button> <button class="rm" data-id="${it.id}">🗑</button></td></tr>`).join('');
+  root.innerHTML=`<h4>Éditer: ${a.label} <span class="badge">${a.filiere}</span></h4>
+  <table class="tbl"><thead><tr><th>Type</th><th>Libellé</th><th>Qté</th><th>Unité</th><th>Prix unitaire</th><th>Total</th><th></th></tr></thead><tbody>${tableRows}</tbody></table>
+  <div class="dialog-actions"><button id="addItem">+ Ajouter ligne</button> <button id="recalc">Recalculer</button></div>
+  <div class="card"><p>Total intrants: <strong>${Math.round(S.intrants)}</strong> FCFA · Total MO: <strong>${Math.round(S.mo)}</strong> FCFA · Transport & autres: <strong>${Math.round((a.transport||0)+(a.autres||0))}</strong> FCFA · Frais généraux: <strong>${Math.round(S.overhead)}</strong> FCFA</p>
+  <p><strong>Coût total</strong>: <strong>${Math.round(S.total)}</strong> FCFA · <strong>Unitaire</strong>: <strong>${S.unit.toFixed(2)}</strong> FCFA</p>
+  <p>PV envisagé: <strong>${S.pv.toFixed(2)}</strong> FCFA · Marge: <strong>${S.marge.toFixed(1)}%</strong> · PV pour marge cible: <strong>${S.pvCible.toFixed(2)}</strong> FCFA · Seuil de rentabilité: <strong>${S.seuil}</strong> unités</p></div>`;
+  root.querySelectorAll('button.save').forEach(btn=> btn.onclick=async()=>{
+    const tr=btn.closest('tr'); const payload={}; tr.querySelectorAll('input,select').forEach(inp=> payload[inp.dataset.k]= inp.type==='number'? Number(inp.value||0): inp.value);
+    const r=await fetch('/api/items/'+btn.dataset.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) return alert('Erreur'); openAct(a);
+  });
+  root.querySelectorAll('button.rm').forEach(btn=> btn.onclick=async()=>{ if(!confirm('Supprimer cette ligne ?')) return; await fetch('/api/items/'+btn.dataset.id,{method:'DELETE'}); openAct(a); });
+  root.querySelector('#addItem').onclick=async()=>{ await fetch('/api/activities/'+a.id+'/items',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'input',label:'',qty:0,unit:'',unit_price:0})}); openAct(a); };
+  root.querySelector('#recalc').onclick=()=> openAct(a);
+}
+
+let BUDGET={rows:[], totals:{income:0,expense:0,balance:0}};
+async function loadBudget(){ const r=await fetch('/api/budget'); if(r.status===401){ BUDGET={rows:[], totals:{income:0,expense:0,balance:0}}; renderBudget(); return; } BUDGET=await r.json(); renderBudget(); }
+function renderBudget(){ const list=document.getElementById('bList'); const sum=document.getElementById('bSum'); list.innerHTML=''; BUDGET.rows.forEach(x=>{ const el=document.createElement('div'); el.className='card'; el.innerHTML=`<div><strong>${x.kind==='income'?'Recette':'Dépense'}</strong> · ${x.category||'-'} · ${Number(x.amount).toFixed(0)} FCFA <span class="muted right">${x.occurred_on}</span></div><div class="muted">${x.note||''}</div>`; list.appendChild(el); }); sum.innerHTML=`<p>Recettes: <strong>${Math.round(BUDGET.totals.income)}</strong> FCFA</p><p>Dépenses: <strong>${Math.round(BUDGET.totals.expense)}</strong> FCFA</p><p><strong>Solde</strong>: <strong>${Math.round(BUDGET.totals.balance)}</strong> FCFA</p>`; }
+async function refreshBudgetActs(){ const sel=document.getElementById('bAct'); sel.innerHTML='<option value="">(sans activité)</option>'+ACTS.map(a=>`<option value="${a.id}">${a.label}</option>`).join(''); }
+document.getElementById('bAdd').onclick=async()=>{ if(!ME) return alert('Connecte-toi d’abord.'); const payload={ kind:document.getElementById('bKind').value, occurred_on:document.getElementById('bDate').value || new Date().toISOString().slice(0,10), amount:Number(document.getElementById('bAmount').value||0), category:document.getElementById('bCat').value, activity_id: document.getElementById('bAct').value || null, note: document.getElementById('bNote').value }; const r=await fetch('/api/budget',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) return alert('Erreur'); await loadBudget(); };
+
+async function boot(){ const me = await fetch('/api/auth/me'); ME = await me.json(); meEl.textContent = ME? `Connecté: ${ME.email}`:''; btnLogin.style.display = ME? 'none':'inline-block'; btnLogout.style.display = ME? 'inline-block':'none'; await loadRefs(); await loadActors(); await loadLogistics(); await loadActs(); await loadBudget(); if(window._booted) return; window._booted=true; }
+await boot();
