@@ -1,24 +1,26 @@
 const tabs=document.querySelectorAll('.tabs button'), sections=document.querySelectorAll('.tab');
 tabs.forEach(b=> b.addEventListener('click',()=>{ tabs.forEach(x=>x.classList.remove('active')); sections.forEach(s=>s.classList.remove('active')); b.classList.add('active'); document.getElementById(b.dataset.tab).classList.add('active'); if(b.dataset.tab==='map') renderMap(); if(b.dataset.tab==='budget') refreshBudgetActs(); }));
 
-document.getElementById('btnLocateMe').onclick = async () => {
-  const btn = document.getElementById('btnLocateMe');
-  btn.disabled = true;
-  btn.textContent = '⏳ Localisation...';
-  try {
-    const loc = await getUserLocation();
-    await renderMap();
-    btn.textContent = '✓ Localisé';
-    setTimeout(() => { btn.disabled = false; btn.textContent = '📍 Me localiser'; }, 2000);
-  } catch(err) {
-    alert(err.message);
-    btn.disabled = false;
-    btn.textContent = '📍 Me localiser';
-  }
-};
-
 const btnLogin=document.getElementById('btnLogin'), btnLogout=document.getElementById('btnLogout'), meEl=document.getElementById('me');
 btnLogin.onclick=openLogin;
+
+const btnLocateMe = document.getElementById('btnLocateMe');
+if(btnLocateMe) {
+  btnLocateMe.onclick = async () => {
+    btnLocateMe.disabled = true;
+    btnLocateMe.textContent = '⏳ Localisation...';
+    try {
+      const loc = await getUserLocation();
+      await renderMap();
+      btnLocateMe.textContent = '✓ Localisé';
+      setTimeout(() => { btnLocateMe.disabled = false; btnLocateMe.textContent = '📍 Me localiser'; }, 2000);
+    } catch(err) {
+      alert(err.message);
+      btnLocateMe.disabled = false;
+      btnLocateMe.textContent = '📍 Me localiser';
+    }
+  };
+}
 btnLogout.onclick=async()=>{ await fetch('/api/auth/logout',{method:'POST'}); await boot(); };
 
 async function openLogin(){
