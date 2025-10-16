@@ -17,13 +17,18 @@
 </div></header>
 <nav class="tabs">
   <button data-tab="actors" class="active">Acteurs</button>
-  <button data-tab="stock">Stock disponible</button>
   <button data-tab="map">Carte</button>
   <button data-tab="logistics">Logistique</button>
   <button data-tab="costing">Coût de revient</button>
   <button data-tab="budget">Budget</button>
 </nav>
 <section id="actors" class="tab active">
+  <div class="card" style="margin-bottom: 20px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);">
+    <h3>📦 Stock Disponible sur la Plateforme</h3>
+    <div id="stockSummarySimple" style="font-size: 16px; line-height: 1.8; color: #374151;">
+      <p class="muted">Chargement...</p>
+    </div>
+  </div>
   <div class="filters">
     <select id="aRole"><option value="">Tous rôles</option><option>producteur</option><option>transporteur</option><option>transformateur</option><option>grossiste</option><option>detaillant</option><option>institution</option></select>
     <select id="aRegion"><option value="">Toutes régions</option></select>
@@ -31,19 +36,6 @@
     <button id="btnAddActor">+ Ajouter</button>
   </div>
   <div id="actorList" class="cards"></div>
-</section>
-<section id="stock" class="tab">
-  <div class="card">
-    <h3>📦 Stock Disponible - Public</h3>
-    <p class="muted">Consultez tous les produits disponibles sur la plateforme. Aucune connexion requise.</p>
-    <div class="filters" style="margin-top: 16px;">
-      <input id="stockSearch" placeholder="Rechercher un produit...">
-      <select id="stockRegion">
-        <option value="">Toutes régions</option>
-      </select>
-    </div>
-  </div>
-  <div id="stockSummary"></div>
 </section>
 <section id="map" class="tab">
   <div style="position: absolute; top: 10px; right: 10px; z-index: 1000;">

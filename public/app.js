@@ -1,5 +1,5 @@
 const tabs=document.querySelectorAll('.tabs button'), sections=document.querySelectorAll('.tab');
-tabs.forEach(b=> b.addEventListener('click',()=>{ tabs.forEach(x=>x.classList.remove('active')); sections.forEach(s=>s.classList.remove('active')); b.classList.add('active'); document.getElementById(b.dataset.tab).classList.add('active'); if(b.dataset.tab==='map') renderMap(); if(b.dataset.tab==='budget') refreshBudgetActs(); if(b.dataset.tab==='stock') renderStockSummary(); }));
+tabs.forEach(b=> b.addEventListener('click',()=>{ tabs.forEach(x=>x.classList.remove('active')); sections.forEach(s=>s.classList.remove('active')); b.classList.add('active'); document.getElementById(b.dataset.tab).classList.add('active'); if(b.dataset.tab==='map') renderMap(); if(b.dataset.tab==='budget') refreshBudgetActs(); }));
 
 const btnLogin=document.getElementById('btnLogin'), btnLogout=document.getElementById('btnLogout'), meEl=document.getElementById('me');
 
@@ -130,24 +130,14 @@ function openActorDialog(a){ if(!ME) return alert('Connecte-toi d’abord.'); co
     else await fetch('/api/actors',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     dlg.close(); await loadActors(); renderMap(); }; }
 
-const stockSearch=document.getElementById('stockSearch'), stockRegion=document.getElementById('stockRegion');
-if(stockSearch) stockSearch.addEventListener('input', renderStockSummary);
-if(stockRegion) stockRegion.addEventListener('change', renderStockSummary);
-
 function renderStockSummary(){
-  const summaryEl=document.getElementById('stockSummary');
+  const summaryEl=document.getElementById('stockSummarySimple');
   if(!summaryEl) return;
-  
-  const searchTerm=(stockSearch?.value||'').toLowerCase();
-  const selectedRegion=(stockRegion?.value||'').toLowerCase();
   
   // Aggregate products by name
   const productMap = new Map();
   
   ACTORS.forEach(actor => {
-    // Filter by region if selected
-    if(selectedRegion && (actor.region||'').toLowerCase() !== selectedRegion) return;
-    
     const products = actor.products || [];
     const volume = Number(actor.volume) || 0;
     
@@ -155,79 +145,30 @@ function renderStockSummary(){
       const productName = product.trim();
       if(!productName) return;
       
-      // Filter by search term
-      if(searchTerm && !productName.toLowerCase().includes(searchTerm)) return;
-      
       if(!productMap.has(productName)){
-        productMap.set(productName, {
-          name: productName,
-          totalVolume: 0,
-          actors: [],
-          regions: new Set()
-        });
+        productMap.set(productName, 0);
       }
       
-      const entry = productMap.get(productName);
-      entry.totalVolume += volume / products.length; // Distribute volume equally among products
-      entry.actors.push({
-        name: actor.name,
-        region: actor.region,
-        volume: volume / products.length,
-        role: actor.role,
-        phone: actor.phone,
-        whatsapp: actor.whatsapp
-      });
-      entry.regions.add(actor.region);
+      productMap.set(productName, productMap.get(productName) + (volume / products.length));
     });
   });
   
   // Sort products by total volume (descending)
-  const sortedProducts = Array.from(productMap.values()).sort((a,b) => b.totalVolume - a.totalVolume);
+  const sortedProducts = Array.from(productMap.entries())
+    .sort((a,b) => b[1] - a[1])
+    .filter(([name, volume]) => volume > 0);
   
-  // Populate region filter
-  if(stockRegion && REFS.regions){
-    stockRegion.innerHTML='<option value="">Toutes régions</option>'+REFS.regions.map(r=>`<option ${selectedRegion===r.toLowerCase()?'selected':''}>${r}</option>`).join('');
-  }
-  
-  // Render summary
+  // Render simple summary
   if(sortedProducts.length === 0){
-    summaryEl.innerHTML = '<div class="card"><p class="muted">Aucun produit trouvé</p></div>';
+    summaryEl.innerHTML = '<p class="muted">Aucun stock disponible pour le moment</p>';
     return;
   }
   
-  summaryEl.innerHTML = `<div class="cards">${sortedProducts.map(p => `
-    <div class="card">
-      <h3>${p.name}</h3>
-      <div style="font-size: 24px; color: #0a7c2f; font-weight: 600; margin: 10px 0;">
-        ${p.totalVolume > 0 ? p.totalVolume.toFixed(0) + ' kg' : 'Volume non spécifié'}
-      </div>
-      <div class="muted" style="margin-bottom: 12px;">
-        ${p.actors.length} acteur${p.actors.length>1?'s':''} · ${p.regions.size} région${p.regions.size>1?'s':''}
-      </div>
-      <details>
-        <summary style="cursor: pointer; color: #0a7c2f; font-weight: 500;">Voir les fournisseurs (${p.actors.length})</summary>
-        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #f3f4f6;">
-          ${p.actors.map(a => `
-            <div style="padding: 8px 0; border-bottom: 1px solid #f9fafb;">
-              <strong>${a.name}</strong>
-              <div style="font-size: 12px; color: #6b7280;">
-                <span class="badge">${a.role}</span>
-                <span class="badge">${a.region}</span>
-                ${a.volume > 0 ? `· ${a.volume.toFixed(0)} kg` : ''}
-              </div>
-              ${a.phone || a.whatsapp ? `
-                <div style="margin-top: 4px;">
-                  ${a.whatsapp ? `<a target="_blank" href="https://wa.me/${a.whatsapp.replace(/\D/g,'')}" style="font-size: 12px; color: #0a7c2f;">WhatsApp</a>` : ''}
-                  ${a.phone && a.whatsapp ? ' · ' : ''}
-                  ${a.phone ? `<a href="tel:${a.phone.replace(/\D/g,'')}" style="font-size: 12px; color: #0a7c2f;">Appeler</a>` : ''}
-                </div>
-              ` : ''}
-            </div>
-          `).join('')}
-        </div>
-      </details>
-    </div>
-  `).join('')}</div>`;
+  const stockText = sortedProducts.map(([name, volume]) => 
+    `<strong>${name}</strong> ${volume.toFixed(0)} kg`
+  ).join(', ');
+  
+  summaryEl.innerHTML = stockText;
 }
 
 document.getElementById('btnAddLog').onclick=()=> openLogDialog();
