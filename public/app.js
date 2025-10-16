@@ -12,7 +12,7 @@ async function openLogin(){
   <label>Région <input name="region" placeholder="ex: Plateaux"></label>
   <label>Rôle <select name="role"><option></option>${['producteur','transporteur','transformateur','grossiste','detaillant','institution'].map(r=>`<option>${r}</option>`).join('')}</select></label>
   </div>
-  <div class="dialog-actions"><button name="action" value="login">Se connecter</button><button name="action" value="register" type="submit">Créer un compte</button><button type="button" id="cancelL">Annuler</button></div></form>`;
+  <div class="dialog-actions"><button type="submit" name="action" value="login">Se connecter</button><button name="action" value="register" type="submit">Créer un compte</button><button type="button" id="cancelL">Annuler</button></div></form>`;
   document.body.appendChild(dlg); dlg.showModal(); dlg.querySelector('#cancelL').onclick=()=> dlg.close();
   dlg.querySelector('#frmLogin').onsubmit=async(e)=>{
     e.preventDefault();
