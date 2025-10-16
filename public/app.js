@@ -46,7 +46,7 @@ if(btnLocateMe) {
   };
 }
 
-document.getElementById('btnSeed').onclick=async()=>{ if(!confirm('Réinitialiser et charger des données de démo ?')) return; const r=await fetch('/api/seed',{method:'POST'}); if(r.ok){ await loadActors(); await loadLogistics(); renderMap(); } };
+document.getElementById('btnSeed').onclick=async()=>{ if(!confirm('Réinitialiser et charger des données de démo ?')) return; const r=await fetch('/api/seed',{method:'POST'}); if(r.ok){ await loadActors(); await loadLogistics(); renderMap(); renderStockSummary(); } };
 
 let REFS={regions:[],products:[]}, ACTORS=[], LOGS=[], ME=null, USER_LOCATION=null;
 
@@ -81,7 +81,7 @@ const aRole=document.getElementById('aRole'), aRegion=document.getElementById('a
 [aRole,aRegion,aQ].forEach(el=> el.addEventListener('input', renderActors));
 document.getElementById('btnAddActor').onclick=()=> openActorDialog();
 async function loadRefs(){ const r=await fetch('/api/refs'); REFS=await r.json(); document.getElementById('aRegion').innerHTML='<option value=\"\">Toutes régions</option>'+REFS.regions.map(r=>`<option>${r}</option>`).join(''); }
-async function loadActors(){ const r=await fetch('/api/actors'); ACTORS=await r.json(); renderActors(); }
+async function loadActors(){ const r=await fetch('/api/actors'); ACTORS=await r.json(); renderActors(); renderStockSummary(); }
 function renderActors(){ const list=document.getElementById('actorList'); list.innerHTML=''; const role=aRole.value.toLowerCase(), reg=aRegion.value.toLowerCase(), q=aQ.value.toLowerCase();
   ACTORS.filter(a=>{ const okRole=role? (a.role||'').toLowerCase()===role:true; const okReg=reg? (a.region||'').toLowerCase()===reg:true; const txt=(a.name+' '+(a.products||[]).join(';')+' '+(a.need||'')+' '+(a.localite||'')).toLowerCase(); const okQ=q? txt.includes(q):true; return okRole&&okReg&&okQ; })
   .forEach(a=> list.appendChild(actorCard(a))); }

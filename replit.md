@@ -31,11 +31,12 @@ AgriRéseau Pro is an agricultural network platform designed to connect agricult
 
 ## Features
 1. **Actors Management**: CRUD operations for agricultural actors (producers, transporters, etc.)
-2. **Geographic Mapping**: Leaflet-based map showing actor locations
-3. **Logistics**: Track transport and logistics needs/offers
-4. **Cost Calculation**: Calculate production costs with inputs and labor
-5. **Budget Tracking**: Income and expense management
-6. **User Authentication**: Register/login system with session management
+2. **Stock Summary (PUBLIC)**: Aggregate view of all available products and quantities across all actors - no login required
+3. **Geographic Mapping**: Leaflet-based map showing actor locations
+4. **Logistics**: Track transport and logistics needs/offers
+5. **Cost Calculation**: Calculate production costs with inputs and labor
+6. **Budget Tracking**: Income and expense management
+7. **User Authentication**: Register/login system with session management
 
 ## Database Schema
 - **users**: User accounts with email, password, region, role
@@ -65,3 +66,19 @@ The server runs on port 5000 and is configured for the Replit environment:
   - "Locate Me" button on map to show user's current position
   - User location marker displayed on map with blue icon
   - Map automatically centers on user location when obtained
+- **Improved Frontend Design**:
+  - Modern green gradient header with professional styling
+  - Smooth animations and transitions throughout
+  - Enhanced card shadows with hover effects
+  - Better typography and spacing
+  - Mobile-responsive layout
+  - Focus states with green highlights
+- **Added Public Stock Summary Page**:
+  - New "Stock disponible" tab visible WITHOUT login
+  - Aggregates all products from all actors on the platform
+  - Shows total quantities (kg) available for each product
+  - Displays number of suppliers and regions per product
+  - Expandable supplier details with contact information (WhatsApp/Phone)
+  - Search and filter by product name or region
+  - Automatically updates when actors are added/modified
+  - Public access - no authentication required
