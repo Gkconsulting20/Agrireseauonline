@@ -407,6 +407,25 @@ dialog::backdrop {
   color: #0a7c2f;
 }
 
+details {
+  margin-top: 8px;
+}
+
+details summary {
+  cursor: pointer;
+  user-select: none;
+  padding: 8px 0;
+  transition: color 0.2s;
+}
+
+details summary:hover {
+  color: #0d9940;
+}
+
+details[open] summary {
+  margin-bottom: 8px;
+}
+
 @media (max-width: 768px) {
   .topbar {
     flex-direction: column;
