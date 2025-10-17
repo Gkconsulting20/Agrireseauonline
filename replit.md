@@ -40,6 +40,7 @@ AgriRéseau Pro is an agricultural network platform designed to connect agricult
 
 ## Database Schema
 - **users**: User accounts with email, password, region, role
+- **subscriptions**: User subscriptions (free/premium) with payment tracking
 - **actors**: Agricultural actors with location, products, contact info, price, photo_url, certifications
 - **ratings**: Actor ratings (1-5 stars) with comments, one per user per actor
 - **logistics**: Transport and logistics offers/needs
@@ -55,7 +56,48 @@ The server runs on port 5000 and is configured for the Replit environment:
 - Host: 0.0.0.0 (accessible via Replit proxy)
 - Cache headers disabled for development
 
+## Subscription System (Freemium Model)
+
+### Free Plan (Default)
+- **Limit**: 2 acteurs maximum
+- **Access**: All basic features (stock view, map, logistics, costing, budget)
+- **Contact**: WhatsApp, Email, Phone
+- **Price**: FREE
+
+### Premium Plan (5,000 FCFA/month)
+- **Limit**: Acteurs illimités
+- **Badge**: 💎 PREMIUM visible on actor cards
+- **Future features** (coming soon):
+  - 📊 Analytics dashboard (views, contacts tracking)
+  - 💬 Internal messaging between actors
+  - 🔔 SMS/Email alerts (new products, price changes)
+  - 📝 Digital contracts
+  - 📈 Stock history tracking
+  - 🌤️ Agricultural weather forecasts
+
+### Payment Integration (Ready for T-Money & Flooz)
+- Infrastructure prepared for PayGate integration
+- Database schema supports payment tracking
+- Awaiting PayGate API credentials for activation
+- Will accept both T-Money and Flooz mobile money
+
 ## Recent Changes
+
+### October 17, 2025 - Freemium Infrastructure ⚙️
+- **Subscription System**:
+  - Added subscriptions table to database
+  - Free plan: Limited to 2 actors per user
+  - Premium plan: Unlimited actors with badge
+  - Auto-creation of free subscription on registration
+  - "💎 Abonnement" button in header (logged users only)
+  - Subscription info dialog showing plan status and limits
+  - Error handling when free users reach 2-actor limit
+
+- **Premium Features Prepared**:
+  - Premium badge (💎 PREMIUM) displayed on actor cards
+  - Database ready for payment tracking (T-Money/Flooz)
+  - Infrastructure ready for PayGate integration
+  - Future premium features planned and documented
 
 ### October 17, 2025 - Pack 1: Trust & Reputation System 🎯
 - **⭐ Rating System**:
