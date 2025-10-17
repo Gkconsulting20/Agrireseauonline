@@ -54,7 +54,33 @@ The server runs on port 5000 and is configured for the Replit environment:
 - Host: 0.0.0.0 (accessible via Replit proxy)
 - Cache headers disabled for development
 
-## Recent Changes (Oct 16, 2025)
+## Recent Changes
+
+### October 17, 2025 - New Features Added
+- **💰 Price System**:
+  - Price field added to actors (FCFA/kg)
+  - Average price calculation and display in stock summary
+  - Price badges shown with green background in public stock view
+  - Individual prices displayed on each actor card
+  
+- **📸 Product Photos**:
+  - Photo URL field added to actors
+  - Photos displayed as thumbnails on actor cards
+  - Sample photos from Unsplash for demo data
+  - Visual quality improvement for product presentation
+  
+- **📍 Distance Calculation**:
+  - Automatic distance calculation using Haversine formula
+  - Shows distance from user location to each actor
+  - Blue distance badges displayed on actor cards (e.g., "📍 45.2 km")
+  - Requires user to click "Me localiser" button first
+  
+- **📱 Enhanced WhatsApp Integration**:
+  - WhatsApp links now include pre-filled message template
+  - Message: "Bonjour, je suis intéressé par vos produits"
+  - Direct communication between actors and buyers
+
+### October 16, 2025
 - Imported from GitHub and configured for Replit environment
 - Updated port from 3000 to 5000 for Replit compatibility
 - Added cache control headers to prevent caching issues
@@ -74,11 +100,10 @@ The server runs on port 5000 and is configured for the Replit environment:
   - Mobile-responsive layout
   - Focus states with green highlights
 - **Added Public Stock Summary Page**:
-  - New "Stock disponible" tab visible WITHOUT login
+  - New "Stock disponible" section visible WITHOUT login
   - Aggregates all products from all actors on the platform
   - Shows total quantities (kg) available for each product
-  - Displays number of suppliers and regions per product
-  - Expandable supplier details with contact information (WhatsApp/Phone)
+  - Displays average prices per product with green badges
   - Search and filter by product name or region
   - Automatically updates when actors are added/modified
   - Public access - no authentication required
