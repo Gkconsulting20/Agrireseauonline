@@ -123,7 +123,8 @@ function actorCard(a){
     return `<span class="badge" style="background:#10b981;color:white">${icons[c]||''} ${labels[c]||c}</span>`;
   }).join(' ');
   
-  el.innerHTML=`${photoHtml}<div class="name"><strong>${a.name}</strong> ${a.verified?'<span class="badge">✔︎ vérifié</span>':''} ${ratingText}${distanceText}</div>
+  const premiumBadge = a.owner_plan === 'premium' ? '<span class="badge" style="background:#fbbf24;color:#000">💎 PREMIUM</span>' : '';
+  el.innerHTML=`${photoHtml}<div class="name"><strong>${a.name}</strong> ${a.verified?'<span class="badge">✔︎ vérifié</span>':''} ${premiumBadge} ${ratingText}${distanceText}</div>
   <div><span class="badge">${a.role}</span> <span class="badge">${a.region}</span> ${a.localite? '· '+a.localite:''} ${certBadges}</div><div>${(a.products||[]).join('; ')}</div>${priceText}<div>${a.need||''}</div>
   <div class="links">${a.whatsapp? `<a target="_blank" href="https://wa.me/${digits(a.whatsapp)}?text=Bonjour, je suis intéressé par vos produits">WhatsApp</a>`:''}${a.email? `<a href="mailto:${a.email}">Email</a>`:''}${a.phone? `<a href="tel:${digits(a.phone)}">Appeler</a>`:''}
   ${ME? `<a href="#" data-id="${a.id}" class="rate">Noter</a> <a href="#" data-id="${a.id}" class="edit">Modifier</a> <a href="#" data-id="${a.id}" class="del">Supprimer</a>`:`<a href="#" data-id="${a.id}" class="rate">Noter</a>`}</div>`;
@@ -190,8 +191,10 @@ function openActorDialog(a){ if(!ME) return alert('Connecte-toi d’abord.'); co
     if(data.cert_quality) certifications.push('quality');
     if(data.cert_fair) certifications.push('fair');
     const payload={name:data.name.trim(), role:data.role, region:data.region, localite:(data.localite||'').trim(), products:(data.products||'').split(';').map(s=>s.trim()).filter(Boolean), need:(data.need||'').trim(), volume:data.volume?Number(data.volume):null, price:data.price?Number(data.price):null, photo_url:(data.photo_url||'').trim(), certifications, lat:data.lat?Number(data.lat):null, lng:data.lng?Number(data.lng):null, phone:(data.phone||'').trim(), whatsapp:(data.whatsapp||'').trim(), email:(data.email||'').trim(), verified:data.verified==='true'};
-    if(a&&a.id) await fetch('/api/actors/'+a.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    else await fetch('/api/actors',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    let r;
+    if(a&&a.id) r = await fetch('/api/actors/'+a.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    else r = await fetch('/api/actors',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(r.status===403){ const err=await r.json(); alert(err.message||'Limite atteinte'); dlg.close(); return; }
     dlg.close(); await loadActors(); renderMap(); }; }
 
 function openRatingDialog(actor){ 
@@ -374,5 +377,51 @@ function renderBudget(){ const list=document.getElementById('bList'); const sum=
 async function refreshBudgetActs(){ const sel=document.getElementById('bAct'); sel.innerHTML='<option value="">(sans activité)</option>'+ACTS.map(a=>`<option value="${a.id}">${a.label}</option>`).join(''); }
 document.getElementById('bAdd').onclick=async()=>{ if(!ME) return alert('Connecte-toi d’abord.'); const payload={ kind:document.getElementById('bKind').value, occurred_on:document.getElementById('bDate').value || new Date().toISOString().slice(0,10), amount:Number(document.getElementById('bAmount').value||0), category:document.getElementById('bCat').value, activity_id: document.getElementById('bAct').value || null, note: document.getElementById('bNote').value }; const r=await fetch('/api/budget',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) return alert('Erreur'); await loadBudget(); };
 
-async function boot(){ const me = await fetch('/api/auth/me'); ME = await me.json(); meEl.textContent = ME? `Connecté: ${ME.email}`:''; btnLogin.style.display = ME? 'none':'inline-block'; btnLogout.style.display = ME? 'inline-block':'none'; await loadRefs(); await loadActors(); await loadLogistics(); await loadActs(); await loadBudget(); if(window._booted) return; window._booted=true; }
+async function showSubscriptionInfo(){
+  if(!ME) return alert('Connectez-vous d\'abord');
+  const r = await fetch('/api/subscription');
+  const data = await r.json();
+  const dlg = document.createElement('dialog');
+  const isPremium = data.subscription.plan === 'premium';
+  const planBadge = isPremium ? '<span style="background:#fbbf24;color:#000;padding:4px 12px;border-radius:4px;font-weight:bold">💎 PREMIUM</span>' : '<span style="background:#e5e7eb;color:#374151;padding:4px 12px;border-radius:4px">🆓 GRATUIT</span>';
+  
+  dlg.innerHTML=`<div class="dialog-body" style="min-width:400px"><h3>Mon Abonnement</h3>
+    <div style="margin:20px 0">
+      <p style="font-size:18px;margin-bottom:10px">Plan actuel: ${planBadge}</p>
+      <p>Acteurs créés: <strong>${data.actorCount} / ${data.limit}</strong></p>
+    </div>
+    ${isPremium ? `
+      <div style="background:#f0fdf4;padding:15px;border-radius:8px;margin:15px 0">
+        <p><strong>✅ Fonctionnalités Premium actives :</strong></p>
+        <ul style="margin:10px 0;padding-left:20px">
+          <li>Acteurs illimités</li>
+          <li>Badge Premium visible</li>
+          <li>Support prioritaire</li>
+        </ul>
+      </div>
+    ` : `
+      <div style="background:#fef3c7;padding:15px;border-radius:8px;margin:15px 0">
+        <p><strong>💎 Passez à Premium pour :</strong></p>
+        <ul style="margin:10px 0;padding-left:20px">
+          <li>Acteurs illimités (vs 2 max)</li>
+          <li>Badge Premium sur vos fiches</li>
+          <li>Tableau de bord analytique</li>
+          <li>Messagerie interne</li>
+          <li>Alertes SMS/Email</li>
+          <li>Et bien plus...</li>
+        </ul>
+        <p style="margin-top:15px"><strong>Prix: 5 000 FCFA/mois</strong></p>
+        <p style="color:#6b7280;font-size:14px;margin-top:10px">🚧 Les paiements T-Money et Flooz seront bientôt disponibles</p>
+      </div>
+    `}
+    <div class="dialog-actions">
+      <button type="button" id="closeSubDialog">Fermer</button>
+    </div>
+  </div>`;
+  document.body.appendChild(dlg);
+  dlg.showModal();
+  dlg.querySelector('#closeSubDialog').onclick = () => dlg.close();
+}
+
+async function boot(){ const me = await fetch('/api/auth/me'); ME = await me.json(); meEl.textContent = ME? `Connecté: ${ME.email}`:''; btnLogin.style.display = ME? 'none':'inline-block'; btnLogout.style.display = ME? 'inline-block':'none'; const btnSub=document.getElementById('btnSubscription'); if(btnSub) btnSub.style.display = ME? 'inline-block':'none'; await loadRefs(); await loadActors(); await loadLogistics(); await loadActs(); await loadBudget(); if(window._booted) return; window._booted=true; }
 await boot();
