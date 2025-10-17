@@ -12,16 +12,25 @@ async function openLogin(){
   <label>Région <input name="region" placeholder="ex: Plateaux"></label>
   <label>Rôle <select name="role"><option></option>${['producteur','transporteur','transformateur','grossiste','detaillant','institution'].map(r=>`<option>${r}</option>`).join('')}</select></label>
   </div>
-  <div class="dialog-actions"><button type="submit" name="action" value="login">Se connecter</button><button name="action" value="register" type="submit">Créer un compte</button><button type="button" id="cancelL">Annuler</button></div></form>`;
-  document.body.appendChild(dlg); dlg.showModal(); dlg.querySelector('#cancelL').onclick=()=> dlg.close();
-  dlg.querySelector('#frmLogin').onsubmit=async(e)=>{
-    e.preventDefault();
-    const fd = new FormData(e.target); const action = fd.get('action') || 'register';
-    const body = Object.fromEntries(fd.entries());
-    let r;
-    if(action==='login'){ r = await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:body.email, password:body.password}),credentials:'include'}); }
-    else { r = await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),credentials:'include'}); }
-    if(r.ok){ dlg.close(); await boot(); } else { const err = await r.text(); console.error('Auth error:', err); alert('Erreur authentification: ' + (r.status === 400 ? 'Email ou mot de passe incorrect' : 'Erreur serveur')); }
+  <div class="dialog-actions"><button type="button" id="btnDoLogin">Se connecter</button><button type="button" id="btnDoRegister">Créer un compte</button><button type="button" id="cancelL">Annuler</button></div></form>`;
+  document.body.appendChild(dlg); dlg.showModal(); 
+  dlg.querySelector('#cancelL').onclick=()=> dlg.close();
+  
+  dlg.querySelector('#btnDoLogin').onclick=async()=>{
+    const form = dlg.querySelector('#frmLogin');
+    const email = form.querySelector('[name="email"]').value;
+    const password = form.querySelector('[name="password"]').value;
+    if(!email || !password) return alert('Email et mot de passe requis');
+    const r = await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email, password}),credentials:'include'});
+    if(r.ok){ dlg.close(); await boot(); } else { alert('Email ou mot de passe incorrect'); }
+  };
+  
+  dlg.querySelector('#btnDoRegister').onclick=async()=>{
+    const form = dlg.querySelector('#frmLogin');
+    const data = Object.fromEntries(new FormData(form).entries());
+    if(!data.email || !data.password) return alert('Email et mot de passe requis');
+    const r = await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),credentials:'include'});
+    if(r.ok){ dlg.close(); await boot(); } else { alert('Erreur: Email déjà utilisé ou données invalides'); }
   };
 }
 
