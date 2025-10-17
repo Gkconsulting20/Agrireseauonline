@@ -19,9 +19,9 @@ async function openLogin(){
     const fd = new FormData(e.target); const action = fd.get('action') || 'register';
     const body = Object.fromEntries(fd.entries());
     let r;
-    if(action==='login'){ r = await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:body.email, password:body.password})}); }
-    else { r = await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); }
-    if(r.ok){ dlg.close(); await boot(); } else { alert('Erreur authentification'); }
+    if(action==='login'){ r = await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:body.email, password:body.password}),credentials:'include'}); }
+    else { r = await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),credentials:'include'}); }
+    if(r.ok){ dlg.close(); await boot(); } else { const err = await r.text(); console.error('Auth error:', err); alert('Erreur authentification: ' + (r.status === 400 ? 'Email ou mot de passe incorrect' : 'Erreur serveur')); }
   };
 }
 
