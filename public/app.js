@@ -94,13 +94,43 @@ async function loadActors(){ const r=await fetch('/api/actors'); ACTORS=await r.
 function renderActors(){ const list=document.getElementById('actorList'); list.innerHTML=''; const role=aRole.value.toLowerCase(), reg=aRegion.value.toLowerCase(), q=aQ.value.toLowerCase();
   ACTORS.filter(a=>{ const okRole=role? (a.role||'').toLowerCase()===role:true; const okReg=reg? (a.region||'').toLowerCase()===reg:true; const txt=(a.name+' '+(a.products||[]).join(';')+' '+(a.need||'')+' '+(a.localite||'')).toLowerCase(); const okQ=q? txt.includes(q):true; return okRole&&okReg&&okQ; })
   .forEach(a=> list.appendChild(actorCard(a))); }
-function actorCard(a){ const el=document.createElement('div'); el.className='card'; const digits=s=>(s||'').replace(/\D/g,''); el.innerHTML=`<div class="name"><strong>${a.name}</strong> ${a.verified?'<span class="badge">✔︎ vérifié</span>':''}</div>
-  <div><span class="badge">${a.role}</span> <span class="badge">${a.region}</span> ${a.localite? '· '+a.localite:''}</div><div>${(a.products||[]).join('; ')}</div><div>${a.need||''}</div>
-  <div class="links">${a.whatsapp? `<a target="_blank" href="https://wa.me/${digits(a.whatsapp)}">WhatsApp</a>`:''}${a.email? `<a href="mailto:${a.email}">Email</a>`:''}${a.phone? `<a href="tel:${digits(a.phone)}">Appeler</a>`:''}
+function actorCard(a){ 
+  const el=document.createElement('div'); 
+  el.className='card'; 
+  const digits=s=>(s||'').replace(/\D/g,''); 
+  
+  // Calculate distance if user location available
+  let distanceText = '';
+  if(USER_LOCATION && a.lat && a.lng){
+    const dist = calculateDistance(USER_LOCATION.lat, USER_LOCATION.lng, a.lat, a.lng);
+    distanceText = ` <span class="badge" style="background:#3b82f6;color:white">📍 ${dist.toFixed(1)} km</span>`;
+  }
+  
+  // Photo thumbnail
+  const photoHtml = a.photo_url ? `<img src="${a.photo_url}" alt="${a.name}" style="max-width:100px;max-height:80px;border-radius:8px;margin-bottom:8px;">` : '';
+  
+  // Price display
+  const priceText = a.price ? `<div><strong>Prix:</strong> ${Number(a.price).toFixed(0)} FCFA/kg</div>` : '';
+  
+  el.innerHTML=`${photoHtml}<div class="name"><strong>${a.name}</strong> ${a.verified?'<span class="badge">✔︎ vérifié</span>':''}${distanceText}</div>
+  <div><span class="badge">${a.role}</span> <span class="badge">${a.region}</span> ${a.localite? '· '+a.localite:''}</div><div>${(a.products||[]).join('; ')}</div>${priceText}<div>${a.need||''}</div>
+  <div class="links">${a.whatsapp? `<a target="_blank" href="https://wa.me/${digits(a.whatsapp)}?text=Bonjour, je suis intéressé par vos produits">WhatsApp</a>`:''}${a.email? `<a href="mailto:${a.email}">Email</a>`:''}${a.phone? `<a href="tel:${digits(a.phone)}">Appeler</a>`:''}
   ${ME? `<a href="#" data-id="${a.id}" class="edit">Modifier</a> <a href="#" data-id="${a.id}" class="del">Supprimer</a>`:''}</div>`;
   if(ME){ el.querySelector('.edit').onclick=(e)=>{e.preventDefault(); openActorDialog(a);};
   el.querySelector('.del').onclick=async(e)=>{e.preventDefault(); if(!confirm('Supprimer ?')) return; await fetch('/api/actors/'+a.id,{method:'DELETE'}); await loadActors(); renderMap();}; }
-  return el; }
+  return el; 
+}
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
 function openActorDialog(a){ if(!ME) return alert('Connecte-toi d’abord.'); const dlg=document.createElement('dialog'); dlg.innerHTML=`<form id="frmActor" class="dialog-body"><h3>${a?'Modifier':'Nouvel'} acteur</h3>
   <div class="grid2"><label>Nom <input name="name" required value="${a?.name||''}"></label>
   <label>Rôle <select name="role" required>${['producteur','transporteur','transformateur','grossiste','detaillant','institution'].map(r=>`<option ${a?.role===r?'selected':''}>${r}</option>`).join('')}</select></label>
@@ -109,6 +139,8 @@ function openActorDialog(a){ if(!ME) return alert('Connecte-toi d’abord.'); co
   <label>Produits (séparés par ;) <input name="products" value="${(a?.products||[]).join(';')}"></label>
   <label>Besoin <input name="need" value="${a?.need||''}"></label>
   <label>Volume (kg) <input name="volume" type="number" min="0" value="${a?.volume||''}"></label>
+  <label>Prix (FCFA/kg) <input name="price" type="number" min="0" step="1" value="${a?.price||''}"></label>
+  <label>Photo URL <input name="photo_url" type="url" placeholder="https://..." value="${a?.photo_url||''}"></label>
   <label>Latitude <input name="lat" type="number" step="0.0001" value="${a?.lat??''}"></label>
   <label>Longitude <input name="lng" type="number" step="0.0001" value="${a?.lng??''}"></label>
   <label>Téléphone <input name="phone" value="${a?.phone||''}"></label>
@@ -134,7 +166,7 @@ function openActorDialog(a){ if(!ME) return alert('Connecte-toi d’abord.'); co
     }
   };
   dlg.querySelector('#frmActor').onsubmit=async(e)=>{ e.preventDefault(); const data=Object.fromEntries(new FormData(e.target).entries());
-    const payload={name:data.name.trim(), role:data.role, region:data.region, localite:(data.localite||'').trim(), products:(data.products||'').split(';').map(s=>s.trim()).filter(Boolean), need:(data.need||'').trim(), volume:data.volume?Number(data.volume):null, lat:data.lat?Number(data.lat):null, lng:data.lng?Number(data.lng):null, phone:(data.phone||'').trim(), whatsapp:(data.whatsapp||'').trim(), email:(data.email||'').trim(), verified:data.verified==='true'};
+    const payload={name:data.name.trim(), role:data.role, region:data.region, localite:(data.localite||'').trim(), products:(data.products||'').split(';').map(s=>s.trim()).filter(Boolean), need:(data.need||'').trim(), volume:data.volume?Number(data.volume):null, price:data.price?Number(data.price):null, photo_url:(data.photo_url||'').trim(), lat:data.lat?Number(data.lat):null, lng:data.lng?Number(data.lng):null, phone:(data.phone||'').trim(), whatsapp:(data.whatsapp||'').trim(), email:(data.email||'').trim(), verified:data.verified==='true'};
     if(a&&a.id) await fetch('/api/actors/'+a.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     else await fetch('/api/actors',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     dlg.close(); await loadActors(); renderMap(); }; }
@@ -143,39 +175,45 @@ function renderStockSummary(){
   const summaryEl=document.getElementById('stockSummarySimple');
   if(!summaryEl) return;
   
-  // Aggregate products by name
+  // Aggregate products by name with prices
   const productMap = new Map();
   
   ACTORS.forEach(actor => {
     const products = actor.products || [];
     const volume = Number(actor.volume) || 0;
+    const price = Number(actor.price) || 0;
     
     products.forEach(product => {
       const productName = product.trim();
       if(!productName) return;
       
       if(!productMap.has(productName)){
-        productMap.set(productName, 0);
+        productMap.set(productName, {volume: 0, prices: []});
       }
       
-      productMap.set(productName, productMap.get(productName) + (volume / products.length));
+      const data = productMap.get(productName);
+      data.volume += (volume / products.length);
+      if(price > 0) data.prices.push(price);
     });
   });
   
   // Sort products by total volume (descending)
   const sortedProducts = Array.from(productMap.entries())
-    .sort((a,b) => b[1] - a[1])
-    .filter(([name, volume]) => volume > 0);
+    .sort((a,b) => b[1].volume - a[1].volume)
+    .filter(([name, data]) => data.volume > 0);
   
-  // Render simple summary
+  // Render simple summary with prices
   if(sortedProducts.length === 0){
     summaryEl.innerHTML = '<p class="muted">Aucun stock disponible pour le moment</p>';
     return;
   }
   
-  const stockText = sortedProducts.map(([name, volume]) => 
-    `<strong>${name}</strong> ${volume.toFixed(0)} kg`
-  ).join(', ');
+  const stockText = sortedProducts.map(([name, data]) => {
+    const avgPrice = data.prices.length > 0 
+      ? (data.prices.reduce((a,b)=>a+b,0) / data.prices.length).toFixed(0)
+      : null;
+    return `<strong>${name}</strong> ${data.volume.toFixed(0)} kg${avgPrice ? ` <span class="badge" style="background:#10b981;color:white">${avgPrice} FCFA/kg</span>` : ''}`;
+  }).join(', ');
   
   summaryEl.innerHTML = stockText;
 }
