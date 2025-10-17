@@ -37,6 +37,7 @@ db.pragma('journal_mode = WAL');
 
 const schema = `
 CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT,email TEXT UNIQUE NOT NULL,name TEXT,password_hash TEXT NOT NULL,region TEXT,role TEXT,created_at TEXT DEFAULT (datetime('now')));
+CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL UNIQUE,plan TEXT DEFAULT 'free',status TEXT DEFAULT 'active',payment_method TEXT,amount INTEGER,transaction_id TEXT,started_at TEXT DEFAULT (datetime('now')),expires_at TEXT,FOREIGN KEY (user_id) REFERENCES users(id));
 CREATE TABLE IF NOT EXISTS actors (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,role TEXT NOT NULL,region TEXT NOT NULL,localite TEXT,products TEXT,need TEXT,volume REAL,price REAL,photo_url TEXT,certifications TEXT,lat REAL,lng REAL,phone TEXT,whatsapp TEXT,email TEXT,verified INTEGER DEFAULT 0,owner_id INTEGER,created_at TEXT DEFAULT (datetime('now')));
 CREATE TABLE IF NOT EXISTS ratings (id INTEGER PRIMARY KEY AUTOINCREMENT,actor_id INTEGER NOT NULL,user_id INTEGER NOT NULL,rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),comment TEXT,created_at TEXT DEFAULT (datetime('now')),UNIQUE(actor_id, user_id));
 CREATE TABLE IF NOT EXISTS logistics (id INTEGER PRIMARY KEY AUTOINCREMENT,type TEXT NOT NULL,title TEXT NOT NULL,region TEXT NOT NULL,details TEXT,contact TEXT,whatsapp TEXT,owner_id INTEGER,created_at TEXT DEFAULT (datetime('now')));
@@ -58,7 +59,7 @@ if (!db.prepare('SELECT COUNT(*) c FROM products').get().c) {
 
 function requireAuth(req,res,next){ if(!req.session.user) return res.status(401).json({error:'auth_required'}); next(); }
 
-app.post('/api/auth/register',(req,res)=>{ const {email,password,name,region,role}=req.body; if(!email||!password) return res.status(400).json({error:'missing_fields'}); const hash=bcrypt.hashSync(password,10); try{ const info=db.prepare('INSERT INTO users (email,name,password_hash,region,role) VALUES (?,?,?,?,?)').run(email.trim().toLowerCase(),name||'',hash,region||'',role||''); req.session.user={id:info.lastInsertRowid,email,name,region,role}; res.status(201).json(req.session.user); } catch(e){ res.status(400).json({error:'email_exists'}); } });
+app.post('/api/auth/register',(req,res)=>{ const {email,password,name,region,role}=req.body; if(!email||!password) return res.status(400).json({error:'missing_fields'}); const hash=bcrypt.hashSync(password,10); try{ const info=db.prepare('INSERT INTO users (email,name,password_hash,region,role) VALUES (?,?,?,?,?)').run(email.trim().toLowerCase(),name||'',hash,region||'',role||''); const userId=info.lastInsertRowid; db.prepare('INSERT INTO subscriptions (user_id,plan,status) VALUES (?,?,?)').run(userId,'free','active'); req.session.user={id:userId,email,name,region,role}; res.status(201).json(req.session.user); } catch(e){ res.status(400).json({error:'email_exists'}); } });
 app.post('/api/auth/login',(req,res)=>{ const {email,password}=req.body; const u=db.prepare('SELECT * FROM users WHERE email=?').get((email||'').trim().toLowerCase()); if(!u) return res.status(400).json({error:'invalid_credentials'}); if(!bcrypt.compareSync(password||'',u.password_hash)) return res.status(400).json({error:'invalid_credentials'}); req.session.user={id:u.id,email:u.email,name:u.name,region:u.region,role:u.role}; res.json(req.session.user); });
 app.post('/api/auth/logout',(req,res)=> req.session.destroy(()=>res.json({ok:true})));
 app.get('/api/auth/me',(req,res)=> res.json(req.session.user||null));
@@ -72,9 +73,17 @@ app.get('/api/actors',(req,res)=>{ const rows=db.prepare('SELECT * FROM actors O
   const ratings = db.prepare('SELECT AVG(rating) as avg, COUNT(*) as count FROM ratings WHERE actor_id=?').get(r.id);
   actor.rating_avg = ratings.avg || 0;
   actor.rating_count = ratings.count || 0;
+  if(r.owner_id){
+    const sub=db.prepare('SELECT plan FROM subscriptions WHERE user_id=?').get(r.owner_id);
+    actor.owner_plan=sub?.plan||'free';
+  }
   return actor;
 }); res.json(rows); });
-app.post('/api/actors',requireAuth,(req,res)=>{ const b=req.body; const info=db.prepare(`INSERT INTO actors (name,role,region,localite,products,need,volume,price,photo_url,certifications,lat,lng,phone,whatsapp,email,verified,owner_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(b.name,b.role,b.region,b.localite||'',JSON.stringify(b.products||[]),b.need||'',b.volume||null,b.price||null,b.photo_url||'',JSON.stringify(b.certifications||[]),b.lat||null,b.lng||null,b.phone||'',b.whatsapp||'',b.email||'',b.verified?1:0,req.session.user.id); const row=db.prepare('SELECT * FROM actors WHERE id=?').get(info.lastInsertRowid); row.products=JSON.parse(row.products||'[]'); row.certifications=JSON.parse(row.certifications||'[]'); res.status(201).json(row); });
+app.post('/api/actors',requireAuth,(req,res)=>{ 
+  const sub=db.prepare('SELECT * FROM subscriptions WHERE user_id=?').get(req.session.user.id);
+  const actorCount=db.prepare('SELECT COUNT(*) as c FROM actors WHERE owner_id=?').get(req.session.user.id).c;
+  if(sub && sub.plan==='free' && actorCount>=2) return res.status(403).json({error:'limit_reached',message:'Version gratuite limitée à 2 acteurs. Passez à Premium pour plus !'});
+  const b=req.body; const info=db.prepare(`INSERT INTO actors (name,role,region,localite,products,need,volume,price,photo_url,certifications,lat,lng,phone,whatsapp,email,verified,owner_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(b.name,b.role,b.region,b.localite||'',JSON.stringify(b.products||[]),b.need||'',b.volume||null,b.price||null,b.photo_url||'',JSON.stringify(b.certifications||[]),b.lat||null,b.lng||null,b.phone||'',b.whatsapp||'',b.email||'',b.verified?1:0,req.session.user.id); const row=db.prepare('SELECT * FROM actors WHERE id=?').get(info.lastInsertRowid); row.products=JSON.parse(row.products||'[]'); row.certifications=JSON.parse(row.certifications||'[]'); res.status(201).json(row); });
 app.put('/api/actors/:id',requireAuth,(req,res)=>{ const id=Number(req.params.id), b=req.body; db.prepare(`UPDATE actors SET name=?1,role=?2,region=?3,localite=?4,products=?5,need=?6,volume=?7,price=?8,photo_url=?9,certifications=?10,lat=?11,lng=?12,phone=?13,whatsapp=?14,email=?15,verified=?16 WHERE id=?17`).run(b.name,b.role,b.region,b.localite||'',JSON.stringify(b.products||[]),b.need||'',b.volume||null,b.price||null,b.photo_url||'',JSON.stringify(b.certifications||[]),b.lat||null,b.lng||null,b.phone||'',b.whatsapp||'',b.email||'',b.verified?1:0,id); const row=db.prepare('SELECT * FROM actors WHERE id=?').get(id); row.products=JSON.parse(row.products||'[]'); row.certifications=JSON.parse(row.certifications||'[]'); res.json(row); });
 app.delete('/api/actors/:id',requireAuth,(req,res)=>{ db.prepare('DELETE FROM actors WHERE id=?').run(Number(req.params.id)); res.status(204).end(); });
 
@@ -102,6 +111,8 @@ app.delete('/api/budget/:id',requireAuth,(req,res)=>{ db.prepare('DELETE FROM bu
 
 app.get('/api/actors/:id/ratings',(req,res)=>{ const rows=db.prepare('SELECT r.*, u.name as user_name FROM ratings r LEFT JOIN users u ON r.user_id=u.id WHERE r.actor_id=? ORDER BY r.created_at DESC').all(Number(req.params.id)); res.json(rows); });
 app.post('/api/actors/:id/ratings',requireAuth,(req,res)=>{ const actorId=Number(req.params.id), b=req.body; const rating=Math.max(1,Math.min(5,Number(b.rating))); try{ const info=db.prepare('INSERT INTO ratings (actor_id,user_id,rating,comment) VALUES (?,?,?,?)').run(actorId,req.session.user.id,rating,b.comment||''); const row=db.prepare('SELECT * FROM ratings WHERE id=?').get(info.lastInsertRowid); res.status(201).json(row); } catch(e){ db.prepare('UPDATE ratings SET rating=?,comment=? WHERE actor_id=? AND user_id=?').run(rating,b.comment||'',actorId,req.session.user.id); const row=db.prepare('SELECT * FROM ratings WHERE actor_id=? AND user_id=?').get(actorId,req.session.user.id); res.json(row); } });
+
+app.get('/api/subscription',requireAuth,(req,res)=>{ const sub=db.prepare('SELECT * FROM subscriptions WHERE user_id=?').get(req.session.user.id); const actorCount=db.prepare('SELECT COUNT(*) as c FROM actors WHERE owner_id=?').get(req.session.user.id).c; const limit=sub?.plan==='premium'?999:2; res.json({subscription:sub||{plan:'free',status:'active'},actorCount,limit}); });
 
 app.use(express.static(path.join(__dirname,'public')));
 app.get('*',(req,res)=> res.sendFile(path.join(__dirname,'public/index.html')));
