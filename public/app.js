@@ -112,12 +112,26 @@ function actorCard(a){
   // Price display
   const priceText = a.price ? `<div><strong>Prix:</strong> ${Number(a.price).toFixed(0)} FCFA/kg</div>` : '';
   
-  el.innerHTML=`${photoHtml}<div class="name"><strong>${a.name}</strong> ${a.verified?'<span class="badge">✔︎ vérifié</span>':''}${distanceText}</div>
-  <div><span class="badge">${a.role}</span> <span class="badge">${a.region}</span> ${a.localite? '· '+a.localite:''}</div><div>${(a.products||[]).join('; ')}</div>${priceText}<div>${a.need||''}</div>
+  // Rating display
+  const stars = a.rating_avg > 0 ? '⭐'.repeat(Math.round(a.rating_avg)) : '';
+  const ratingText = a.rating_avg > 0 ? `<span class="badge" style="background:#fbbf24;color:#000">${stars} ${a.rating_avg.toFixed(1)} (${a.rating_count})</span>` : '';
+  
+  // Certifications display
+  const certBadges = (a.certifications||[]).map(c => {
+    const icons = {bio:'🌿',quality:'✅',fair:'🤝'};
+    const labels = {bio:'Bio',quality:'Qualité',fair:'Équitable'};
+    return `<span class="badge" style="background:#10b981;color:white">${icons[c]||''} ${labels[c]||c}</span>`;
+  }).join(' ');
+  
+  el.innerHTML=`${photoHtml}<div class="name"><strong>${a.name}</strong> ${a.verified?'<span class="badge">✔︎ vérifié</span>':''} ${ratingText}${distanceText}</div>
+  <div><span class="badge">${a.role}</span> <span class="badge">${a.region}</span> ${a.localite? '· '+a.localite:''} ${certBadges}</div><div>${(a.products||[]).join('; ')}</div>${priceText}<div>${a.need||''}</div>
   <div class="links">${a.whatsapp? `<a target="_blank" href="https://wa.me/${digits(a.whatsapp)}?text=Bonjour, je suis intéressé par vos produits">WhatsApp</a>`:''}${a.email? `<a href="mailto:${a.email}">Email</a>`:''}${a.phone? `<a href="tel:${digits(a.phone)}">Appeler</a>`:''}
-  ${ME? `<a href="#" data-id="${a.id}" class="edit">Modifier</a> <a href="#" data-id="${a.id}" class="del">Supprimer</a>`:''}</div>`;
-  if(ME){ el.querySelector('.edit').onclick=(e)=>{e.preventDefault(); openActorDialog(a);};
-  el.querySelector('.del').onclick=async(e)=>{e.preventDefault(); if(!confirm('Supprimer ?')) return; await fetch('/api/actors/'+a.id,{method:'DELETE'}); await loadActors(); renderMap();}; }
+  ${ME? `<a href="#" data-id="${a.id}" class="rate">Noter</a> <a href="#" data-id="${a.id}" class="edit">Modifier</a> <a href="#" data-id="${a.id}" class="del">Supprimer</a>`:`<a href="#" data-id="${a.id}" class="rate">Noter</a>`}</div>`;
+  if(ME){ 
+    el.querySelector('.edit').onclick=(e)=>{e.preventDefault(); openActorDialog(a);};
+    el.querySelector('.del').onclick=async(e)=>{e.preventDefault(); if(!confirm('Supprimer ?')) return; await fetch('/api/actors/'+a.id,{method:'DELETE'}); await loadActors(); renderMap();}; 
+  }
+  el.querySelector('.rate').onclick=(e)=>{e.preventDefault(); openRatingDialog(a);};
   return el; 
 }
 
@@ -141,6 +155,11 @@ function openActorDialog(a){ if(!ME) return alert('Connecte-toi d’abord.'); co
   <label>Volume (kg) <input name="volume" type="number" min="0" value="${a?.volume||''}"></label>
   <label>Prix (FCFA/kg) <input name="price" type="number" min="0" step="1" value="${a?.price||''}"></label>
   <label>Photo URL <input name="photo_url" type="url" placeholder="https://..." value="${a?.photo_url||''}"></label>
+  <label style="grid-column:1/-1"><strong>Certifications:</strong> 
+    <label style="display:inline-block;margin-right:15px"><input type="checkbox" name="cert_bio" ${(a?.certifications||[]).includes('bio')?'checked':''}> 🌿 Bio</label>
+    <label style="display:inline-block;margin-right:15px"><input type="checkbox" name="cert_quality" ${(a?.certifications||[]).includes('quality')?'checked':''}> ✅ Qualité</label>
+    <label style="display:inline-block"><input type="checkbox" name="cert_fair" ${(a?.certifications||[]).includes('fair')?'checked':''}> 🤝 Commerce Équitable</label>
+  </label>
   <label>Latitude <input name="lat" type="number" step="0.0001" value="${a?.lat??''}"></label>
   <label>Longitude <input name="lng" type="number" step="0.0001" value="${a?.lng??''}"></label>
   <label>Téléphone <input name="phone" value="${a?.phone||''}"></label>
@@ -166,10 +185,51 @@ function openActorDialog(a){ if(!ME) return alert('Connecte-toi d’abord.'); co
     }
   };
   dlg.querySelector('#frmActor').onsubmit=async(e)=>{ e.preventDefault(); const data=Object.fromEntries(new FormData(e.target).entries());
-    const payload={name:data.name.trim(), role:data.role, region:data.region, localite:(data.localite||'').trim(), products:(data.products||'').split(';').map(s=>s.trim()).filter(Boolean), need:(data.need||'').trim(), volume:data.volume?Number(data.volume):null, price:data.price?Number(data.price):null, photo_url:(data.photo_url||'').trim(), lat:data.lat?Number(data.lat):null, lng:data.lng?Number(data.lng):null, phone:(data.phone||'').trim(), whatsapp:(data.whatsapp||'').trim(), email:(data.email||'').trim(), verified:data.verified==='true'};
+    const certifications = [];
+    if(data.cert_bio) certifications.push('bio');
+    if(data.cert_quality) certifications.push('quality');
+    if(data.cert_fair) certifications.push('fair');
+    const payload={name:data.name.trim(), role:data.role, region:data.region, localite:(data.localite||'').trim(), products:(data.products||'').split(';').map(s=>s.trim()).filter(Boolean), need:(data.need||'').trim(), volume:data.volume?Number(data.volume):null, price:data.price?Number(data.price):null, photo_url:(data.photo_url||'').trim(), certifications, lat:data.lat?Number(data.lat):null, lng:data.lng?Number(data.lng):null, phone:(data.phone||'').trim(), whatsapp:(data.whatsapp||'').trim(), email:(data.email||'').trim(), verified:data.verified==='true'};
     if(a&&a.id) await fetch('/api/actors/'+a.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     else await fetch('/api/actors',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     dlg.close(); await loadActors(); renderMap(); }; }
+
+function openRatingDialog(actor){ 
+  if(!ME) return alert('Connectez-vous pour noter cet acteur');
+  const dlg=document.createElement('dialog'); 
+  dlg.innerHTML=`<form id="frmRating" class="dialog-body"><h3>Noter ${actor.name}</h3>
+    <div class="grid2">
+      <label>Note (1-5 étoiles) <select name="rating" required>
+        <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
+        <option value="4">⭐⭐⭐⭐ Très bien</option>
+        <option value="3">⭐⭐⭐ Bien</option>
+        <option value="2">⭐⭐ Passable</option>
+        <option value="1">⭐ Mauvais</option>
+      </select></label>
+      <label>Commentaire (optionnel) <textarea name="comment" placeholder="Votre expérience..."></textarea></label>
+    </div>
+    <div class="dialog-actions"><button type="submit">Envoyer ma note</button><button type="button" id="cancelRating">Annuler</button></div>
+  </form>`;
+  document.body.appendChild(dlg); 
+  dlg.showModal(); 
+  dlg.querySelector('#cancelRating').onclick=()=> dlg.close();
+  dlg.querySelector('#frmRating').onsubmit=async(e)=>{ 
+    e.preventDefault(); 
+    const data=Object.fromEntries(new FormData(e.target).entries());
+    const r = await fetch(`/api/actors/${actor.id}/ratings`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({rating:Number(data.rating), comment:data.comment||''})
+    });
+    if(r.ok){ 
+      dlg.close(); 
+      await loadActors(); 
+      alert('Merci pour votre évaluation !'); 
+    } else { 
+      alert('Erreur lors de l\'enregistrement'); 
+    }
+  };
+}
 
 function renderStockSummary(){
   const summaryEl=document.getElementById('stockSummarySimple');
