@@ -40,7 +40,8 @@ AgriRéseau Pro is an agricultural network platform designed to connect agricult
 
 ## Database Schema
 - **users**: User accounts with email, password, region, role
-- **actors**: Agricultural actors with location, products, contact info
+- **actors**: Agricultural actors with location, products, contact info, price, photo_url, certifications
+- **ratings**: Actor ratings (1-5 stars) with comments, one per user per actor
 - **logistics**: Transport and logistics offers/needs
 - **activities**: Cost calculation activities
 - **activity_items**: Input and labor items for activities
@@ -56,7 +57,23 @@ The server runs on port 5000 and is configured for the Replit environment:
 
 ## Recent Changes
 
-### October 17, 2025 - New Features Added
+### October 17, 2025 - Pack 1: Trust & Reputation System 🎯
+- **⭐ Rating System**:
+  - Users can rate actors from 1 to 5 stars
+  - Optional comment/review with each rating
+  - Average rating displayed on actor cards with yellow badge
+  - Rating count shown (e.g., "⭐⭐⭐⭐ 4.0 (3)")
+  - "Noter" button available on all actor cards (login required)
+  - One rating per user per actor (can be updated)
+
+- **🏆 Certification Badges**:
+  - Three certification types: Bio (🌿), Qualité (✅), Commerce Équitable (🤝)
+  - Certifications displayed as green badges on actor cards
+  - Selectable via checkboxes in actor creation/edit form
+  - Multiple certifications can be assigned to one actor
+  - Visual trust indicators for buyers
+
+### October 17, 2025 - Core Features Added
 - **💰 Price System**:
   - Price field added to actors (FCFA/kg)
   - Average price calculation and display in stock summary
