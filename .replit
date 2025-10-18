@@ -38,5 +38,5 @@ localPort = 40963
 externalPort = 3000
 
 [deployment]
-deploymentTarget = "vm"
-run = ["node", "server.js"]
+deploymentTarget = "autoscale"
+run = ["npm"]
