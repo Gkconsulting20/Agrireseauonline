@@ -11,22 +11,25 @@ AgriRéseau Pro is an agricultural network platform designed to connect agricult
 
 ## Technology Stack
 - **Backend**: Node.js with Express
-- **Database**: SQLite with better-sqlite3
+- **Database**: PostgreSQL (Neon-backed serverless)
 - **Frontend**: Vanilla HTML/CSS/JavaScript
 - **Map**: Leaflet.js for geographic visualization
 - **Authentication**: Session-based with bcryptjs
+- **Deployment**: Autoscale (auto-scaling web service)
 
 ## Project Structure
 ```
 /
-├── server.js           # Main Express server
-├── package.json        # Node.js dependencies
-├── public/            # Frontend assets
-│   ├── index.html     # Main HTML file
-│   ├── app.js         # Frontend JavaScript
-│   ├── style.css      # Styles
-│   └── assets/        # Images and static files
-└── agri_reseau.sqlite # SQLite database (auto-created)
+├── server.js                # Main Express server (PostgreSQL)
+├── db.js                    # PostgreSQL database connection module
+├── package.json             # Node.js dependencies
+├── migrate-to-postgres.js   # Migration script (SQLite → PostgreSQL)
+├── public/                  # Frontend assets
+│   ├── index.html          # Main HTML file
+│   ├── app.js              # Frontend JavaScript
+│   ├── style.css           # Styles
+│   └── assets/             # Images and static files
+└── server.sqlite.backup.js  # SQLite backup (for reference)
 ```
 
 ## Features
