@@ -276,6 +276,28 @@ app.get('/api/subscription', requireAuth, async (req,res)=>{
   res.json({subscription:sub||{plan:'free',status:'active'},actorCount,limit}); 
 });
 
+app.post('/api/admin/activate-premium', requireAuth, async (req,res)=>{
+  const {userEmail, transactionId, paymentMethod} = req.body;
+  if(!userEmail || !transactionId) return res.status(400).json({error:'Missing userEmail or transactionId'});
+  
+  const targetUser = await db.getOne('SELECT id FROM users WHERE email=$1', [userEmail]);
+  if(!targetUser) return res.status(404).json({error:'User not found'});
+  
+  const expiresAt = new Date();
+  expiresAt.setMonth(expiresAt.getMonth() + 1);
+  
+  try{
+    await db.query(
+      `UPDATE subscriptions SET plan=$1, status=$2, payment_method=$3, amount=$4, transaction_id=$5, started_at=$6, expires_at=$7 WHERE user_id=$8`,
+      ['premium', 'active', paymentMethod || 'manual', 5000, transactionId, new Date(), expiresAt, targetUser.id]
+    );
+    res.json({success:true, message:`Premium activated for ${userEmail} until ${expiresAt.toISOString().split('T')[0]}`});
+  } catch(e){
+    console.error('Error activating premium:', e);
+    res.status(500).json({error:'Failed to activate premium'});
+  }
+});
+
 app.use(express.static(path.join(__dirname,'public')));
 app.get('*',(req,res)=> res.sendFile(path.join(__dirname,'public/index.html')));
 

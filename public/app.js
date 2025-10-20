@@ -387,19 +387,143 @@ window.showSubscriptionInfo = async function(){
     }
     const data = await r.json();
     const isPremium = data.subscription.plan === 'premium';
-    const planBadge = isPremium ? '💎 PREMIUM' : '🆓 GRATUIT';
     
-    const premiumContent = isPremium ? 
-      `✅ Fonctionnalités Premium actives :\n- Acteurs illimités\n- Badge Premium visible\n- Support prioritaire` :
-      `💎 Passez à Premium pour :\n- Acteurs illimités (vs 2 max)\n- Badge Premium sur vos fiches\n- Tableau de bord analytique\n- Messagerie interne\n- Alertes SMS/Email\n- Et bien plus...\n\nPrix: 5 000 FCFA/mois\n\n🚧 Les paiements T-Money et Flooz seront bientôt disponibles`;
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
     
-    const message = `📊 MON ABONNEMENT\n\nPlan actuel: ${planBadge}\nActeurs créés: ${data.actorCount} / ${data.limit}\n\n${premiumContent}`;
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:white;padding:30px;border-radius:12px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;';
     
-    alert(message);
+    modal.innerHTML = `
+      <h2 style="margin:0 0 20px 0;color:#059669;">📊 Mon Abonnement</h2>
+      <div style="background:${isPremium?'#f0fdf4':'#fef3c7'};padding:15px;border-radius:8px;margin-bottom:20px;">
+        <p style="font-size:18px;margin:0 0 10px 0;font-weight:bold;">
+          ${isPremium?'💎 PREMIUM':'🆓 GRATUIT'}
+        </p>
+        <p style="margin:0;">Acteurs créés: <strong>${data.actorCount} / ${isPremium?'∞':data.limit}</strong></p>
+      </div>
+      
+      ${isPremium ? `
+        <div style="background:#f0fdf4;padding:15px;border-radius:8px;">
+          <p style="font-weight:bold;margin:0 0 10px 0;">✅ Fonctionnalités Premium actives :</p>
+          <ul style="margin:10px 0;padding-left:20px;">
+            <li>Acteurs illimités</li>
+            <li>Badge Premium visible</li>
+            <li>Support prioritaire</li>
+            <li>Analytics et statistiques</li>
+          </ul>
+          <p style="margin:10px 0 0 0;color:#6b7280;font-size:14px;">
+            Prochain renouvellement : ${new Date(data.subscription.expires_at).toLocaleDateString('fr-FR')}
+          </p>
+        </div>
+      ` : `
+        <div style="background:#fef9e7;padding:15px;border-radius:8px;margin-bottom:15px;">
+          <p style="font-weight:bold;margin:0 0 10px 0;">💎 Passez à Premium pour :</p>
+          <ul style="margin:10px 0;padding-left:20px;line-height:1.8;">
+            <li>✨ Acteurs illimités (vs 2 max)</li>
+            <li>🏆 Badge Premium sur vos fiches</li>
+            <li>📊 Tableau de bord analytique</li>
+            <li>💬 Messagerie interne</li>
+            <li>🔔 Alertes SMS/Email</li>
+            <li>📈 Historique et statistiques</li>
+          </ul>
+          <p style="margin:15px 0 0 0;font-size:20px;font-weight:bold;color:#059669;">
+            Prix: 5 000 FCFA/mois
+          </p>
+        </div>
+        <button id="btnUpgradePremium" style="width:100%;padding:15px;background:#fbbf24;color:#000;border:none;border-radius:8px;font-size:16px;font-weight:bold;cursor:pointer;margin-bottom:10px;">
+          💎 Passer à Premium maintenant
+        </button>
+      `}
+      
+      <button id="btnCloseSubscription" style="width:100%;padding:12px;background:#6b7280;color:white;border:none;border-radius:8px;cursor:pointer;">
+        Fermer
+      </button>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    overlay.querySelector('#btnCloseSubscription').onclick = () => overlay.remove();
+    overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
+    
+    if(!isPremium) {
+      overlay.querySelector('#btnUpgradePremium').onclick = () => {
+        overlay.remove();
+        showPaymentInstructions();
+      };
+    }
   } catch(e) {
     console.error('Erreur:', e);
     alert('Erreur lors du chargement des informations d\'abonnement');
   }
+}
+
+window.showPaymentInstructions = function(){
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  
+  const modal = document.createElement('div');
+  modal.style.cssText = 'background:white;padding:30px;border-radius:12px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;';
+  
+  modal.innerHTML = `
+    <h2 style="margin:0 0 20px 0;color:#059669;">💎 Passer à Premium</h2>
+    
+    <div style="background:#fef3c7;padding:15px;border-radius:8px;margin-bottom:20px;">
+      <p style="font-weight:bold;margin:0 0 10px 0;">📱 Paiement par Mobile Money</p>
+      <p style="margin:0;font-size:20px;color:#059669;font-weight:bold;">5 000 FCFA / mois</p>
+    </div>
+    
+    <div style="background:#f0fdf4;padding:20px;border-radius:8px;margin-bottom:20px;">
+      <p style="font-weight:bold;margin:0 0 15px 0;">🔹 Instructions de paiement :</p>
+      
+      <div style="background:white;padding:15px;border-radius:8px;margin-bottom:15px;border:2px solid #059669;">
+        <p style="font-weight:bold;margin:0 0 10px 0;color:#059669;">💰 T-Money (Togocom)</p>
+        <p style="margin:5px 0;">1. Composez <strong>*145#</strong></p>
+        <p style="margin:5px 0;">2. Choisissez "Transfert d'argent"</p>
+        <p style="margin:5px 0;">3. Envoyez <strong>5 000 FCFA</strong> au numéro :</p>
+        <p style="margin:10px 0;font-size:24px;font-weight:bold;color:#059669;">XX XX XX XX XX</p>
+        <p style="margin:5px 0;font-size:14px;color:#6b7280;">Nom: AgriRéseau Pro</p>
+      </div>
+      
+      <div style="background:white;padding:15px;border-radius:8px;margin-bottom:15px;border:2px solid #059669;">
+        <p style="font-weight:bold;margin:0 0 10px 0;color:#059669;">💰 Flooz (Moov Africa)</p>
+        <p style="margin:5px 0;">1. Composez <strong>*155#</strong></p>
+        <p style="margin:5px 0;">2. Choisissez "Transfert"</p>
+        <p style="margin:5px 0;">3. Envoyez <strong>5 000 FCFA</strong> au numéro :</p>
+        <p style="margin:10px 0;font-size:24px;font-weight:bold;color:#059669;">XX XX XX XX XX</p>
+        <p style="margin:5px 0;font-size:14px;color:#6b7280;">Nom: AgriRéseau Pro</p>
+      </div>
+    </div>
+    
+    <div style="background:#fee2e2;padding:15px;border-radius:8px;margin-bottom:20px;">
+      <p style="font-weight:bold;margin:0 0 10px 0;">⚠️ Après le paiement :</p>
+      <p style="margin:5px 0;">1. Notez votre <strong>code de transaction</strong> (ex: TM123456789)</p>
+      <p style="margin:5px 0;">2. Contactez-nous par WhatsApp au <strong>XX XX XX XX XX</strong></p>
+      <p style="margin:5px 0;">3. Envoyez le code + votre email (${ME?.email || 'votre email'})</p>
+      <p style="margin:10px 0 0 0;font-size:14px;color:#6b7280;">
+        ⏱️ Activation sous 24h maximum
+      </p>
+    </div>
+    
+    <div style="background:#eff6ff;padding:15px;border-radius:8px;margin-bottom:20px;">
+      <p style="font-weight:bold;margin:0 0 10px 0;">🚀 Paiement automatique bientôt disponible</p>
+      <p style="margin:0;font-size:14px;color:#6b7280;">
+        Nous travaillons sur l'intégration PayGate pour des paiements automatiques 
+        T-Money et Flooz. Activation prévue dans les prochaines semaines !
+      </p>
+    </div>
+    
+    <button id="btnClosePayment" style="width:100%;padding:12px;background:#059669;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;">
+      J'ai compris
+    </button>
+  `;
+  
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  
+  overlay.querySelector('#btnClosePayment').onclick = () => overlay.remove();
+  overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
 }
 
 async function boot(){ const me = await fetch('/api/auth/me'); ME = await me.json(); meEl.textContent = ME? `Connecté: ${ME.email}`:''; btnLogin.style.display = ME? 'none':'inline-block'; btnLogout.style.display = ME? 'inline-block':'none'; const btnSub=document.getElementById('btnSubscription'); if(btnSub) btnSub.style.display = ME? 'inline-block':'none'; await loadRefs(); await loadActors(); await loadLogistics(); await loadActs(); await loadBudget(); if(window._booted) return; window._booted=true; }
