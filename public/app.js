@@ -379,48 +379,27 @@ document.getElementById('bAdd').onclick=async()=>{ if(!ME) return alert('Connect
 
 async function showSubscriptionInfo(){
   if(!ME) return alert('Connectez-vous d\'abord');
-  const r = await fetch('/api/subscription');
-  const data = await r.json();
-  const dlg = document.createElement('dialog');
-  const isPremium = data.subscription.plan === 'premium';
-  const planBadge = isPremium ? '<span style="background:#fbbf24;color:#000;padding:4px 12px;border-radius:4px;font-weight:bold">💎 PREMIUM</span>' : '<span style="background:#e5e7eb;color:#374151;padding:4px 12px;border-radius:4px">🆓 GRATUIT</span>';
-  
-  dlg.innerHTML=`<div class="dialog-body" style="min-width:400px"><h3>Mon Abonnement</h3>
-    <div style="margin:20px 0">
-      <p style="font-size:18px;margin-bottom:10px">Plan actuel: ${planBadge}</p>
-      <p>Acteurs créés: <strong>${data.actorCount} / ${data.limit}</strong></p>
-    </div>
-    ${isPremium ? `
-      <div style="background:#f0fdf4;padding:15px;border-radius:8px;margin:15px 0">
-        <p><strong>✅ Fonctionnalités Premium actives :</strong></p>
-        <ul style="margin:10px 0;padding-left:20px">
-          <li>Acteurs illimités</li>
-          <li>Badge Premium visible</li>
-          <li>Support prioritaire</li>
-        </ul>
-      </div>
-    ` : `
-      <div style="background:#fef3c7;padding:15px;border-radius:8px;margin:15px 0">
-        <p><strong>💎 Passez à Premium pour :</strong></p>
-        <ul style="margin:10px 0;padding-left:20px">
-          <li>Acteurs illimités (vs 2 max)</li>
-          <li>Badge Premium sur vos fiches</li>
-          <li>Tableau de bord analytique</li>
-          <li>Messagerie interne</li>
-          <li>Alertes SMS/Email</li>
-          <li>Et bien plus...</li>
-        </ul>
-        <p style="margin-top:15px"><strong>Prix: 5 000 FCFA/mois</strong></p>
-        <p style="color:#6b7280;font-size:14px;margin-top:10px">🚧 Les paiements T-Money et Flooz seront bientôt disponibles</p>
-      </div>
-    `}
-    <div class="dialog-actions">
-      <button type="button" id="closeSubDialog">Fermer</button>
-    </div>
-  </div>`;
-  document.body.appendChild(dlg);
-  dlg.showModal();
-  dlg.querySelector('#closeSubDialog').onclick = () => dlg.close();
+  try {
+    const r = await fetch('/api/subscription');
+    if(!r.ok) {
+      alert('Erreur lors du chargement des informations d\'abonnement');
+      return;
+    }
+    const data = await r.json();
+    const isPremium = data.subscription.plan === 'premium';
+    const planBadge = isPremium ? '💎 PREMIUM' : '🆓 GRATUIT';
+    
+    const premiumContent = isPremium ? 
+      `✅ Fonctionnalités Premium actives :\n- Acteurs illimités\n- Badge Premium visible\n- Support prioritaire` :
+      `💎 Passez à Premium pour :\n- Acteurs illimités (vs 2 max)\n- Badge Premium sur vos fiches\n- Tableau de bord analytique\n- Messagerie interne\n- Alertes SMS/Email\n- Et bien plus...\n\nPrix: 5 000 FCFA/mois\n\n🚧 Les paiements T-Money et Flooz seront bientôt disponibles`;
+    
+    const message = `📊 MON ABONNEMENT\n\nPlan actuel: ${planBadge}\nActeurs créés: ${data.actorCount} / ${data.limit}\n\n${premiumContent}`;
+    
+    alert(message);
+  } catch(e) {
+    console.error('Erreur:', e);
+    alert('Erreur lors du chargement des informations d\'abonnement');
+  }
 }
 
 async function boot(){ const me = await fetch('/api/auth/me'); ME = await me.json(); meEl.textContent = ME? `Connecté: ${ME.email}`:''; btnLogin.style.display = ME? 'none':'inline-block'; btnLogout.style.display = ME? 'inline-block':'none'; const btnSub=document.getElementById('btnSubscription'); if(btnSub) btnSub.style.display = ME? 'inline-block':'none'; await loadRefs(); await loadActors(); await loadLogistics(); await loadActs(); await loadBudget(); if(window._booted) return; window._booted=true; }
