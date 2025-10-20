@@ -377,7 +377,7 @@ function renderBudget(){ const list=document.getElementById('bList'); const sum=
 async function refreshBudgetActs(){ const sel=document.getElementById('bAct'); sel.innerHTML='<option value="">(sans activité)</option>'+ACTS.map(a=>`<option value="${a.id}">${a.label}</option>`).join(''); }
 document.getElementById('bAdd').onclick=async()=>{ if(!ME) return alert('Connecte-toi d’abord.'); const payload={ kind:document.getElementById('bKind').value, occurred_on:document.getElementById('bDate').value || new Date().toISOString().slice(0,10), amount:Number(document.getElementById('bAmount').value||0), category:document.getElementById('bCat').value, activity_id: document.getElementById('bAct').value || null, note: document.getElementById('bNote').value }; const r=await fetch('/api/budget',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) return alert('Erreur'); await loadBudget(); };
 
-async function showSubscriptionInfo(){
+window.showSubscriptionInfo = async function(){
   if(!ME) return alert('Connectez-vous d\'abord');
   try {
     const r = await fetch('/api/subscription');
