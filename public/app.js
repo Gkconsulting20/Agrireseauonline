@@ -7,7 +7,7 @@ tabs.forEach(b=> b.addEventListener('click',()=>{
   if(b.dataset.tab==='map') renderMap(); 
   if(b.dataset.tab==='budget'){ loadBudgets(); refreshCostBudgets(); }
   if(b.dataset.tab==='costing'){ loadCosts(); refreshCostBudgets(); }
-  if(b.dataset.tab==='admin'){ loadAdminUsers(); }
+  if(b.dataset.tab==='admin'){ loadAdminUsers(); loadAdminLogistics(); }
   if(b.dataset.tab==='settings'){ loadUserSettings(); loadPaymentHistory(); }
   if(b.dataset.tab==='stats'){ loadStats(); loadNotifications(); }
 }));
@@ -15,7 +15,7 @@ tabs.forEach(b=> b.addEventListener('click',()=>{
 const btnLogin=document.getElementById('btnLogin'), btnLogout=document.getElementById('btnLogout'), meEl=document.getElementById('me');
 
 // Variables globales
-let ME=null, ACTORS=[], LOGISTICS=[], PRODUCTS=[], REGIONS=[], BUDGETS=[], CURRENT_BUDGET=null, COSTS=[], CURRENT_COST_BUDGET=null, ADMIN_USERS=[], STATS_DATA={};
+let ME=null, ACTORS=[], LOGISTICS=[], PRODUCTS=[], REGIONS=[], BUDGETS=[], CURRENT_BUDGET=null, COSTS=[], CURRENT_COST_BUDGET=null, ADMIN_USERS=[], ADMIN_LOGISTICS=[], STATS_DATA={};
 
 async function openLogin(){
   const dlg=document.createElement('dialog');
@@ -1589,6 +1589,148 @@ async function deleteAdminUser(userId){
 window.openEditUserDialog = openEditUserDialog;
 window.toggleBlockUser = toggleBlockUser;
 window.deleteAdminUser = deleteAdminUser;
+
+async function loadAdminLogistics(){
+  if(!ME || !ME.is_admin) return;
+  try {
+    const r = await fetch('/api/admin/logistics');
+    if(r.ok){
+      ADMIN_LOGISTICS = await r.json();
+      renderAdminLogistics();
+    }
+  } catch(e) {
+    console.error('Error loading admin logistics:', e);
+  }
+}
+
+function renderAdminLogistics(){
+  const tbody = document.getElementById('adminLogisticsList');
+  if(!tbody) return;
+  
+  if(ADMIN_LOGISTICS.length === 0){
+    tbody.innerHTML = '<tr><td colspan="8" class="muted" style="text-align:center;padding:20px;">Aucune publication logistique</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = ADMIN_LOGISTICS.map(log => {
+    const typeBadge = log.type === 'offre' 
+      ? '<span class="badge" style="background:#10b981;color:white">📦 Offre</span>'
+      : '<span class="badge" style="background:#3b82f6;color:white">🔍 Demande</span>';
+    
+    const date = log.created_at ? new Date(log.created_at).toLocaleDateString('fr-FR') : '-';
+    
+    return `<tr>
+      <td>${log.id}</td>
+      <td>${typeBadge}</td>
+      <td><strong>${log.title || '-'}</strong></td>
+      <td>${log.region || '-'}</td>
+      <td>
+        <div>${log.owner_name || 'Utilisateur inconnu'}</div>
+        <div class="muted" style="font-size:11px;">${log.owner_email || log.owner_phone || ''}</div>
+      </td>
+      <td>
+        <div>${log.contact || '-'}</div>
+        ${log.whatsapp ? `<div class="muted" style="font-size:11px;">WhatsApp: ${log.whatsapp}</div>` : ''}
+      </td>
+      <td>${date}</td>
+      <td>
+        <button onclick="openEditLogisticDialog(${log.id})" style="background:#3b82f6;color:white;padding:4px 8px;font-size:12px;margin-right:4px;">Modifier</button>
+        <button onclick="deleteAdminLogistic(${log.id})" style="background:#dc2626;color:white;padding:4px 8px;font-size:12px;">Supprimer</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function openEditLogisticDialog(logId){
+  if(!ME || !ME.is_admin) return alert('Accès refusé');
+  
+  const log = ADMIN_LOGISTICS.find(l => l.id === logId);
+  if(!log) return;
+  
+  const dlg = document.createElement('dialog');
+  dlg.innerHTML = `<form id="frmEditLogistic" class="dialog-body">
+    <h3>✏️ Modifier la publication logistique</h3>
+    <div class="grid2">
+      <label>Type
+        <select name="type" required>
+          <option value="offre" ${log.type === 'offre' ? 'selected' : ''}>📦 Offre</option>
+          <option value="demande" ${log.type === 'demande' ? 'selected' : ''}>🔍 Demande</option>
+        </select>
+      </label>
+      <label>Région <input name="region" value="${log.region || ''}" required></label>
+    </div>
+    <label>Titre <input name="title" value="${log.title || ''}" required></label>
+    <label>Détails <textarea name="details" rows="3">${log.details || ''}</textarea></label>
+    <div class="grid2">
+      <label>Contact <input name="contact" value="${log.contact || ''}"></label>
+      <label>WhatsApp <input name="whatsapp" value="${log.whatsapp || ''}"></label>
+    </div>
+    <div class="muted" style="margin-top:10px;padding:10px;background:#f3f4f6;border-radius:4px;">
+      <strong>Propriétaire:</strong> ${log.owner_name || 'Inconnu'} (${log.owner_email || log.owner_phone || 'N/A'})
+    </div>
+    <div class="dialog-actions">
+      <button type="submit">✓ Enregistrer</button>
+      <button type="button" id="cancelEdit">Annuler</button>
+    </div>
+  </form>`;
+  
+  document.body.appendChild(dlg);
+  dlg.showModal();
+  
+  dlg.querySelector('#cancelEdit').onclick = () => dlg.close();
+  
+  dlg.querySelector('#frmEditLogistic').onsubmit = async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const data = {
+      type: form.querySelector('[name="type"]').value,
+      title: form.querySelector('[name="title"]').value,
+      region: form.querySelector('[name="region"]').value,
+      details: form.querySelector('[name="details"]').value,
+      contact: form.querySelector('[name="contact"]').value,
+      whatsapp: form.querySelector('[name="whatsapp"]').value
+    };
+    
+    const r = await fetch(`/api/logistics/${logId}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+    
+    if(r.ok){
+      dlg.close();
+      await loadAdminLogistics();
+      alert('Publication mise à jour avec succès');
+    } else {
+      const err = await r.json();
+      alert(err.error || 'Erreur lors de la mise à jour');
+    }
+  };
+}
+
+async function deleteAdminLogistic(logId){
+  if(!ME || !ME.is_admin) return alert('Accès refusé');
+  
+  const log = ADMIN_LOGISTICS.find(l => l.id === logId);
+  if(!log) return;
+  
+  if(!confirm(`Voulez-vous vraiment supprimer la publication "${log.title}" ?\n\nCette action est irréversible.`)) return;
+  
+  const r = await fetch(`/api/logistics/${logId}`, {
+    method: 'DELETE'
+  });
+  
+  if(r.ok){
+    await loadAdminLogistics();
+    alert('Publication supprimée avec succès');
+  } else {
+    const err = await r.json();
+    alert(err.error || 'Erreur lors de la suppression');
+  }
+}
+
+window.openEditLogisticDialog = openEditLogisticDialog;
+window.deleteAdminLogistic = deleteAdminLogistic;
 
 function showForgotPasswordDialog(){
   const dlg=document.createElement('dialog');

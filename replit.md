@@ -70,11 +70,17 @@ AgriRéseau Pro utilizes a modern web stack:
         - Edit user information and permissions
         - Block/unblock user accounts (prevents login when status='blocked')
         - Delete users (with self-deletion protection for admins)
+    - **Logistics Management** (Added November 2025): Admins can manage all logistics publications:
+        - View all logistics publications with owner information
+        - Edit any publication (type, title, region, details, contact, WhatsApp)
+        - Delete any publication with confirmation
+        - Dedicated admin table showing publication details and owner info
     - **Security Implementation**:
         - `requireAdmin` middleware protects all admin routes
         - Admin endpoints whitelist safe fields (exclude password_hash)
         - Session includes `is_admin` and `status` for proper authorization
         - Premium activation requires admin privileges
+        - PUT/DELETE logistics endpoints allow admin override (owner_id check + is_admin check)
     - **Test Admin Credentials**: admin@agrireseau.tg / Admin2025!
 - **Trust & Reputation System**:
     - **Rating System**: Users can rate actors (1-5 stars) with optional comments, displayed as an average rating with count on actor cards.

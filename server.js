@@ -355,7 +355,9 @@ app.put('/api/logistics/:id', requireAuth, async (req,res)=>{
   const id=Number(req.params.id), b=req.body;
   const existing = await db.getOne('SELECT owner_id FROM logistics WHERE id=$1', [id]);
   if(!existing) return res.status(404).json({error: 'Publication non trouvée'});
-  if(existing.owner_id !== req.session.user.id) return res.status(403).json({error: 'Non autorisé'});
+  if(existing.owner_id !== req.session.user.id && !req.session.user.is_admin) {
+    return res.status(403).json({error: 'Non autorisé'});
+  }
   await db.query('UPDATE logistics SET type=$1,title=$2,region=$3,details=$4,contact=$5,whatsapp=$6 WHERE id=$7', [b.type,b.title,b.region,b.details||'',b.contact||'',b.whatsapp||'',id]); 
   const row = await db.getOne('SELECT * FROM logistics WHERE id=$1', [id]); 
   res.json(row); 
@@ -365,7 +367,9 @@ app.delete('/api/logistics/:id', requireAuth, async (req,res)=>{
   const id = Number(req.params.id);
   const existing = await db.getOne('SELECT owner_id FROM logistics WHERE id=$1', [id]);
   if(!existing) return res.status(404).json({error: 'Publication non trouvée'});
-  if(existing.owner_id !== req.session.user.id) return res.status(403).json({error: 'Non autorisé'});
+  if(existing.owner_id !== req.session.user.id && !req.session.user.is_admin) {
+    return res.status(403).json({error: 'Non autorisé'});
+  }
   await db.query('DELETE FROM logistics WHERE id=$1', [id]); 
   res.status(204).end(); 
 });
@@ -538,6 +542,16 @@ app.delete('/api/admin/users/:id', requireAdmin, async (req,res)=>{
   if(userId === req.session.user.id) return res.status(400).json({error:'Cannot delete your own account'});
   await db.query('DELETE FROM users WHERE id=$1', [userId]);
   res.status(204).end();
+});
+
+app.get('/api/admin/logistics', requireAdmin, async (req,res)=>{
+  const logistics = await db.getAll(`
+    SELECT l.*, u.name as owner_name, u.email as owner_email, u.phone as owner_phone 
+    FROM logistics l 
+    LEFT JOIN users u ON l.owner_id = u.id 
+    ORDER BY l.created_at DESC
+  `, []);
+  res.json(logistics);
 });
 
 // Payment endpoints - FedaPay integration for T-Money, Flooz, and Credit Cards
