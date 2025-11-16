@@ -139,23 +139,37 @@ async function getUserLocation() {
   });
 }
 
-const aRole=document.getElementById('aRole'), aRegion=document.getElementById('aRegion'), aQ=document.getElementById('aQ');
-[aRole,aRegion,aQ].forEach(el=> { if(el) el.addEventListener('input', renderActors); });
+const aRole=document.getElementById('aRole'), aRegion=document.getElementById('aRegion'), aCategory=document.getElementById('aCategory'), aQ=document.getElementById('aQ');
+[aRole,aRegion,aCategory,aQ].forEach(el=> { if(el) el.addEventListener('input', renderActors); });
 const btnAddActor = document.getElementById('btnAddActor');
 if(btnAddActor) btnAddActor.onclick=()=> openActorDialog();
 async function loadRefs(){ 
   const r=await fetch('/api/refs'); 
   REFS=await r.json(); 
   const aRegionEl = document.getElementById('aRegion');
-  if(aRegionEl) aRegionEl.innerHTML='<option value=\"\">Toutes régions</option>'+REFS.regions.map(r=>`<option>${r}</option>`).join(''); 
+  if(aRegionEl) aRegionEl.innerHTML='<option value=\"\">Toutes régions</option>'+REFS.regions.map(r=>`<option>${r}</option>`).join('');
+  const aCategoryEl = document.getElementById('aCategory');
+  if(aCategoryEl && REFS.productCategories) {
+    aCategoryEl.innerHTML='<option value=\"\">Toutes catégories</option>'+REFS.productCategories.map(c=>`<option>${c}</option>`).join('');
+  }
 }
 async function loadActors(){ const r=await fetch('/api/actors'); ACTORS=await r.json(); renderActors(); renderStockSummary(); }
 function renderActors(){ 
   const list=document.getElementById('actorList'); 
   if(!list) return;
   list.innerHTML=''; 
-  const role=aRole?.value?.toLowerCase() || '', reg=aRegion?.value?.toLowerCase() || '', q=aQ?.value?.toLowerCase() || '';
-  ACTORS.filter(a=>{ const okRole=role? (a.role||'').toLowerCase()===role:true; const okReg=reg? (a.region||'').toLowerCase()===reg:true; const txt=(a.name+' '+(a.products||[]).join(';')+' '+(a.need||'')+' '+(a.localite||'')).toLowerCase(); const okQ=q? txt.includes(q):true; return okRole&&okReg&&okQ; })
+  const role=aRole?.value?.toLowerCase() || '', reg=aRegion?.value?.toLowerCase() || '', cat=aCategory?.value || '', q=aQ?.value?.toLowerCase() || '';
+  ACTORS.filter(a=>{ 
+    const okRole=role? (a.role||'').toLowerCase()===role:true; 
+    const okReg=reg? (a.region||'').toLowerCase()===reg:true; 
+    const okCat=cat? (a.products||[]).some(p=> {
+      const product = REFS.products?.find(prod=> prod.name === p);
+      return product?.category === cat;
+    }):true;
+    const txt=(a.name+' '+(a.products||[]).join(';')+' '+(a.need||'')+' '+(a.localite||'')).toLowerCase(); 
+    const okQ=q? txt.includes(q):true; 
+    return okRole&&okReg&&okCat&&okQ; 
+  })
   .forEach(a=> list.appendChild(actorCard(a))); 
 }
 function actorCard(a){ 
@@ -188,6 +202,7 @@ function actorCard(a){
   el.innerHTML=`${photoHtml}<div class="name"><strong>${a.name}</strong> ${a.verified?'<span class="badge">✔︎ vérifié</span>':''} ${premiumBadge} ${ratingText}${distanceText}</div>
   <div><span class="badge">${a.role}</span> <span class="badge">${a.region}</span> ${a.localite? '· '+a.localite:''} ${certBadges}</div><div>${(a.products||[]).join('; ')}</div><div>${a.need||''}</div>
   <div id="harvests-${a.id}" style="margin-top:8px;font-size:0.9em;color:#059669;"></div>
+  <div id="upcoming-${a.id}" style="margin-top:8px;font-size:0.9em;color:#0369a1;"></div>
   <div class="links">${a.whatsapp? `<a target="_blank" href="https://wa.me/${digits(a.whatsapp)}?text=Bonjour, je suis intéressé par vos produits">WhatsApp</a>`:''}${a.email? `<a href="mailto:${a.email}">Email</a>`:''}${a.phone? `<a href="tel:${digits(a.phone)}">Appeler</a>`:''}
   ${ME? `<a href="#" data-id="${a.id}" class="rate">Noter</a> <a href="#" data-id="${a.id}" class="edit">Modifier</a> <a href="#" data-id="${a.id}" class="del">Supprimer</a>`:`<a href="#" data-id="${a.id}" class="rate">Noter</a>`}</div>`;
   
@@ -202,6 +217,28 @@ function actorCard(a){
       if(harvests && harvests.length > 0){
         const harvestText = harvests.map(h=>`${h.product}: ${h.quantity} kg`).join(', ');
         harvestDiv.innerHTML = `<strong>📦 Disponible:</strong> ${harvestText}`;
+      }
+    })
+    .catch(()=>{});
+  
+  // Load and display upcoming harvests (estimated availability)
+  fetch('/api/actors/'+a.id+'/upcoming')
+    .then(r=>{
+      if(!r.ok) return [];
+      return r.json();
+    })
+    .then(upcoming=>{
+      const upcomingDiv = el.querySelector('#upcoming-'+a.id);
+      if(upcoming && upcoming.length > 0){
+        const upcomingText = upcoming.map(u=>{
+          const date = new Date(u.estimatedAvailability);
+          const dateStr = date.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'});
+          const isReady = u.isAvailable;
+          return isReady ? 
+            `<strong>${u.product}: Bientôt disponible (${u.estimatedQuantity} kg)</strong>` :
+            `${u.product}: Dispo. estimée ${dateStr} (${u.estimatedQuantity} kg)`;
+        }).join(', ');
+        upcomingDiv.innerHTML = `<strong>📅 En production:</strong> ${upcomingText}`;
       }
     })
     .catch(()=>{});
@@ -315,44 +352,67 @@ function renderStockSummary(){
   const summaryEl=document.getElementById('stockSummarySimple');
   if(!summaryEl) return;
   
-  // Aggregate products by name with prices
+  // Aggregate products by name with category
   const productMap = new Map();
   
   ACTORS.forEach(actor => {
     const products = actor.products || [];
     const volume = Number(actor.volume) || 0;
-    const price = Number(actor.price) || 0;
     
     products.forEach(product => {
       const productName = product.trim();
       if(!productName) return;
       
+      const productInfo = REFS.products?.find(p => p.name === productName);
+      const category = productInfo?.category || 'Agriculture';
+      
       if(!productMap.has(productName)){
-        productMap.set(productName, {volume: 0, prices: []});
+        productMap.set(productName, {volume: 0, category: category});
       }
       
       const data = productMap.get(productName);
       data.volume += (volume / products.length);
-      if(price > 0) data.prices.push(price);
     });
   });
   
-  // Sort products by total volume (descending)
-  const sortedProducts = Array.from(productMap.entries())
-    .sort((a,b) => b[1].volume - a[1].volume)
-    .filter(([name, data]) => data.volume > 0);
+  // Group by category
+  const categoryMap = new Map();
+  productMap.forEach((data, name) => {
+    if(data.volume === 0) return;
+    if(!categoryMap.has(data.category)){
+      categoryMap.set(data.category, []);
+    }
+    categoryMap.get(data.category).push({name, volume: data.volume});
+  });
   
-  // Render simple summary with prices
-  if(sortedProducts.length === 0){
+  if(categoryMap.size === 0){
     summaryEl.innerHTML = '<p class="muted">Aucun stock disponible pour le moment</p>';
     return;
   }
   
-  const stockText = sortedProducts.map(([name, data]) => {
-    return `<strong>${name}</strong> ${data.volume.toFixed(0)} kg`;
-  }).join(', ');
+  // Render by category
+  const categoryOrder = ['Agriculture', 'Bovins', 'Ovins', 'Caprins', 'Volaille', 'Porcins', 'Aquaculture'];
+  let html = '';
+  categoryOrder.forEach(cat => {
+    const products = categoryMap.get(cat);
+    if(!products || products.length === 0) return;
+    
+    const categoryEmoji = {
+      'Agriculture': '🌾',
+      'Bovins': '🐄',
+      'Ovins': '🐑',
+      'Caprins': '🐐',
+      'Volaille': '🐔',
+      'Porcins': '🐷',
+      'Aquaculture': '🐟'
+    };
+    
+    products.sort((a,b) => b.volume - a.volume);
+    const productList = products.map(p => `<strong>${p.name}</strong> ${p.volume.toFixed(0)} kg`).join(', ');
+    html += `<div style="margin-bottom:10px;"><strong style="color:#059669;">${categoryEmoji[cat] || '📦'} ${cat}:</strong> ${productList}</div>`;
+  });
   
-  summaryEl.innerHTML = stockText;
+  summaryEl.innerHTML = html;
 }
 
 const btnAddLog = document.getElementById('btnAddLog');
@@ -926,25 +986,62 @@ function openBudgetDialog(){
   const productsOptions = PRODUCTS.map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
   const myActors = ACTORS.filter(a=>a.owner_id===ME.id);
   const actorsOptions = myActors.length > 0 ? myActors.map(a=>`<option value="${a.id}">${a.name}</option>`).join('') : '<option value="">Aucun acteur</option>';
+  const today = new Date().toISOString().split('T')[0];
   dlg.innerHTML=`<form id="frmBudget" class="dialog-body"><h3>📋 Créer un Budget Prévisionnel</h3>
     <p class="muted">Créez une activité et définissez vos prévisions</p>
     <div class="grid2">
       <label>Activité <input name="label" required placeholder="Ex: Production de maïs 2025"></label>
       <label>Acteur concerné <select name="actor_id">${actorsOptions}</select></label>
-      <label>Filière <select name="filiere"><option>Maïs</option><option>Manioc</option><option>Riz</option><option>Maraîchage</option><option>Soja</option><option>Volailles</option></select></label>
+      <label>Filière <select name="filiere"><option>Maïs</option><option>Manioc</option><option>Riz</option><option>Maraîchage</option><option>Soja</option><option>Volailles</option><option>Élevage bovin</option><option>Aviculture</option><option>Porcins</option></select></label>
       <label>Produit récolté <select name="harvest_product">${productsOptions}</select></label>
+      <label>Date de début <input name="started_at" type="date" value="${today}" required></label>
+      <label>Cycle de production (jours) <input name="production_cycle_days" type="number" placeholder="Ex: 90" min="1" required></label>
       <label>Période <select name="periode"><option>Annuel</option><option>Trimestriel</option><option>Mensuel</option></select></label>
       <label>Quantité prévue (kg) <input name="output_qty" type="number" value="1000"></label>
       <label>Prix de vente prévu (FCFA/kg) <input name="price_expected" type="number" value="300"></label>
       <label>Dépenses prévues (FCFA) <input name="transport" type="number" value="0"></label>
     </div>
-    <div class="card" style="background:#f0fdf4;margin:15px 0;"><p style="margin:0;">CA prévu: <span id="previewCA">0</span> FCFA · Profit: <span id="previewProfit">0</span> FCFA</p></div>
+    <div class="card" style="background:#f0fdf4;margin:15px 0;">
+      <p style="margin:0;">CA prévu: <span id="previewCA">0</span> FCFA · Profit: <span id="previewProfit">0</span> FCFA</p>
+      <p style="margin:5px 0 0 0;color:#059669;" id="previewAvailability"></p>
+    </div>
     <div class="dialog-actions"><button type="submit">💾 Créer</button><button type="button" id="cancelB">Annuler</button></div></form>`;
   document.body.appendChild(dlg); dlg.showModal(); dlg.querySelector('#cancelB').onclick=()=> dlg.close();
-  const f=dlg.querySelector('#frmBudget'); const up=()=>{const qty=Number(f.output_qty.value||0),price=Number(f.price_expected.value||0),dep=Number(f.transport.value||0);dlg.querySelector('#previewCA').textContent=(qty*price).toLocaleString();dlg.querySelector('#previewProfit').textContent=(qty*price-dep).toLocaleString();};
-  f.output_qty.oninput=up;f.price_expected.oninput=up;f.transport.oninput=up;up();
-  f.onsubmit=async(e)=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target).entries());d.output_qty=Number(d.output_qty||0);d.price_expected=Number(d.price_expected||0);d.transport=Number(d.transport||0);d.target_margin=0;d.autres=0;d.overhead_pct=0;d.actor_id=d.actor_id?Number(d.actor_id):null;
-    const r=await fetch('/api/activities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});if(!r.ok){alert('Erreur');return;}dlg.close();await loadBudgets();};
+  const f=dlg.querySelector('#frmBudget'); 
+  const up=()=>{
+    const qty=Number(f.output_qty.value||0),price=Number(f.price_expected.value||0),dep=Number(f.transport.value||0);
+    dlg.querySelector('#previewCA').textContent=(qty*price).toLocaleString();
+    dlg.querySelector('#previewProfit').textContent=(qty*price-dep).toLocaleString();
+    
+    const startDate = f.started_at.value;
+    const cycleDays = Number(f.production_cycle_days.value||0);
+    if(startDate && cycleDays > 0){
+      const start = new Date(startDate);
+      const end = new Date(start);
+      end.setDate(end.getDate() + cycleDays);
+      const availText = `📅 Disponibilité estimée: ${end.toLocaleDateString('fr-FR')} (${cycleDays} jours)`;
+      dlg.querySelector('#previewAvailability').textContent = availText;
+    } else {
+      dlg.querySelector('#previewAvailability').textContent = '';
+    }
+  };
+  f.output_qty.oninput=up;f.price_expected.oninput=up;f.transport.oninput=up;f.started_at.oninput=up;f.production_cycle_days.oninput=up;up();
+  f.onsubmit=async(e)=>{
+    e.preventDefault();
+    const d=Object.fromEntries(new FormData(e.target).entries());
+    d.output_qty=Number(d.output_qty||0);
+    d.price_expected=Number(d.price_expected||0);
+    d.transport=Number(d.transport||0);
+    d.target_margin=0;
+    d.autres=0;
+    d.overhead_pct=0;
+    d.actor_id=d.actor_id?Number(d.actor_id):null;
+    d.production_cycle_days=Number(d.production_cycle_days||0);
+    const r=await fetch('/api/activities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+    if(!r.ok){alert('Erreur');return;}
+    dlg.close();
+    await loadBudgets();
+  };
 }
 async function openBudget(b){
   CURRENT_BUDGET=b;const sumR=await fetch(`/api/activities/${b.id}/summary`);const S=await sumR.json();const expenses=S.budgetExpenses||[];const incomes=S.budgetIncomes||[];

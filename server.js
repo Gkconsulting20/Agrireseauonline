@@ -162,8 +162,13 @@ app.post('/api/auth/reset-password', async (req,res)=>{
 
 app.get('/api/refs', async (req,res)=>{ 
   const regions = await db.getAll('SELECT name FROM regions', []); 
-  const products = await db.getAll('SELECT name FROM products', []); 
-  res.json({regions: regions.map(r=>r.name), products: products.map(r=>r.name)}); 
+  const products = await db.getAll('SELECT name, category FROM products ORDER BY category, name', []); 
+  const categories = await db.getAll('SELECT DISTINCT category FROM products ORDER BY category', []);
+  res.json({
+    regions: regions.map(r=>r.name), 
+    products: products.map(p=>({name: p.name, category: p.category})),
+    productCategories: categories.map(c=>c.category)
+  }); 
 });
 
 app.post('/api/seed', async (req,res)=>{ 
@@ -250,6 +255,40 @@ app.get('/api/actors/:id/harvests', async (req,res)=>{
   res.json(result);
 });
 
+app.get('/api/actors/:id/upcoming', async (req,res)=>{
+  const actorId = Number(req.params.id);
+  const upcoming = await db.getAll(
+    `SELECT harvest_product, started_at, production_cycle_days, output_qty 
+     FROM activities 
+     WHERE actor_id=$1 
+       AND harvest_product IS NOT NULL 
+       AND started_at IS NOT NULL 
+       AND production_cycle_days IS NOT NULL 
+       AND production_cycle_days > 0
+       AND (actual_harvest IS NULL OR actual_harvest = 0)
+     ORDER BY started_at DESC
+     LIMIT 5`,
+    [actorId]
+  );
+  
+  const result = upcoming.map(a=>{
+    const startDate = new Date(a.started_at);
+    const availabilityDate = new Date(startDate);
+    availabilityDate.setDate(availabilityDate.getDate() + Number(a.production_cycle_days));
+    
+    return {
+      product: a.harvest_product,
+      startDate: a.started_at,
+      cycleDays: Number(a.production_cycle_days),
+      estimatedAvailability: availabilityDate.toISOString().split('T')[0],
+      estimatedQuantity: parseFloat(a.output_qty) || 0,
+      isAvailable: availabilityDate <= new Date()
+    };
+  });
+  
+  res.json(result);
+});
+
 app.get('/api/logistics', async (req,res)=>{ 
   const rows = await db.getAll('SELECT * FROM logistics ORDER BY id DESC', []); 
   res.json(rows); 
@@ -280,13 +319,13 @@ app.get('/api/activities', requireAuth, async (req,res)=>{
 
 app.post('/api/activities', requireAuth, async (req,res)=>{ 
   const b=req.body; 
-  const act = await db.insertOne(`INSERT INTO activities (user_id,filiere,label,periode,output_qty,target_margin,price_expected,transport,autres,overhead_pct,status,started_at,harvest_product,actor_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`, [req.session.user.id,b.filiere,b.label,b.periode,b.output_qty||0,b.target_margin||0,b.price_expected||0,b.transport||0,b.autres||0,b.overhead_pct||10,b.status||'planned',b.started_at||null,b.harvest_product||null,b.actor_id||null]); 
+  const act = await db.insertOne(`INSERT INTO activities (user_id,filiere,label,periode,output_qty,target_margin,price_expected,transport,autres,overhead_pct,status,started_at,harvest_product,actor_id,production_cycle_days) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`, [req.session.user.id,b.filiere,b.label,b.periode,b.output_qty||0,b.target_margin||0,b.price_expected||0,b.transport||0,b.autres||0,b.overhead_pct||10,b.status||'planned',b.started_at||null,b.harvest_product||null,b.actor_id||null,b.production_cycle_days||null]); 
   res.status(201).json(act); 
 });
 
 app.put('/api/activities/:id', requireAuth, async (req,res)=>{ 
   const id=Number(req.params.id), b=req.body; 
-  await db.query(`UPDATE activities SET filiere=$1,label=$2,periode=$3,output_qty=$4,target_margin=$5,price_expected=$6,transport=$7,autres=$8,overhead_pct=$9,status=$10,started_at=$11,ended_at=$12,actual_harvest=$13,harvest_product=$14,actor_id=$15 WHERE id=$16 AND user_id=$17`, [b.filiere,b.label,b.periode,b.output_qty||0,b.target_margin||0,b.price_expected||0,b.transport||0,b.autres||0,b.overhead_pct||10,b.status||'planned',b.started_at||null,b.ended_at||null,b.actual_harvest||null,b.harvest_product||null,b.actor_id||null,id,req.session.user.id]); 
+  await db.query(`UPDATE activities SET filiere=$1,label=$2,periode=$3,output_qty=$4,target_margin=$5,price_expected=$6,transport=$7,autres=$8,overhead_pct=$9,status=$10,started_at=$11,ended_at=$12,actual_harvest=$13,harvest_product=$14,actor_id=$15,production_cycle_days=$16 WHERE id=$17 AND user_id=$18`, [b.filiere,b.label,b.periode,b.output_qty||0,b.target_margin||0,b.price_expected||0,b.transport||0,b.autres||0,b.overhead_pct||10,b.status||'planned',b.started_at||null,b.ended_at||null,b.actual_harvest||null,b.harvest_product||null,b.actor_id||null,b.production_cycle_days||null,id,req.session.user.id]); 
   const act = await db.getOne('SELECT * FROM activities WHERE id=$1', [id]); 
   res.json(act); 
 });
