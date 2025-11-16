@@ -2342,6 +2342,87 @@ if(btnSendTestNotification){
   };
 }
 
+async function loadMyActors(){
+  if(!ME) return;
+  
+  const container = document.getElementById('myActorsList');
+  const countEl = document.getElementById('myActorsCount');
+  const limitEl = document.getElementById('myActorsLimit');
+  
+  if(!container) return;
+  
+  const myActors = ACTORS.filter(a => a.owner_id === ME.id);
+  const count = myActors.length;
+  
+  if(countEl) countEl.textContent = `${count} acteur${count > 1 ? 's' : ''}`;
+  
+  const subRes = await fetch('/api/subscription');
+  const subData = await subRes.json();
+  const limit = subData.limit || 2;
+  const isPremium = subData.subscription?.plan === 'premium';
+  
+  if(limitEl){
+    if(isPremium){
+      limitEl.innerHTML = '<span style="color:#fbbf24;">💎 Premium - Illimité</span>';
+    } else {
+      limitEl.innerHTML = `<span style="color:${count >= limit ? '#dc2626' : '#6b7280'};">sur ${limit} max (gratuit)</span>`;
+    }
+  }
+  
+  if(myActors.length === 0){
+    container.innerHTML = '<p class="muted" style="text-align:center;padding:40px;">Vous n\'avez pas encore créé d\'acteur. Cliquez sur "✚ Nouvel acteur" ci-dessus.</p>';
+    return;
+  }
+  
+  container.innerHTML = myActors.map(a => {
+    const products = Array.isArray(a.products) ? a.products : [];
+    const productsText = products.length > 0 ? products.map(p => typeof p === 'string' ? p : p.name).join(', ') : 'Aucun produit';
+    const photoUrl = a.photo_url || '';
+    
+    return `
+      <div class="card" style="display:grid;grid-template-columns:auto 1fr auto;gap:15px;align-items:start;padding:15px;">
+        <div style="width:80px;height:80px;border-radius:8px;overflow:hidden;background:#f3f4f6;display:flex;align-items:center;justify-content:center;">
+          ${photoUrl ? `<img src="${photoUrl}" alt="${a.name}" style="width:100%;height:100%;object-fit:cover;">` : '<span style="font-size:32px;">📷</span>'}
+        </div>
+        <div>
+          <h4 style="margin:0 0 8px 0;">${a.name}</h4>
+          <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+            <span class="badge">${a.role || ''}</span>
+            <span class="badge" style="background:#e0f2fe;color:#0369a1;">${a.region || ''}</span>
+            ${a.verified ? '<span class="badge" style="background:#10b981;color:white;">✓ vérifié</span>' : ''}
+          </div>
+          <p style="margin:5px 0;color:#6b7280;font-size:14px;">📦 ${productsText}</p>
+          ${a.volume ? `<p style="margin:5px 0;color:#6b7280;font-size:14px;">📊 Volume: ${a.volume} ${a.unit || 'kg'}</p>` : ''}
+          ${a.price ? `<p style="margin:5px 0;color:#6b7280;font-size:14px;">💰 Prix: ${a.price} FCFA/${a.unit || 'kg'}</p>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button onclick="openActorDialog(${JSON.stringify(a).replace(/"/g, '&quot;')})" style="background:#3b82f6;color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:14px;white-space:nowrap;">✏️ Modifier</button>
+          <button onclick="deleteMyActor(${a.id})" style="background:#dc2626;color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:14px;white-space:nowrap;">🗑️ Supprimer</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function deleteMyActor(id){
+  if(!confirm('Êtes-vous sûr de vouloir supprimer cet acteur ?')) return;
+  
+  try {
+    const r = await fetch(`/api/actors/${id}`, {method: 'DELETE'});
+    if(r.ok){
+      await loadActors();
+      await loadMyActors();
+      renderMap();
+      alert('✓ Acteur supprimé avec succès');
+    } else {
+      alert('Erreur lors de la suppression');
+    }
+  } catch(e){
+    console.error('Erreur:', e);
+    alert('Erreur lors de la suppression');
+  }
+}
+
 async function boot(){ 
   const me = await fetch('/api/auth/me'); 
   ME = await me.json(); 

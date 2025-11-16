@@ -142,6 +142,21 @@
   </div>
 </section>
 <section id="settings" class="tab">
+  <div class="card" style="margin-bottom:20px;">
+    <h3>🏢 Mes Acteurs</h3>
+    <p class="muted" style="margin-bottom:15px;">Gérez tous vos acteurs : modifier, supprimer, ajouter des photos</p>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;padding:12px;background:#f0fdf4;border-radius:8px;">
+      <div>
+        <span id="myActorsCount" style="font-size:18px;font-weight:bold;color:#059669;">0 acteur</span>
+        <span id="myActorsLimit" style="margin-left:10px;color:#6b7280;"></span>
+      </div>
+      <button onclick="openActorDialog()" style="background:#059669;color:white;padding:10px 20px;border:none;border-radius:6px;cursor:pointer;font-weight:bold;">✚ Nouvel acteur</button>
+    </div>
+    <div id="myActorsList" style="display:grid;gap:15px;">
+      <p class="muted">Chargement...</p>
+    </div>
+  </div>
+  
   <div class="grid2">
     <div class="card">
       <h3>👤 Mon Profil</h3>
