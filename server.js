@@ -166,13 +166,13 @@ app.get('/api/activities', requireAuth, async (req,res)=>{
 
 app.post('/api/activities', requireAuth, async (req,res)=>{ 
   const b=req.body; 
-  const act = await db.insertOne(`INSERT INTO activities (user_id,filiere,label,periode,output_qty,target_margin,price_expected,transport,autres,overhead_pct) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, [req.session.user.id,b.filiere,b.label,b.periode,b.output_qty||0,b.target_margin||0,b.price_expected||0,b.transport||0,b.autres||0,b.overhead_pct||10]); 
+  const act = await db.insertOne(`INSERT INTO activities (user_id,filiere,label,periode,output_qty,target_margin,price_expected,transport,autres,overhead_pct,status,started_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, [req.session.user.id,b.filiere,b.label,b.periode,b.output_qty||0,b.target_margin||0,b.price_expected||0,b.transport||0,b.autres||0,b.overhead_pct||10,b.status||'planned',b.started_at||null]); 
   res.status(201).json(act); 
 });
 
 app.put('/api/activities/:id', requireAuth, async (req,res)=>{ 
   const id=Number(req.params.id), b=req.body; 
-  await db.query(`UPDATE activities SET filiere=$1,label=$2,periode=$3,output_qty=$4,target_margin=$5,price_expected=$6,transport=$7,autres=$8,overhead_pct=$9 WHERE id=$10 AND user_id=$11`, [b.filiere,b.label,b.periode,b.output_qty||0,b.target_margin||0,b.price_expected||0,b.transport||0,b.autres||0,b.overhead_pct||10,id,req.session.user.id]); 
+  await db.query(`UPDATE activities SET filiere=$1,label=$2,periode=$3,output_qty=$4,target_margin=$5,price_expected=$6,transport=$7,autres=$8,overhead_pct=$9,status=$10,started_at=$11,ended_at=$12,actual_harvest=$13 WHERE id=$14 AND user_id=$15`, [b.filiere,b.label,b.periode,b.output_qty||0,b.target_margin||0,b.price_expected||0,b.transport||0,b.autres||0,b.overhead_pct||10,b.status||'planned',b.started_at||null,b.ended_at||null,b.actual_harvest||null,id,req.session.user.id]); 
   const act = await db.getOne('SELECT * FROM activities WHERE id=$1', [id]); 
   res.json(act); 
 });
@@ -212,17 +212,24 @@ app.get('/api/activities/:id/summary', requireAuth, async (req,res)=>{
   const act = await db.getOne('SELECT * FROM activities WHERE id=$1 AND user_id=$2', [id,req.session.user.id]); 
   if(!act) return res.status(404).json({error:'not_found'}); 
   const items = await db.getAll('SELECT * FROM activity_items WHERE activity_id=$1', [id]); 
+  const budgetExpenses = await db.getAll('SELECT * FROM budget_entries WHERE activity_id=$1 AND kind=$2 ORDER BY occurred_on ASC', [id, 'expense']);
+  const budgetIncomes = await db.getAll('SELECT * FROM budget_entries WHERE activity_id=$1 AND kind=$2 ORDER BY occurred_on ASC', [id, 'income']);
   const intrants=items.filter(x=>x.kind==='input').reduce((s,x)=> s + (x.qty||0)*(x.unit_price||0),0); 
   const mo=items.filter(x=>x.kind==='labor').reduce((s,x)=> s + (x.qty||0)*(x.unit_price||0),0); 
   const directs=intrants+mo+(act.transport||0)+(act.autres||0); 
   const overhead=directs*((act.overhead_pct||0)/100); 
-  const total=directs+overhead; 
-  const unit= total / Math.max(1, act.output_qty||1); 
+  const totalPlanned=directs+overhead; 
+  const totalRealExpenses = budgetExpenses.reduce((s,e)=> s + Number(e.amount||0), 0);
+  const totalRealIncomes = budgetIncomes.reduce((s,e)=> s + Number(e.amount||0), 0);
+  const unitPlanned= totalPlanned / Math.max(1, act.output_qty||1); 
+  const unitReal = totalRealExpenses / Math.max(1, act.actual_harvest||act.output_qty||1);
   const pv=act.price_expected||0; 
-  const marge= pv>0 ? (pv-unit)/pv*100 : 0; 
-  const pvCible = unit / (1 - Math.max(0.0001,(act.target_margin||0)/100)); 
-  const seuil = pv>0 ? Math.ceil(total/pv):0; 
-  res.json({intrants,mo,directs,overhead,total,unit,pv,marge,pvCible,seuil}); 
+  const margePlanned= pv>0 ? (pv-unitPlanned)/pv*100 : 0; 
+  const margeReal= pv>0 ? (pv-unitReal)/pv*100 : 0;
+  const pvCible = unitPlanned / (1 - Math.max(0.0001,(act.target_margin||0)/100)); 
+  const seuil = pv>0 ? Math.ceil(totalPlanned/pv):0; 
+  const profit = totalRealIncomes - totalRealExpenses;
+  res.json({intrants,mo,directs,overhead,total:totalPlanned,unit:unitPlanned,pv,marge:margePlanned,pvCible,seuil,budgetExpenses,budgetIncomes,totalRealExpenses,totalRealIncomes,unitReal,margeReal,profit,actual_harvest:act.actual_harvest,status:act.status}); 
 });
 
 app.get('/api/budget', requireAuth, async (req,res)=>{ 
