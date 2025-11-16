@@ -8,13 +8,14 @@ tabs.forEach(b=> b.addEventListener('click',()=>{
   if(b.dataset.tab==='budget'){ loadBudgets(); refreshCostBudgets(); }
   if(b.dataset.tab==='costing'){ loadCosts(); refreshCostBudgets(); }
   if(b.dataset.tab==='admin'){ loadAdminUsers(); }
-  if(b.dataset.tab==='settings'){ loadUserSettings(); }
+  if(b.dataset.tab==='settings'){ loadUserSettings(); loadPaymentHistory(); loadNotifications(); }
+  if(b.dataset.tab==='stats'){ loadStats(); }
 }));
 
 const btnLogin=document.getElementById('btnLogin'), btnLogout=document.getElementById('btnLogout'), meEl=document.getElementById('me');
 
 // Variables globales
-let ME=null, ACTORS=[], LOGISTICS=[], PRODUCTS=[], REGIONS=[], BUDGETS=[], CURRENT_BUDGET=null, COSTS=[], CURRENT_COST_BUDGET=null, ADMIN_USERS=[];
+let ME=null, ACTORS=[], LOGISTICS=[], PRODUCTS=[], REGIONS=[], BUDGETS=[], CURRENT_BUDGET=null, COSTS=[], CURRENT_COST_BUDGET=null, ADMIN_USERS=[], STATS_DATA={};
 
 async function openLogin(){
   const dlg=document.createElement('dialog');
@@ -730,153 +731,192 @@ async function refreshBudgetActs(){
 const bAdd = document.getElementById('bAdd');
 if(bAdd) bAdd.onclick=async()=>{ if(!ME) return alert('Connecte-toi d’abord.'); const payload={ kind:document.getElementById('bKind').value, occurred_on:document.getElementById('bDate').value || new Date().toISOString().slice(0,10), amount:Number(document.getElementById('bAmount').value||0), category:document.getElementById('bCat').value, activity_id: document.getElementById('bAct').value || null, note: document.getElementById('bNote').value }; const r=await fetch('/api/budget',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) return alert('Erreur'); await loadBudget(); };
 
-window.showSubscriptionInfo = async function(){
+window.showPaymentDialog = async function(){
   if(!ME) return alert('Connectez-vous d\'abord');
-  try {
-    const r = await fetch('/api/subscription');
-    if(!r.ok) {
-      alert('Erreur lors du chargement des informations d\'abonnement');
-      return;
-    }
-    const data = await r.json();
-    const isPremium = data.subscription.plan === 'premium';
-    
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
-    
-    const modal = document.createElement('div');
-    modal.style.cssText = 'background:white;padding:30px;border-radius:12px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;';
-    
-    modal.innerHTML = `
-      <h2 style="margin:0 0 20px 0;color:#059669;">📊 Mon Abonnement</h2>
-      <div style="background:${isPremium?'#f0fdf4':'#fef3c7'};padding:15px;border-radius:8px;margin-bottom:20px;">
-        <p style="font-size:18px;margin:0 0 10px 0;font-weight:bold;">
-          ${isPremium?'💎 PREMIUM':'🆓 GRATUIT'}
-        </p>
-        <p style="margin:0;">Acteurs créés: <strong>${data.actorCount} / ${isPremium?'∞':data.limit}</strong></p>
+  
+  const dlg = document.createElement('dialog');
+  dlg.innerHTML = `
+    <form id="frmPayment" class="dialog-body">
+      <h3 style="color:#fbbf24;">💎 Passer à Premium</h3>
+      
+      <div style="background:linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);padding:20px;border-radius:12px;margin-bottom:20px;color:#000;">
+        <p style="font-size:24px;font-weight:bold;margin:0 0 10px 0;text-align:center;">5 000 FCFA / mois</p>
       </div>
       
-      ${isPremium ? `
-        <div style="background:#f0fdf4;padding:15px;border-radius:8px;">
-          <p style="font-weight:bold;margin:0 0 10px 0;">✅ Fonctionnalités Premium actives :</p>
-          <ul style="margin:10px 0;padding-left:20px;">
-            <li>Acteurs illimités</li>
-            <li>Badge Premium visible</li>
-            <li>Support prioritaire</li>
-            <li>Analytics et statistiques</li>
-          </ul>
-          <p style="margin:10px 0 0 0;color:#6b7280;font-size:14px;">
-            Prochain renouvellement : ${new Date(data.subscription.expires_at).toLocaleDateString('fr-FR')}
-          </p>
-        </div>
-      ` : `
-        <div style="background:#fef9e7;padding:15px;border-radius:8px;margin-bottom:15px;">
-          <p style="font-weight:bold;margin:0 0 10px 0;">💎 Passez à Premium pour :</p>
-          <ul style="margin:10px 0;padding-left:20px;line-height:1.8;">
-            <li>✨ Acteurs illimités (vs 2 max)</li>
-            <li>🏆 Badge Premium sur vos fiches</li>
-            <li>📊 Tableau de bord analytique</li>
-            <li>💬 Messagerie interne</li>
-            <li>🔔 Alertes SMS/Email</li>
-            <li>📈 Historique et statistiques</li>
-          </ul>
-          <p style="margin:15px 0 0 0;font-size:20px;font-weight:bold;color:#059669;">
-            Prix: 5 000 FCFA/mois
-          </p>
-        </div>
-        <button id="btnUpgradePremium" style="width:100%;padding:15px;background:#fbbf24;color:#000;border:none;border-radius:8px;font-size:16px;font-weight:bold;cursor:pointer;margin-bottom:10px;">
-          💎 Passer à Premium maintenant
-        </button>
-      `}
+      <div style="background:#f0fdf4;padding:15px;border-radius:8px;margin-bottom:20px;border:2px solid #10b981;">
+        <p style="font-weight:bold;margin:0 0 10px 0;color:#059669;">✨ Bénéfices Premium :</p>
+        <ul style="margin:0;padding-left:20px;line-height:1.8;">
+          <li>✨ <strong>Acteurs illimités</strong> (vs 2 max gratuit)</li>
+          <li>💎 <strong>Badge Premium</strong> visible sur vos fiches</li>
+          <li>📊 <strong>Tableau de bord</strong> et statistiques avancées</li>
+          <li>🏆 <strong>Priorité</strong> dans les résultats de recherche</li>
+          <li>📱 <strong>Notifications SMS</strong> pour les opportunités</li>
+          <li>💬 <strong>Support prioritaire</strong> par WhatsApp</li>
+        </ul>
+      </div>
       
-      <button id="btnCloseSubscription" style="width:100%;padding:12px;background:#6b7280;color:white;border:none;border-radius:8px;cursor:pointer;">
-        Fermer
-      </button>
-    `;
+      <div class="grid2" style="margin-bottom:20px;">
+        <label style="grid-column:1/-1">
+          <strong>📱 Fournisseur de paiement :</strong>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+            <label style="display:flex;align-items:center;padding:15px;border:2px solid #e5e7eb;border-radius:8px;cursor:pointer;transition:all 0.2s;" class="provider-option">
+              <input type="radio" name="provider" value="tmoney" required style="margin-right:10px;">
+              <div>
+                <div style="font-size:20px;">📱</div>
+                <div style="font-weight:bold;color:#fbbf24;">T-Money</div>
+                <div style="font-size:11px;color:#6b7280;">Togocom</div>
+              </div>
+            </label>
+            <label style="display:flex;align-items:center;padding:15px;border:2px solid #e5e7eb;border-radius:8px;cursor:pointer;transition:all 0.2s;" class="provider-option">
+              <input type="radio" name="provider" value="flooz" required style="margin-right:10px;">
+              <div>
+                <div style="font-size:20px;">💰</div>
+                <div style="font-weight:bold;color:#10b981;">Flooz</div>
+                <div style="font-size:11px;color:#6b7280;">Moov Africa</div>
+              </div>
+            </label>
+          </div>
+        </label>
+        
+        <label style="grid-column:1/-1">
+          <strong>📞 Numéro de téléphone pour le paiement :</strong>
+          <input name="phone" type="tel" required placeholder="+228 XX XX XX XX XX" style="margin-top:5px;">
+          <small style="color:#6b7280;font-size:12px;">Le numéro de votre compte Mobile Money</small>
+        </label>
+      </div>
+      
+      <div class="dialog-actions">
+        <button type="submit" style="background:#fbbf24;color:#000;font-weight:bold;flex:1;">💎 Payer 5 000 FCFA</button>
+        <button type="button" id="cancelPayment">Annuler</button>
+      </div>
+    </form>
+  `;
+  
+  document.body.appendChild(dlg);
+  dlg.showModal();
+  
+  const providerOptions = dlg.querySelectorAll('.provider-option');
+  providerOptions.forEach(opt => {
+    opt.onclick = () => {
+      providerOptions.forEach(o => o.style.borderColor = '#e5e7eb');
+      opt.style.borderColor = '#fbbf24';
+      opt.style.background = '#fffbeb';
+    };
+  });
+  
+  dlg.querySelector('#cancelPayment').onclick = () => dlg.close();
+  
+  dlg.querySelector('#frmPayment').onsubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const provider = formData.get('provider');
+    const phone = formData.get('phone');
     
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
+    dlg.close();
+    await initiatePayment(provider, phone);
+  };
+}
+
+async function initiatePayment(provider, phone){
+  try {
+    const r = await fetch('/api/payments/initiate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        provider,
+        phone,
+        amount: 5000,
+        plan: 'premium'
+      })
+    });
     
-    overlay.querySelector('#btnCloseSubscription').onclick = () => overlay.remove();
-    overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
-    
-    if(!isPremium) {
-      overlay.querySelector('#btnUpgradePremium').onclick = () => {
-        overlay.remove();
-        showPaymentInstructions();
-      };
+    if(!r.ok){
+      const err = await r.json();
+      alert(err.error || 'Erreur lors de l\'initiation du paiement');
+      return;
     }
+    
+    const data = await r.json();
+    showPaymentInstructions(provider, phone, data);
   } catch(e) {
     console.error('Erreur:', e);
-    alert('Erreur lors du chargement des informations d\'abonnement');
+    alert('Erreur lors de l\'initiation du paiement');
   }
 }
 
-window.showPaymentInstructions = function(){
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+function showPaymentInstructions(provider, phone, data){
+  const providerName = provider === 'tmoney' ? 'T-Money (Togocom)' : 'Flooz (Moov Africa)';
+  const providerCode = provider === 'tmoney' ? '*145#' : '*155#';
+  const providerColor = provider === 'tmoney' ? '#fbbf24' : '#10b981';
+  const transactionId = data.transaction_id || 'En attente...';
   
-  const modal = document.createElement('div');
-  modal.style.cssText = 'background:white;padding:30px;border-radius:12px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;';
-  
-  modal.innerHTML = `
-    <h2 style="margin:0 0 20px 0;color:#059669;">💎 Passer à Premium</h2>
-    
-    <div style="background:#fef3c7;padding:15px;border-radius:8px;margin-bottom:20px;">
-      <p style="font-weight:bold;margin:0 0 10px 0;">📱 Paiement par Mobile Money</p>
-      <p style="margin:0;font-size:20px;color:#059669;font-weight:bold;">5 000 FCFA / mois</p>
-    </div>
-    
-    <div style="background:#f0fdf4;padding:20px;border-radius:8px;margin-bottom:20px;">
-      <p style="font-weight:bold;margin:0 0 15px 0;">🔹 Instructions de paiement :</p>
+  const dlg = document.createElement('dialog');
+  dlg.innerHTML = `
+    <div class="dialog-body" style="max-width:600px;">
+      <h3 style="color:${providerColor};">📱 Instructions de paiement</h3>
       
-      <div style="background:white;padding:15px;border-radius:8px;margin-bottom:15px;border:2px solid #059669;">
-        <p style="font-weight:bold;margin:0 0 10px 0;color:#059669;">💰 T-Money (Togocom)</p>
-        <p style="margin:5px 0;">1. Composez <strong>*145#</strong></p>
-        <p style="margin:5px 0;">2. Choisissez "Transfert d'argent"</p>
-        <p style="margin:5px 0;">3. Envoyez <strong>5 000 FCFA</strong> au numéro :</p>
-        <p style="margin:10px 0;font-size:24px;font-weight:bold;color:#059669;">XX XX XX XX XX</p>
-        <p style="margin:5px 0;font-size:14px;color:#6b7280;">Nom: AgriRéseau Pro</p>
+      <div style="background:${provider === 'tmoney' ? '#fffbeb' : '#f0fdf4'};padding:20px;border-radius:12px;margin-bottom:20px;border:3px solid ${providerColor};">
+        <p style="font-size:20px;font-weight:bold;margin:0 0 10px 0;color:${providerColor};">
+          ${provider === 'tmoney' ? '📱' : '💰'} ${providerName}
+        </p>
+        <p style="font-size:18px;margin:0;color:#000;">Montant: <strong>5 000 FCFA</strong></p>
       </div>
       
-      <div style="background:white;padding:15px;border-radius:8px;margin-bottom:15px;border:2px solid #059669;">
-        <p style="font-weight:bold;margin:0 0 10px 0;color:#059669;">💰 Flooz (Moov Africa)</p>
-        <p style="margin:5px 0;">1. Composez <strong>*155#</strong></p>
-        <p style="margin:5px 0;">2. Choisissez "Transfert"</p>
-        <p style="margin:5px 0;">3. Envoyez <strong>5 000 FCFA</strong> au numéro :</p>
-        <p style="margin:10px 0;font-size:24px;font-weight:bold;color:#059669;">XX XX XX XX XX</p>
-        <p style="margin:5px 0;font-size:14px;color:#6b7280;">Nom: AgriRéseau Pro</p>
+      <div style="background:#f0fdf4;padding:20px;border-radius:8px;margin-bottom:20px;border-left:4px solid ${providerColor};">
+        <p style="font-weight:bold;margin:0 0 15px 0;font-size:16px;">🔹 Étapes à suivre :</p>
+        <ol style="margin:0;padding-left:20px;line-height:2;">
+          <li>Sur votre téléphone <strong>${phone}</strong>, composez : <strong style="font-size:20px;color:${providerColor};">${providerCode}</strong></li>
+          <li>Choisissez l'option <strong>"Transfert d'argent"</strong> ou <strong>"Payer un marchand"</strong></li>
+          <li>Entrez le montant : <strong style="font-size:18px;">5 000 FCFA</strong></li>
+          <li>Confirmez le paiement avec votre code PIN</li>
+        </ol>
+      </div>
+      
+      <div style="background:#fee2e2;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #ef4444;">
+        <p style="font-weight:bold;margin:0 0 10px 0;color:#dc2626;">⚠️ Important :</p>
+        <p style="margin:5px 0;font-size:14px;">• Votre paiement sera automatiquement vérifié</p>
+        <p style="margin:5px 0;font-size:14px;">• Votre compte Premium sera activé sous 5-10 minutes</p>
+        <p style="margin:5px 0;font-size:14px;">• Transaction ID: <strong>${transactionId}</strong></p>
+        <p style="margin:10px 0 0 0;font-size:12px;color:#6b7280;">
+          💡 Gardez votre code de transaction pour toute réclamation
+        </p>
+      </div>
+      
+      <div style="background:#eff6ff;padding:15px;border-radius:8px;margin-bottom:20px;">
+        <p style="font-weight:bold;margin:0 0 10px 0;color:#1e40af;">📊 Suivi du paiement :</p>
+        <p style="margin:0;font-size:14px;color:#374151;">
+          Consultez l'onglet <strong>Paramètres > Historique des Paiements</strong> pour suivre le statut de votre paiement.
+        </p>
+      </div>
+      
+      <div style="display:flex;gap:10px;">
+        <button id="btnViewHistory" style="flex:1;padding:12px;background:#3b82f6;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:500;">
+          📋 Voir l'historique
+        </button>
+        <button id="btnCloseInstructions" style="flex:1;padding:12px;background:#059669;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:500;">
+          ✓ J'ai compris
+        </button>
       </div>
     </div>
-    
-    <div style="background:#fee2e2;padding:15px;border-radius:8px;margin-bottom:20px;">
-      <p style="font-weight:bold;margin:0 0 10px 0;">⚠️ Après le paiement :</p>
-      <p style="margin:5px 0;">1. Notez votre <strong>code de transaction</strong> (ex: TM123456789)</p>
-      <p style="margin:5px 0;">2. Contactez-nous par WhatsApp au <strong>XX XX XX XX XX</strong></p>
-      <p style="margin:5px 0;">3. Envoyez le code + votre email (${ME?.email || 'votre email'})</p>
-      <p style="margin:10px 0 0 0;font-size:14px;color:#6b7280;">
-        ⏱️ Activation sous 24h maximum
-      </p>
-    </div>
-    
-    <div style="background:#eff6ff;padding:15px;border-radius:8px;margin-bottom:20px;">
-      <p style="font-weight:bold;margin:0 0 10px 0;">🚀 Paiement automatique bientôt disponible</p>
-      <p style="margin:0;font-size:14px;color:#6b7280;">
-        Nous travaillons sur l'intégration PayGate pour des paiements automatiques 
-        T-Money et Flooz. Activation prévue dans les prochaines semaines !
-      </p>
-    </div>
-    
-    <button id="btnClosePayment" style="width:100%;padding:12px;background:#059669;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;">
-      J'ai compris
-    </button>
   `;
   
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  document.body.appendChild(dlg);
+  dlg.showModal();
   
-  overlay.querySelector('#btnClosePayment').onclick = () => overlay.remove();
-  overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
+  dlg.querySelector('#btnCloseInstructions').onclick = () => {
+    dlg.close();
+    loadPaymentHistory();
+  };
+  
+  dlg.querySelector('#btnViewHistory').onclick = () => {
+    dlg.close();
+    const settingsTab = document.querySelector('[data-tab="settings"]');
+    if(settingsTab) settingsTab.click();
+    setTimeout(() => {
+      const historySection = document.getElementById('paymentHistoryContainer');
+      if(historySection) historySection.scrollIntoView({behavior: 'smooth'});
+    }, 300);
+  };
 }
 
 // Nouvelles fonctions pour Budget (module prévisionnel)
@@ -1510,6 +1550,433 @@ function checkResetPasswordUrl(){
 
 window.addEventListener('hashchange', checkResetPasswordUrl);
 
+async function loadStats(){
+  if(!ME) return;
+  try {
+    const [overviewRes, actorsRes, budgetsRes] = await Promise.all([
+      fetch('/api/stats/overview'),
+      fetch('/api/stats/actors'),
+      fetch('/api/stats/budgets')
+    ]);
+    
+    if(overviewRes.ok && actorsRes.ok && budgetsRes.ok){
+      STATS_DATA = {
+        overview: await overviewRes.json(),
+        actors: await actorsRes.json(),
+        budgets: await budgetsRes.json()
+      };
+      
+      renderStatsOverview();
+      renderActorStats();
+      renderBudgetStats();
+      renderCharts();
+    }
+  } catch(e) {
+    console.error('Error loading stats:', e);
+  }
+}
+
+function renderStatsOverview(){
+  const container = document.getElementById('statsOverview');
+  if(!container) return;
+  
+  const stats = STATS_DATA.overview || {};
+  
+  const kpis = [
+    {
+      icon: '👥',
+      label: 'Acteurs',
+      value: stats.actors_count || 0,
+      color: '#3b82f6',
+      bg: '#eff6ff'
+    },
+    {
+      icon: '📊',
+      label: 'Budgets',
+      value: stats.budgets_count || 0,
+      color: '#8b5cf6',
+      bg: '#f3e8ff'
+    },
+    {
+      icon: '👁️',
+      label: 'Vues',
+      value: stats.views_count || 0,
+      color: '#10b981',
+      bg: '#f0fdf4'
+    },
+    {
+      icon: '💸',
+      label: 'Dépenses',
+      value: (stats.total_expenses || 0).toLocaleString() + ' FCFA',
+      color: '#ef4444',
+      bg: '#fef2f2'
+    },
+    {
+      icon: '🌾',
+      label: 'Récoltes',
+      value: (stats.total_harvests || 0) + ' kg',
+      color: '#f59e0b',
+      bg: '#fef3c7'
+    },
+    {
+      icon: '⭐',
+      label: 'Évaluations',
+      value: stats.ratings_received || 0,
+      color: '#fbbf24',
+      bg: '#fef3c7'
+    }
+  ];
+  
+  container.innerHTML = kpis.map(kpi => `
+    <div class="card" style="background:${kpi.bg};border:2px solid ${kpi.color}20;text-align:center;">
+      <div style="font-size:48px;margin-bottom:10px;">${kpi.icon}</div>
+      <div style="font-size:28px;font-weight:bold;color:${kpi.color};margin-bottom:5px;">${kpi.value}</div>
+      <div style="font-size:14px;color:#6b7280;font-weight:500;">${kpi.label}</div>
+    </div>
+  `).join('');
+}
+
+function renderActorStats(){
+  const container = document.getElementById('actorStatsContent');
+  if(!container) return;
+  
+  const actors = STATS_DATA.actors || [];
+  
+  if(actors.length === 0){
+    container.innerHTML = '<p class="muted">Aucun acteur enregistré. Créez votre premier acteur pour voir les statistiques.</p>';
+    return;
+  }
+  
+  container.innerHTML = actors.map(actor => {
+    const harvestsHtml = Object.keys(actor.harvests).length > 0 
+      ? Object.entries(actor.harvests).map(([product, qty]) => `${product}: ${qty} kg`).join(', ')
+      : 'Aucune récolte';
+    
+    const stars = actor.rating_avg > 0 ? '⭐'.repeat(Math.round(actor.rating_avg)) : '☆☆☆☆☆';
+    
+    return `
+      <div style="background:#f9fafb;padding:15px;border-radius:8px;margin-bottom:15px;">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
+          <div>
+            <strong style="font-size:16px;color:#1f2937;">${actor.name}</strong>
+            <div style="margin-top:5px;">
+              <span class="badge" style="background:#3b82f6;color:white;">${actor.role}</span>
+              <span class="badge" style="background:#10b981;color:white;">${actor.region}</span>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:24px;font-weight:bold;color:#3b82f6;">${actor.views}</div>
+            <div style="font-size:12px;color:#6b7280;">vues</div>
+          </div>
+        </div>
+        
+        <div style="margin-top:10px;">
+          <div style="margin-bottom:5px;">
+            <strong>Note:</strong> ${stars} ${actor.rating_avg > 0 ? actor.rating_avg.toFixed(1) : 'N/A'} 
+            <span style="color:#6b7280;font-size:12px;">(${actor.rating_count} évaluation${actor.rating_count > 1 ? 's' : ''})</span>
+          </div>
+          <div style="margin-bottom:5px;">
+            <strong>Produits:</strong> ${actor.products.join(', ') || 'Aucun'}
+          </div>
+          <div>
+            <strong>Disponible:</strong> <span style="color:#059669;">${harvestsHtml}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderBudgetStats(){
+  const container = document.getElementById('budgetStatsContent');
+  if(!container) return;
+  
+  const budgets = STATS_DATA.budgets || [];
+  
+  if(budgets.length === 0){
+    container.innerHTML = '<p class="muted">Aucun budget enregistré. Créez votre premier budget pour voir les statistiques financières.</p>';
+    return;
+  }
+  
+  container.innerHTML = budgets.map(budget => {
+    const varianceColor = budget.variance < 0 ? '#10b981' : '#ef4444';
+    const profitColor = budget.profit >= 0 ? '#10b981' : '#ef4444';
+    const statusBadge = budget.status === 'completed' ? '<span class="badge" style="background:#10b981;color:white;">✓ Complété</span>' :
+                        budget.status === 'in_progress' ? '<span class="badge" style="background:#3b82f6;color:white;">⏳ En cours</span>' :
+                        '<span class="badge" style="background:#fbbf24;color:#000;">📝 Planifié</span>';
+    
+    return `
+      <div style="background:#f9fafb;padding:15px;border-radius:8px;margin-bottom:15px;">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
+          <div>
+            <strong style="font-size:16px;color:#1f2937;">${budget.label}</strong>
+            <div style="margin-top:5px;">
+              <span class="badge">${budget.filiere}</span>
+              <span class="badge">${budget.periode}</span>
+              ${statusBadge}
+            </div>
+          </div>
+        </div>
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px;">
+          <div style="background:#eff6ff;padding:10px;border-radius:6px;">
+            <div style="font-size:12px;color:#6b7280;margin-bottom:3px;">Prévisionnel</div>
+            <div style="font-size:18px;font-weight:bold;color:#3b82f6;">${budget.planned_total.toLocaleString()} F</div>
+          </div>
+          <div style="background:#fef2f2;padding:10px;border-radius:6px;">
+            <div style="font-size:12px;color:#6b7280;margin-bottom:3px;">Dépenses réelles</div>
+            <div style="font-size:18px;font-weight:bold;color:#ef4444;">${budget.real_expenses.toLocaleString()} F</div>
+          </div>
+          <div style="background:${budget.variance < 0 ? '#f0fdf4' : '#fef2f2'};padding:10px;border-radius:6px;">
+            <div style="font-size:12px;color:#6b7280;margin-bottom:3px;">Écart</div>
+            <div style="font-size:18px;font-weight:bold;color:${varianceColor};">
+              ${budget.variance >= 0 ? '+' : ''}${budget.variance.toLocaleString()} F
+              <span style="font-size:12px;">(${budget.variance_percent >= 0 ? '+' : ''}${budget.variance_percent.toFixed(1)}%)</span>
+            </div>
+          </div>
+          <div style="background:${budget.profit >= 0 ? '#f0fdf4' : '#fef2f2'};padding:10px;border-radius:6px;">
+            <div style="font-size:12px;color:#6b7280;margin-bottom:3px;">Profit</div>
+            <div style="font-size:18px;font-weight:bold;color:${profitColor};">
+              ${budget.profit >= 0 ? '+' : ''}${budget.profit.toLocaleString()} F
+            </div>
+          </div>
+        </div>
+        
+        ${budget.actual_harvest > 0 ? `
+          <div style="margin-top:10px;padding:10px;background:#fef3c7;border-radius:6px;">
+            <strong>Récolte:</strong> ${budget.actual_harvest.toLocaleString()} kg
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function renderCharts(){
+  const container = document.getElementById('chartsContainer');
+  if(!container) return;
+  
+  const budgets = STATS_DATA.budgets || [];
+  
+  if(budgets.length === 0){
+    container.innerHTML = '<p class="muted">Aucune donnée disponible pour les graphiques.</p>';
+    return;
+  }
+  
+  const maxExpense = Math.max(...budgets.map(b => Math.max(b.planned_total, b.real_expenses)));
+  
+  container.innerHTML = `
+    <h4 style="margin-bottom:15px;color:#374151;">Comparaison Prévisionnel vs Réel par Budget</h4>
+    ${budgets.map(budget => {
+      const plannedPercent = (budget.planned_total / maxExpense * 100);
+      const realPercent = (budget.real_expenses / maxExpense * 100);
+      
+      return `
+        <div style="margin-bottom:25px;">
+          <div style="margin-bottom:8px;font-weight:500;color:#374151;">${budget.label}</div>
+          
+          <div style="margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:#6b7280;margin-bottom:3px;">
+              <span>Prévisionnel</span>
+              <span>${budget.planned_total.toLocaleString()} FCFA</span>
+            </div>
+            <div style="background:#e5e7eb;border-radius:8px;height:24px;overflow:hidden;">
+              <div style="background:#3b82f6;height:100%;width:${plannedPercent}%;transition:width 0.3s;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;color:white;font-size:11px;font-weight:600;">
+                ${plannedPercent > 15 ? plannedPercent.toFixed(0) + '%' : ''}
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:#6b7280;margin-bottom:3px;">
+              <span>Réel</span>
+              <span>${budget.real_expenses.toLocaleString()} FCFA</span>
+            </div>
+            <div style="background:#e5e7eb;border-radius:8px;height:24px;overflow:hidden;">
+              <div style="background:${budget.real_expenses > budget.planned_total ? '#ef4444' : '#10b981'};height:100%;width:${realPercent}%;transition:width 0.3s;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;color:white;font-size:11px;font-weight:600;">
+                ${realPercent > 15 ? realPercent.toFixed(0) + '%' : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('')}
+  `;
+}
+
+function exportStatsCSV(){
+  if(!ME || !STATS_DATA.budgets) return alert('Aucune donnée à exporter');
+  
+  let csv = 'Budget,Filière,Période,Prévisionnel,Réel,Écart,Écart %,Profit,Récolte (kg)\n';
+  
+  STATS_DATA.budgets.forEach(b => {
+    csv += `"${b.label}","${b.filiere}","${b.periode}",${b.planned_total},${b.real_expenses},${b.variance},${b.variance_percent.toFixed(2)},${b.profit},${b.actual_harvest}\n`;
+  });
+  
+  const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', `statistiques_${new Date().toISOString().slice(0,10)}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function exportStatsPDF(){
+  window.print();
+}
+
+const btnExportCSV = document.getElementById('btnExportCSV');
+const btnExportPDF = document.getElementById('btnExportPDF');
+if(btnExportCSV) btnExportCSV.onclick = exportStatsCSV;
+if(btnExportPDF) btnExportPDF.onclick = exportStatsPDF;
+
+async function loadPaymentHistory(){
+  if(!ME) return;
+  
+  const container = document.getElementById('paymentHistoryContainer');
+  if(!container) return;
+  
+  container.innerHTML = '<p class="muted">Chargement...</p>';
+  
+  try {
+    const r = await fetch('/api/payments/history');
+    if(!r.ok){
+      container.innerHTML = '<p class="muted">Erreur lors du chargement de l\'historique</p>';
+      return;
+    }
+    
+    const payments = await r.json();
+    
+    if(payments.length === 0){
+      container.innerHTML = '<p class="muted">Aucun paiement pour le moment</p>';
+      return;
+    }
+    
+    const statusBadge = (status) => {
+      if(status === 'completed') return '<span class="badge" style="background:#10b981;color:white">✓ Complété</span>';
+      if(status === 'pending') return '<span class="badge" style="background:#fbbf24;color:#000">⏳ En attente</span>';
+      if(status === 'failed') return '<span class="badge" style="background:#ef4444;color:white">✖ Échoué</span>';
+      return '<span class="badge">'+status+'</span>';
+    };
+    
+    const providerIcon = (provider) => {
+      if(provider === 'tmoney') return '📱 T-Money';
+      if(provider === 'flooz') return '💰 Flooz';
+      return provider;
+    };
+    
+    container.innerHTML = `
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Montant</th>
+              <th>Méthode</th>
+              <th>Statut</th>
+              <th>Transaction ID</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${payments.map(p => `
+              <tr>
+                <td>${new Date(p.created_at).toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'})}</td>
+                <td><strong>${Number(p.amount).toLocaleString()} FCFA</strong></td>
+                <td>${providerIcon(p.provider)}</td>
+                <td>${statusBadge(p.status)}</td>
+                <td style="font-family:monospace;font-size:12px;">${p.transaction_id || '-'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch(e) {
+    console.error('Erreur:', e);
+    container.innerHTML = '<p class="muted">Erreur lors du chargement de l\'historique</p>';
+  }
+}
+
+async function loadNotifications(){
+  if(!ME) return;
+  
+  const container = document.getElementById('notificationsContainer');
+  if(!container) return;
+  
+  container.innerHTML = '<p class="muted">Chargement...</p>';
+  
+  try {
+    const r = await fetch('/api/notifications/history');
+    if(!r.ok){
+      container.innerHTML = '<p class="muted">Erreur lors du chargement des notifications</p>';
+      return;
+    }
+    
+    const notifications = await r.json();
+    
+    if(notifications.length === 0){
+      container.innerHTML = '<p class="muted">Aucune notification pour le moment</p>';
+      return;
+    }
+    
+    const statusBadge = (status) => {
+      if(status === 'sent') return '<span class="badge" style="background:#10b981;color:white">✓ Envoyé</span>';
+      if(status === 'pending') return '<span class="badge" style="background:#fbbf24;color:#000">⏳ En attente</span>';
+      if(status === 'failed') return '<span class="badge" style="background:#ef4444;color:white">✖ Échoué</span>';
+      return '<span class="badge">'+status+'</span>';
+    };
+    
+    container.innerHTML = `
+      <div style="max-height:400px;overflow-y:auto;">
+        ${notifications.map(n => `
+          <div class="card" style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
+              <div>
+                <strong>${n.title || 'Notification'}</strong>
+                ${statusBadge(n.status)}
+              </div>
+              <span class="muted" style="font-size:12px;">${new Date(n.created_at).toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'})}</span>
+            </div>
+            <p style="margin:5px 0;color:#6b7280;font-size:14px;">${n.message || '-'}</p>
+            ${n.type ? `<p style="margin:5px 0;"><span class="badge">${n.type}</span></p>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch(e) {
+    console.error('Erreur:', e);
+    container.innerHTML = '<p class="muted">Erreur lors du chargement des notifications</p>';
+  }
+}
+
+const btnSendTestNotification = document.getElementById('btnSendTestNotification');
+if(btnSendTestNotification){
+  btnSendTestNotification.onclick = async () => {
+    if(!ME) return alert('Connectez-vous d\'abord');
+    
+    try {
+      const r = await fetch('/api/notifications/test', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+      });
+      
+      if(r.ok){
+        alert('✓ Notification test envoyée avec succès !');
+        await loadNotifications();
+      } else {
+        const err = await r.json();
+        alert('Erreur: ' + (err.error || 'Impossible d\'envoyer la notification'));
+      }
+    } catch(e) {
+      console.error('Erreur:', e);
+      alert('Erreur lors de l\'envoi de la notification test');
+    }
+  };
+}
+
 async function boot(){ 
   const me = await fetch('/api/auth/me'); 
   ME = await me.json(); 
@@ -1521,6 +1988,9 @@ async function boot(){
   
   const adminTab = document.getElementById('adminTab');
   if(adminTab) adminTab.style.display = ME && ME.is_admin ? 'inline-block' : 'none';
+  
+  const statsTab = document.getElementById('statsTab');
+  if(statsTab) statsTab.style.display = ME ? 'inline-block' : 'none';
   
   const settingsTab = document.getElementById('settingsTab');
   if(settingsTab) settingsTab.style.display = ME ? 'inline-block' : 'none';

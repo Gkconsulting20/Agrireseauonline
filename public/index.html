@@ -11,7 +11,7 @@
 </div>
 <div class="actions">
   <span id="me"></span>
-  <button id="btnSubscription" onclick="showSubscriptionInfo()" style="display:none;background:#fbbf24;color:#000">💎 Abonnement</button>
+  <button id="btnSubscription" onclick="showPaymentDialog()" style="display:none;background:#fbbf24;color:#000">💎 Abonnement</button>
   <button id="btnLogin">Se connecter</button>
   <button id="btnLogout" style="display:none">Se déconnecter</button>
   <button id="btnSeed">Réinitialiser (seed)</button>
@@ -22,6 +22,7 @@
   <button data-tab="logistics">Logistique</button>
   <button data-tab="costing">Coût de revient</button>
   <button data-tab="budget">Budget</button>
+  <button data-tab="stats" id="statsTab" style="display:none">📊 Statistiques</button>
   <button data-tab="settings" id="settingsTab" style="display:none">⚙️ Paramètres</button>
   <button data-tab="admin" id="adminTab" style="display:none">Administration</button>
 </nav>
@@ -161,6 +162,58 @@
         </div>
       </form>
       <div id="passwordMessage" style="margin-top:10px;padding:10px;border-radius:8px;display:none;"></div>
+    </div>
+  </div>
+  
+  <div class="card" style="margin-top:20px;">
+    <h3>💳 Historique des Paiements</h3>
+    <p class="muted" style="margin-bottom:15px;">Consultez l'historique de vos paiements et abonnements</p>
+    <div id="paymentHistoryContainer">
+      <p class="muted">Chargement...</p>
+    </div>
+  </div>
+  
+  <div class="card" style="margin-top:20px;">
+    <h3>📱 Notifications & Alertes</h3>
+    <p class="muted" style="margin-bottom:15px;">Gérez vos notifications et alertes</p>
+    <div style="margin-bottom:15px;">
+      <button id="btnSendTestNotification" style="background:#3b82f6;color:white;">🔔 Envoyer une notification test</button>
+    </div>
+    <div id="notificationsContainer">
+      <p class="muted">Chargement...</p>
+    </div>
+  </div>
+</section>
+<section id="stats" class="tab">
+  <div class="card" style="margin-bottom:20px;background:linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);">
+    <h3>📊 Statistiques & Analyses</h3>
+    <p class="muted">Visualisez vos performances et suivez l'évolution de vos activités agricoles</p>
+  </div>
+  
+  <div id="statsOverview" class="grid3" style="margin-bottom:30px;"></div>
+  
+  <div class="grid2" style="margin-bottom:30px;">
+    <div class="card">
+      <h3>🎯 Performance par Acteur</h3>
+      <div id="actorStatsContent"></div>
+    </div>
+    <div class="card">
+      <h3>💰 Analyse des Budgets</h3>
+      <div id="budgetStatsContent"></div>
+    </div>
+  </div>
+  
+  <div class="card">
+    <h3>📈 Graphiques d'Évolution</h3>
+    <div id="chartsContainer"></div>
+  </div>
+  
+  <div class="card" style="margin-top:20px;">
+    <h3>📥 Export des Données</h3>
+    <p class="muted" style="margin:10px 0;">Téléchargez vos statistiques pour analyse externe</p>
+    <div style="display:flex;gap:10px;margin-top:15px;">
+      <button id="btnExportCSV" style="background:#10b981;color:white;">📊 Exporter en CSV</button>
+      <button id="btnExportPDF" style="background:#3b82f6;color:white;">📄 Imprimer/PDF</button>
     </div>
   </div>
 </section>

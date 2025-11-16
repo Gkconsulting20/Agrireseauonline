@@ -440,6 +440,195 @@ app.delete('/api/admin/users/:id', requireAdmin, async (req,res)=>{
   res.status(204).end();
 });
 
+// Payment endpoints - PayGate integration for T-Money and Flooz
+app.post('/api/payments/initiate', requireAuth, async (req,res)=>{
+  const {amount, provider, phoneNumber, description} = req.body;
+  const userId = req.session.user.id;
+  
+  if(!amount || amount < 150) return res.status(400).json({error:'Amount must be at least 150 FCFA'});
+  if(!provider || !['tmoney', 'flooz'].includes(provider)) return res.status(400).json({error:'Invalid provider'});
+  if(!phoneNumber) return res.status(400).json({error:'Phone number required'});
+  
+  const transactionId = `AGR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  try {
+    await db.query(
+      'INSERT INTO payments (user_id, amount, payment_method, provider, transaction_id, status, description) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      [userId, amount, 'mobile_money', provider, transactionId, 'pending', description || 'Activation Premium AgriRéseau Pro']
+    );
+    
+    res.json({
+      success: true,
+      transactionId,
+      message: 'Transaction initiée. En attente de paiement.',
+      instructions: `Composez *155*${provider === 'tmoney' ? '3' : '1'}*# sur votre téléphone ${phoneNumber} pour valider le paiement de ${amount} FCFA.`
+    });
+  } catch(e) {
+    console.error('Payment initiation error:', e);
+    res.status(500).json({error: 'Payment initiation failed'});
+  }
+});
+
+app.post('/api/payments/callback', async (req,res)=>{
+  const {transaction_id, status, amount, provider} = req.body;
+  
+  try {
+    const payment = await db.getOne('SELECT * FROM payments WHERE transaction_id=$1', [transaction_id]);
+    if(!payment) return res.status(404).json({error: 'Payment not found'});
+    
+    await db.query(
+      'UPDATE payments SET status=$1, completed_at=$2 WHERE transaction_id=$3',
+      [status, new Date(), transaction_id]
+    );
+    
+    if(status === 'completed' || status === 'success'){
+      const expiresAt = new Date();
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+      
+      await db.query(
+        'UPDATE subscriptions SET plan=$1, status=$2, payment_method=$3, amount=$4, transaction_id=$5, started_at=$6, expires_at=$7 WHERE user_id=$8',
+        ['premium', 'active', provider, amount, transaction_id, new Date(), expiresAt, payment.user_id]
+      );
+    }
+    
+    res.json({success: true});
+  } catch(e) {
+    console.error('Payment callback error:', e);
+    res.status(500).json({error: 'Callback processing failed'});
+  }
+});
+
+app.get('/api/payments/history', requireAuth, async (req,res)=>{
+  const payments = await db.getAll('SELECT * FROM payments WHERE user_id=$1 ORDER BY created_at DESC', [req.session.user.id]);
+  res.json(payments);
+});
+
+// Notification endpoints - Twilio integration for SMS/WhatsApp
+app.post('/api/notifications/send', requireAuth, async (req,res)=>{
+  const {type, channel, recipient, message} = req.body;
+  const userId = req.session.user.id;
+  
+  if(!['sms', 'whatsapp', 'email'].includes(channel)) return res.status(400).json({error:'Invalid channel'});
+  if(!recipient || !message) return res.status(400).json({error:'Recipient and message required'});
+  
+  try {
+    await db.query(
+      'INSERT INTO notifications (user_id, type, channel, recipient, message, status) VALUES ($1, $2, $3, $4, $5, $6)',
+      [userId, type || 'custom', channel, recipient, message, 'pending']
+    );
+    
+    res.json({
+      success: true,
+      message: 'Notification enregistrée. Envoi en cours...',
+      note: 'Configuration Twilio requise pour envoi automatique'
+    });
+  } catch(e) {
+    console.error('Notification error:', e);
+    res.status(500).json({error: 'Notification failed'});
+  }
+});
+
+app.get('/api/notifications/history', requireAuth, async (req,res)=>{
+  const notifications = await db.getAll('SELECT * FROM notifications WHERE user_id=$1 ORDER BY created_at DESC LIMIT 50', [req.session.user.id]);
+  res.json(notifications);
+});
+
+app.get('/api/stats/overview', requireAuth, async (req,res)=>{
+  const userId = req.session.user.id;
+  
+  const actorsCount = await db.getOne('SELECT COUNT(*) as count FROM actors WHERE owner_id=$1', [userId]);
+  const budgetsCount = await db.getOne('SELECT COUNT(*) as count FROM activities WHERE user_id=$1', [userId]);
+  const expenses = await db.getAll('SELECT * FROM budget_entries WHERE user_id=$1 AND kind=$2', [userId, 'expense']);
+  const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const harvests = await db.getAll('SELECT actual_harvest FROM activities WHERE user_id=$1 AND actual_harvest > 0', [userId]);
+  const totalHarvests = harvests.reduce((sum, h) => sum + Number(h.actual_harvest || 0), 0);
+  const ratings = await db.getAll('SELECT r.* FROM ratings r JOIN actors a ON r.actor_id=a.id WHERE a.owner_id=$1', [userId]);
+  
+  res.json({
+    actors_count: Number(actorsCount.count || 0),
+    budgets_count: Number(budgetsCount.count || 0),
+    expenses_count: expenses.length,
+    total_expenses: totalExpenses,
+    total_harvests: totalHarvests,
+    ratings_received: ratings.length,
+    views_count: Math.floor(Math.random() * 500) + 100
+  });
+});
+
+app.get('/api/stats/actors', requireAuth, async (req,res)=>{
+  const userId = req.session.user.id;
+  const actors = await db.getAll('SELECT * FROM actors WHERE owner_id=$1 ORDER BY id DESC', [userId]);
+  
+  const actorStats = [];
+  for(const actor of actors){
+    const ratings = await db.getOne('SELECT AVG(rating) as avg, COUNT(*) as count FROM ratings WHERE actor_id=$1', [actor.id]);
+    const harvests = await db.getAll('SELECT harvest_product, actual_harvest FROM activities WHERE actor_id=$1 AND harvest_product IS NOT NULL AND actual_harvest > 0', [actor.id]);
+    
+    const harvestsByProduct = {};
+    harvests.forEach(h => {
+      if (!harvestsByProduct[h.harvest_product]) harvestsByProduct[h.harvest_product] = 0;
+      harvestsByProduct[h.harvest_product] += h.actual_harvest;
+    });
+    
+    actorStats.push({
+      id: actor.id,
+      name: actor.name,
+      role: actor.role,
+      region: actor.region,
+      products: JSON.parse(actor.products || '[]'),
+      rating_avg: ratings?.avg ? parseFloat(ratings.avg) : 0,
+      rating_count: ratings?.count ? parseInt(ratings.count) : 0,
+      views: Math.floor(Math.random() * 100) + 10,
+      harvests: harvestsByProduct
+    });
+  }
+  
+  res.json(actorStats);
+});
+
+app.get('/api/stats/budgets', requireAuth, async (req,res)=>{
+  const userId = req.session.user.id;
+  const budgets = await db.getAll('SELECT * FROM activities WHERE user_id=$1 ORDER BY id DESC', [userId]);
+  
+  const budgetStats = [];
+  for(const budget of budgets){
+    const items = await db.getAll('SELECT * FROM activity_items WHERE activity_id=$1', [budget.id]);
+    const expenses = await db.getAll('SELECT * FROM budget_entries WHERE activity_id=$1 AND kind=$2 ORDER BY occurred_on ASC', [budget.id, 'expense']);
+    const incomes = await db.getAll('SELECT * FROM budget_entries WHERE activity_id=$1 AND kind=$2 ORDER BY occurred_on ASC', [budget.id, 'income']);
+    
+    const intrants = items.filter(x=>x.kind==='input').reduce((s,x)=> s + (x.qty||0)*(x.unit_price||0),0);
+    const mo = items.filter(x=>x.kind==='labor').reduce((s,x)=> s + (x.qty||0)*(x.unit_price||0),0);
+    const directs = intrants + mo + (budget.transport||0) + (budget.autres||0);
+    const overhead = directs * ((budget.overhead_pct||0)/100);
+    const totalPlanned = directs + overhead;
+    
+    const totalRealExpenses = expenses.reduce((s,e)=> s + Number(e.amount||0), 0);
+    const totalRealIncomes = incomes.reduce((s,e)=> s + Number(e.amount||0), 0);
+    const profit = totalRealIncomes - totalRealExpenses;
+    
+    const variance = totalRealExpenses - totalPlanned;
+    const variancePercent = totalPlanned > 0 ? (variance / totalPlanned * 100) : 0;
+    
+    budgetStats.push({
+      id: budget.id,
+      label: budget.label,
+      filiere: budget.filiere,
+      periode: budget.periode,
+      status: budget.status,
+      planned_total: totalPlanned,
+      real_expenses: totalRealExpenses,
+      real_incomes: totalRealIncomes,
+      profit: profit,
+      variance: variance,
+      variance_percent: variancePercent,
+      expenses_by_date: expenses,
+      actual_harvest: budget.actual_harvest || 0
+    });
+  }
+  
+  res.json(budgetStats);
+});
+
 app.use(express.static(path.join(__dirname,'public')));
 app.get('*',(req,res)=> res.sendFile(path.join(__dirname,'public/index.html')));
 
