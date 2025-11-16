@@ -1418,10 +1418,16 @@ if(frmPassword){
       return alert('Le mot de passe doit contenir au moins 6 caractères');
     }
     
-    const r = await fetch('/api/user/change-password', {
-      method: 'POST',
+    const r = await fetch('/api/user/profile', {
+      method: 'PUT',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
+        name: ME.name,
+        email: ME.email,
+        phone: ME.phone,
+        whatsapp: ME.whatsapp,
+        region: ME.region,
+        role: ME.role,
         currentPassword: data.currentPassword,
         newPassword: data.newPassword
       })

@@ -75,14 +75,15 @@ app.post('/api/auth/logout',(req,res)=> req.session.destroy(()=>res.json({ok:tru
 app.get('/api/auth/me',(req,res)=> res.json(req.session.user||null));
 
 app.put('/api/user/profile', requireAuth, async (req,res)=>{
-  const {name, email, phone, whatsapp, region, currentPassword, newPassword} = req.body;
+  const {name, email, phone, whatsapp, region, role, currentPassword, newPassword} = req.body;
   const userId = req.session.user.id;
   
   try {
+    const currentUser = await db.getOne('SELECT password_hash, role FROM users WHERE id=$1', [userId]);
+    
     if(newPassword) {
       if(!currentPassword) return res.status(400).json({error:'current_password_required'});
-      const u = await db.getOne('SELECT password_hash FROM users WHERE id=$1', [userId]);
-      if(!bcrypt.compareSync(currentPassword, u.password_hash)) {
+      if(!bcrypt.compareSync(currentPassword, currentUser.password_hash)) {
         return res.status(400).json({error:'invalid_current_password', message:'Mot de passe actuel incorrect'});
       }
       const newHash = bcrypt.hashSync(newPassword, 10);
@@ -91,10 +92,11 @@ app.put('/api/user/profile', requireAuth, async (req,res)=>{
     
     const normalizedPhone = phone ? phone.replace(/\s+/g, '') : null;
     const normalizedWhatsapp = whatsapp ? whatsapp.replace(/\s+/g, '') : null;
+    const finalRole = role || currentUser.role || '';
     
     await db.query(
-      'UPDATE users SET name=$1, email=$2, phone=$3, whatsapp=$4, region=$5 WHERE id=$6',
-      [name, email?(email.trim().toLowerCase()):null, normalizedPhone, normalizedWhatsapp, region, userId]
+      'UPDATE users SET name=$1, email=$2, phone=$3, whatsapp=$4, region=$5, role=$6 WHERE id=$7',
+      [name, email?(email.trim().toLowerCase()):null, normalizedPhone, normalizedWhatsapp, region, finalRole, userId]
     );
     
     const updated = await db.getOne('SELECT id, email, name, phone, whatsapp, region, role, lat, lng, is_admin, status FROM users WHERE id=$1', [userId]);
