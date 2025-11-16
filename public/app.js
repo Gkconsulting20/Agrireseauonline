@@ -431,14 +431,14 @@ const CROP_TEMPLATES = {
   }
 };
 
-let ACTS=[], ACT_ITEMS=[], CURRENT_ACT=null, SELECTED_TEMPLATE=null;
-document.getElementById('btnAddAct').onclick=()=> openActDialog();
-async function loadActs(){ const r=await fetch('/api/activities'); if(r.status===401){ ACTS=[]; renderActs(); return; } ACTS=await r.json(); renderActs(); refreshBudgetActs(); }
-function renderActs(){ const list=document.getElementById('actList'); list.innerHTML=''; ACTS.forEach(a=>{ const el=document.createElement('div'); el.className='card'; el.innerHTML=`<div><strong>${a.label}</strong> <span class="badge">${a.filiere}</span> <span class="badge">${a.periode}</span> <span class="right"><a href="#" data-id="${a.id}" class="open">Ouvrir</a> · <a href="#" data-id="${a.id}" class="del">Supprimer</a></span></div>
-  <div class="muted">Sortie prévue: ${a.output_qty||0} unités · PV envisagé: ${a.price_expected||0} FCFA · Marge cible: ${a.target_margin||0}%</div>`;
+let BUDGETS=[], BUDGET_ITEMS=[], CURRENT_BUDGET=null, SELECTED_TEMPLATE=null;
+document.getElementById('btnAddBudget').onclick=()=> openBudgetDialog();
+async function loadBudgets(){ const r=await fetch('/api/activities'); if(r.status===401){ BUDGETS=[]; renderBudgets(); return; } BUDGETS=await r.json(); renderBudgets(); refreshCostBudgets(); }
+function renderBudgets(){ const list=document.getElementById('budgetList'); list.innerHTML=''; BUDGETS.forEach(b=>{ const el=document.createElement('div'); el.className='card'; el.innerHTML=`<div><strong>${b.label}</strong> <span class="badge">${b.filiere}</span> <span class="badge">${b.periode}</span> <span class="right"><a href="#" data-id="${b.id}" class="open">Voir</a> · <a href="#" data-id="${b.id}" class="del">Supprimer</a></span></div>
+  <div class="muted">Quantité prévue: ${b.output_qty||0} kg · PV: ${b.price_expected||0} FCFA/kg · CA prévu: ${((b.output_qty||0)*(b.price_expected||0)).toLocaleString()} FCFA</div>`;
   list.appendChild(el);
-  el.querySelector('.open').onclick=(e)=>{ e.preventDefault(); openAct(a); };
-  el.querySelector('.del').onclick=async(e)=>{ e.preventDefault(); if(!confirm('Supprimer ?')) return; await fetch('/api/activities/'+a.id,{method:'DELETE'}); await loadActs(); document.getElementById('actEditor').innerHTML='<p class="muted">Sélectionne une activité…</p>'; };
+  el.querySelector('.open').onclick=(e)=>{ e.preventDefault(); openBudget(b); };
+  el.querySelector('.del').onclick=async(e)=>{ e.preventDefault(); if(!confirm('Supprimer ce budget ?')) return; await fetch('/api/activities/'+b.id,{method:'DELETE'}); await loadBudgets(); document.getElementById('budgetEditor').innerHTML='<p class="muted">Sélectionnez un budget…</p>'; };
 }); }
 function openActDialog(){ if(!ME) return alert('Connecte-toi d’abord.'); const dlg=document.createElement('dialog'); dlg.innerHTML=`<form id="frmAct" class="dialog-body"><h3>Nouvelle activité</h3><div class="grid2">
   <label>Filière <select name="filiere"><option>Maïs</option><option>Manioc</option><option>Riz</option><option>Maraîchage</option><option>Soja</option><option>Volailles</option></select></label>

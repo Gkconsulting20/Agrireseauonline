@@ -48,27 +48,30 @@
   <button id="btnAddLog">+ Nouvelle demande/offre</button>
   <div id="logList" class="cards"></div>
 </section>
-<section id="costing" class="tab">
+<section id="budget" class="tab">
   <div class="grid2">
     <div class="card">
-      <h3>Mes activités de coût de revient</h3>
-      <button id="btnAddAct">+ Nouvelle activité</button>
-      <div id="actList" class="cards"></div>
+      <h3>📋 Mes budgets prévisionnels</h3>
+      <p class="muted" style="margin:10px 0;">Créez votre budget prévisionnel au début de la saison agricole</p>
+      <button id="btnAddBudget">+ Nouveau budget</button>
+      <div id="budgetList" class="cards"></div>
     </div>
     <div class="card">
-      <h3>Édition des items</h3>
-      <div id="actEditor"><p class="muted">Sélectionne une activité pour gérer les intrants et la main d'œuvre.</p></div>
+      <h3>📊 Suivi & Évaluation</h3>
+      <div id="budgetEditor"><p class="muted">Sélectionnez un budget pour voir la comparaison Prévisionnel vs Réel.</p></div>
     </div>
   </div>
 </section>
-<section id="budget" class="tab">
+<section id="costing" class="tab">
   <div class="grid3">
-    <div class="card"><h3>📝 Ajouter une ligne</h3>
+    <div class="card"><h3>💸 Enregistrer une dépense réelle</h3>
+      <p class="muted" style="margin:10px 0;">Enregistrez vos coûts au fur et à mesure durant la saison</p>
       <div class="grid2">
-        <select id="bKind"><option value="expense">💸 Dépense</option><option value="income">💰 Recette</option></select>
-        <input id="bDate" type="date">
-        <input id="bAmount" type="number" placeholder="Montant (FCFA)" step="100">
-        <select id="bCat">
+        <select id="costBudget">
+          <option value="">Sélectionner un budget...</option>
+        </select>
+        <input id="costDate" type="date">
+        <select id="costCat">
           <option value="">Choisir une catégorie...</option>
           <optgroup label="🌾 Intrants">
             <option value="Semences">Semences</option>
@@ -89,11 +92,6 @@
             <option value="Stockage">Stockage</option>
             <option value="Emballage">Emballage</option>
           </optgroup>
-          <optgroup label="💰 Recettes">
-            <option value="Vente production">Vente de production</option>
-            <option value="Subvention">Subvention/Aide</option>
-            <option value="Crédit">Crédit agricole</option>
-          </optgroup>
           <optgroup label="📋 Autres">
             <option value="Eau/Irrigation">Eau/Irrigation</option>
             <option value="Électricité">Électricité</option>
@@ -102,13 +100,13 @@
             <option value="Autre">Autre</option>
           </optgroup>
         </select>
-        <select id="bAct"></select>
-        <input id="bNote" placeholder="Note (facultatif)">
+        <input id="costAmount" type="number" placeholder="Montant réel (FCFA)" step="100">
+        <input id="costNote" placeholder="Description (facultatif)">
       </div>
-      <div class="dialog-actions"><button id="bAdd">➕ Ajouter</button></div>
+      <div class="dialog-actions"><button id="costAdd">➕ Enregistrer</button></div>
     </div>
-    <div class="card"><h3>📊 Mes écritures</h3><div id="bList" class="cards"></div></div>
-    <div class="card"><h3>💵 Résumés</h3><div id="bSum"></div></div>
+    <div class="card"><h3>📝 Dépenses réelles enregistrées</h3><div id="costList" class="cards"></div></div>
+    <div class="card"><h3>💵 Total accumulé</h3><div id="costSum"></div></div>
   </div>
 </section>
 <footer class="btm"><small>Replit (Node + SQLite). Auth locale, CRUD acteurs/logistique, coût de revient par activité, budget par compte.</small></footer>
