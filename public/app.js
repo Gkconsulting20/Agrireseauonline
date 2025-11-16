@@ -11,6 +11,9 @@ tabs.forEach(b=> b.addEventListener('click',()=>{
 
 const btnLogin=document.getElementById('btnLogin'), btnLogout=document.getElementById('btnLogout'), meEl=document.getElementById('me');
 
+// Variables globales
+let ME=null, ACTORS=[], LOGISTICS=[], PRODUCTS=[], REGIONS=[], BUDGETS=[], CURRENT_BUDGET=null, COSTS=[], CURRENT_COST_BUDGET=null;
+
 async function openLogin(){
   const dlg=document.createElement('dialog');
   dlg.innerHTML=`<form id="frmLogin" class="dialog-body"><h3>Connexion / Inscription</h3>
@@ -65,7 +68,7 @@ if(btnLocateMe) {
 
 document.getElementById('btnSeed').onclick=async()=>{ if(!confirm('Réinitialiser et charger des données de démo ?')) return; const r=await fetch('/api/seed',{method:'POST'}); if(r.ok){ await loadActors(); await loadLogistics(); renderMap(); renderStockSummary(); } };
 
-let REFS={regions:[],products:[]}, ACTORS=[], LOGS=[], ME=null, USER_LOCATION=null;
+let REFS={regions:[],products:[]}, LOGS=[], USER_LOCATION=null;
 
 async function getUserLocation() {
   return new Promise((resolve, reject) => {
@@ -439,7 +442,6 @@ const CROP_TEMPLATES = {
   }
 };
 
-let BUDGETS=[], CURRENT_BUDGET=null;
 document.getElementById('btnAddBudget').onclick=()=> openBudgetDialog();
 async function loadBudgets(){ 
   const r=await fetch('/api/activities'); 
@@ -860,25 +862,121 @@ function editHarvest(b){
 }
 
 // Nouvelles fonctions pour Coût de revient (module réel)
-let COSTS=[], COST_SUMMARY={totalExpenses:0,totalIncomes:0,balance:0};
 async function loadCosts(){
-  const r=await fetch('/api/budget');if(r.status===401){COSTS=[];renderCosts();return;}
-  const data=await r.json();COSTS=data.rows||[];
-  COST_SUMMARY={totalExpenses:data.totals.expense||0,totalIncomes:data.totals.income||0,balance:data.totals.balance||0};
+  const r=await fetch('/api/budget');
+  if(r.status===401){COSTS=[];renderCosts();return;}
+  const data=await r.json();
+  COSTS=data.rows||[];
   renderCosts();
+  if(CURRENT_COST_BUDGET) await showCostSummary(CURRENT_COST_BUDGET);
 }
 function renderCosts(){
-  const list=document.getElementById('costList');const sum=document.getElementById('costSum');
-  list.innerHTML='';COSTS.forEach(c=>{const el=document.createElement('div');el.className='card';
+  const list=document.getElementById('costList');
+  if(!list) return;
+  const budgetId=document.getElementById('costBudget')?.value;
+  const filtered = budgetId ? COSTS.filter(c=>c.activity_id==budgetId) : COSTS;
+  list.innerHTML='';
+  if(filtered.length===0){
+    list.innerHTML='<p class="muted">Aucune dépense enregistrée</p>';
+    return;
+  }
+  filtered.forEach(c=>{
+    const el=document.createElement('div');
+    el.className='card';
     el.innerHTML=`<div><strong>${c.kind==='income'?'💰 Recette':'💸 Dépense'}</strong> · ${c.category||'-'} · <strong>${Number(c.amount).toLocaleString()} FCFA</strong> <span class="muted right">${c.occurred_on}</span></div>
-      <div class="muted">${c.note||''} ${c.activity_id?'(Lié au budget)':''}</div>`;
+      <div class="muted">${c.note||''}</div>`;
     list.appendChild(el);
   });
-  sum.innerHTML=`<p>Total dépenses: <strong>${COST_SUMMARY.totalExpenses.toLocaleString()} FCFA</strong></p>
-    <p>Total recettes: <strong>${COST_SUMMARY.totalIncomes.toLocaleString()} FCFA</strong></p>
-    <p><strong>Solde: ${COST_SUMMARY.balance.toLocaleString()} FCFA</strong></p>`;
 }
-async function refreshCostBudgets(){const sel=document.getElementById('costBudget');if(!sel)return;sel.innerHTML='<option value="">Sélectionner un budget...</option>'+BUDGETS.map(b=>`<option value="${b.id}">${b.label}</option>`).join('');}
+async function showCostSummary(budgetId){
+  if(!budgetId) {
+    document.getElementById('costSummary').innerHTML='<p class="muted">Sélectionnez un budget pour voir le calcul du coût de revient</p>';
+    return;
+  }
+  CURRENT_COST_BUDGET=budgetId;
+  const budget = BUDGETS.find(b=>b.id==budgetId);
+  if(!budget) return;
+  
+  const sumR=await fetch(`/api/activities/${budgetId}/summary`);
+  const S=await sumR.json();
+  const totalCost = S.totalRealExpenses || 0;
+  const actualHarvest = S.actual_harvest || 0;
+  const targetMargin = budget.target_margin || 0;
+  const unitCost = actualHarvest > 0 ? totalCost / actualHarvest : 0;
+  const suggestedPrice = unitCost * (1 + targetMargin / 100);
+  
+  const root=document.getElementById('costSummary');
+  root.innerHTML=`
+    <div style="background:#f0fdf4;padding:15px;border-radius:8px;margin-bottom:15px;">
+      <h4 style="margin:0 0 10px 0;color:#059669;">${budget.label}</h4>
+      <p style="margin:5px 0;"><strong>Filière:</strong> ${budget.filiere}</p>
+      <p style="margin:5px 0;"><strong>Période:</strong> ${budget.periode}</p>
+    </div>
+    
+    <div style="background:#fee2e2;padding:15px;border-radius:8px;margin-bottom:15px;">
+      <h5 style="margin:0 0 10px 0;color:#dc2626;">💰 Dépenses totales</h5>
+      <p style="margin:0;font-size:24px;font-weight:bold;color:#dc2626;">${totalCost.toLocaleString()} FCFA</p>
+    </div>
+    
+    <div style="background:#fef3c7;padding:15px;border-radius:8px;margin-bottom:15px;">
+      <h5 style="margin:0 0 10px 0;color:#92400e;">🌾 Quantité récoltée</h5>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <input type="number" id="harvestQty" value="${actualHarvest}" min="0" step="0.01" style="flex:1;padding:8px;border:2px solid #fbbf24;border-radius:4px;font-size:16px;font-weight:bold;">
+        <span>kg</span>
+        <button id="btnUpdateHarvest" style="padding:8px 15px;background:#fbbf24;border:none;border-radius:4px;cursor:pointer;">✏️ Modifier</button>
+      </div>
+    </div>
+    
+    <div style="background:#eff6ff;padding:15px;border-radius:8px;margin-bottom:15px;">
+      <h5 style="margin:0 0 10px 0;color:#1e40af;">📊 Coût de revient unitaire</h5>
+      <p style="margin:0;font-size:24px;font-weight:bold;color:#1e40af;">${unitCost.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2})} FCFA/kg</p>
+      <p style="margin:5px 0 0 0;font-size:12px;color:#6b7280;">Calcul: ${totalCost.toLocaleString()} FCFA ÷ ${actualHarvest} kg</p>
+    </div>
+    
+    <div style="background:#f3e8ff;padding:15px;border-radius:8px;margin-bottom:15px;">
+      <h5 style="margin:0 0 10px 0;color:#6b21a8;">💵 Marge bénéficiaire souhaitée</h5>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <input type="number" id="marginPct" value="${targetMargin}" min="0" max="200" step="5" style="flex:1;padding:8px;border:2px solid #a855f7;border-radius:4px;font-size:16px;font-weight:bold;">
+        <span>%</span>
+        <button id="btnUpdateMargin" style="padding:8px 15px;background:#a855f7;color:white;border:none;border-radius:4px;cursor:pointer;">✏️ Modifier</button>
+      </div>
+    </div>
+    
+    <div style="background:#dcfce7;padding:15px;border-radius:8px;border:2px solid #059669;">
+      <h5 style="margin:0 0 10px 0;color:#059669;">💎 Prix de vente suggéré</h5>
+      <p style="margin:0;font-size:28px;font-weight:bold;color:#059669;">${suggestedPrice.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2})} FCFA/kg</p>
+      <p style="margin:5px 0 0 0;font-size:12px;color:#6b7280;">Calcul: ${unitCost.toFixed(2)} FCFA × (1 + ${targetMargin}%) = ${suggestedPrice.toFixed(2)} FCFA/kg</p>
+      <p style="margin:10px 0 0 0;font-size:11px;color:#6b7280;font-style:italic;">💡 Ce prix est indicatif. Le prix final sera négociable avec les acheteurs.</p>
+    </div>
+  `;
+  
+  root.querySelector('#btnUpdateHarvest').onclick=async()=>{
+    const newHarvest = Number(document.getElementById('harvestQty').value);
+    const payload = {label:budget.label,filiere:budget.filiere,periode:budget.periode,output_qty:budget.output_qty,price_expected:budget.price_expected,transport:budget.transport,target_margin:budget.target_margin,autres:budget.autres,overhead_pct:budget.overhead_pct,actual_harvest:newHarvest};
+    const r=await fetch(`/api/activities/${budgetId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!r.ok){alert('Erreur');return;}
+    await loadBudgets();
+    await showCostSummary(budgetId);
+  };
+  
+  root.querySelector('#btnUpdateMargin').onclick=async()=>{
+    const newMargin = Number(document.getElementById('marginPct').value);
+    const payload = {label:budget.label,filiere:budget.filiere,periode:budget.periode,output_qty:budget.output_qty,price_expected:budget.price_expected,transport:budget.transport,target_margin:newMargin,autres:budget.autres,overhead_pct:budget.overhead_pct,actual_harvest:budget.actual_harvest};
+    const r=await fetch(`/api/activities/${budgetId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!r.ok){alert('Erreur');return;}
+    await loadBudgets();
+    await showCostSummary(budgetId);
+  };
+}
+async function refreshCostBudgets(){
+  const sel=document.getElementById('costBudget');
+  if(!sel)return;
+  sel.innerHTML='<option value="">Sélectionner un budget...</option>'+BUDGETS.map(b=>`<option value="${b.id}">${b.label}</option>`).join('');
+  sel.onchange=async()=>{
+    await showCostSummary(sel.value);
+    renderCosts();
+  };
+}
 document.getElementById('costAdd')?.addEventListener('click',async()=>{
   if(!ME)return alert("Connecte-toi d'abord.");
   const budgetId=document.getElementById('costBudget').value;

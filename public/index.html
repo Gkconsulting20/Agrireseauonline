@@ -63,50 +63,58 @@
   </div>
 </section>
 <section id="costing" class="tab">
-  <div class="grid3">
-    <div class="card"><h3>💸 Enregistrer une dépense réelle</h3>
-      <p class="muted" style="margin:10px 0;">Enregistrez vos coûts au fur et à mesure durant la saison</p>
-      <div class="grid2">
-        <select id="costBudget">
-          <option value="">Sélectionner un budget...</option>
-        </select>
-        <input id="costDate" type="date">
-        <select id="costCat">
-          <option value="">Choisir une catégorie...</option>
-          <optgroup label="🌾 Intrants">
-            <option value="Semences">Semences</option>
-            <option value="Engrais">Engrais (NPK, Urée)</option>
-            <option value="Pesticides">Pesticides/Herbicides</option>
-            <option value="Fumure">Fumure organique</option>
-            <option value="Matériel agricole">Matériel agricole</option>
-          </optgroup>
-          <optgroup label="👷 Main d'œuvre">
-            <option value="Labour">Labour/Préparation sol</option>
-            <option value="Semis/Plantation">Semis/Plantation</option>
-            <option value="Entretien">Entretien/Sarclage</option>
-            <option value="Récolte">Récolte</option>
-            <option value="Transformation">Transformation</option>
-          </optgroup>
-          <optgroup label="🚚 Logistique">
-            <option value="Transport">Transport</option>
-            <option value="Stockage">Stockage</option>
-            <option value="Emballage">Emballage</option>
-          </optgroup>
-          <optgroup label="📋 Autres">
-            <option value="Eau/Irrigation">Eau/Irrigation</option>
-            <option value="Électricité">Électricité</option>
-            <option value="Location terrain">Location terrain</option>
-            <option value="Assurance">Assurance</option>
-            <option value="Autre">Autre</option>
-          </optgroup>
-        </select>
-        <input id="costAmount" type="number" placeholder="Montant réel (FCFA)" step="100">
-        <input id="costNote" placeholder="Description (facultatif)">
+  <div class="grid2">
+    <div>
+      <div class="card"><h3>💸 Enregistrer une dépense réelle</h3>
+        <p class="muted" style="margin:10px 0;">Enregistrez vos coûts au fur et à mesure durant la saison</p>
+        <div class="grid2">
+          <select id="costBudget">
+            <option value="">Sélectionner un budget...</option>
+          </select>
+          <input id="costDate" type="date">
+          <select id="costCat">
+            <option value="">Choisir une catégorie...</option>
+            <optgroup label="🌾 Intrants">
+              <option value="Semences">Semences</option>
+              <option value="Engrais">Engrais (NPK, Urée)</option>
+              <option value="Pesticides">Pesticides/Herbicides</option>
+              <option value="Fumure">Fumure organique</option>
+              <option value="Matériel agricole">Matériel agricole</option>
+            </optgroup>
+            <optgroup label="👷 Main d'œuvre">
+              <option value="Labour">Labour/Préparation sol</option>
+              <option value="Semis/Plantation">Semis/Plantation</option>
+              <option value="Entretien">Entretien/Sarclage</option>
+              <option value="Récolte">Récolte</option>
+              <option value="Transformation">Transformation</option>
+            </optgroup>
+            <optgroup label="🚚 Logistique">
+              <option value="Transport">Transport</option>
+              <option value="Stockage">Stockage</option>
+              <option value="Emballage">Emballage</option>
+            </optgroup>
+            <optgroup label="📋 Autres">
+              <option value="Eau/Irrigation">Eau/Irrigation</option>
+              <option value="Électricité">Électricité</option>
+              <option value="Location terrain">Location terrain</option>
+              <option value="Assurance">Assurance</option>
+              <option value="Autre">Autre</option>
+            </optgroup>
+          </select>
+          <input id="costAmount" type="number" placeholder="Montant réel (FCFA)" step="100">
+          <input id="costNote" placeholder="Description (facultatif)">
+        </div>
+        <div class="dialog-actions"><button id="costAdd">➕ Enregistrer</button></div>
       </div>
-      <div class="dialog-actions"><button id="costAdd">➕ Enregistrer</button></div>
+      <div class="card"><h3>📝 Historique des dépenses</h3><div id="costList" class="cards"></div></div>
     </div>
-    <div class="card"><h3>📝 Dépenses réelles enregistrées</h3><div id="costList" class="cards"></div></div>
-    <div class="card"><h3>💵 Total accumulé</h3><div id="costSum"></div></div>
+    <div>
+      <div class="card"><h3>📊 Coût de revient calculé</h3>
+        <div id="costSummary">
+          <p class="muted">Sélectionnez un budget pour voir le calcul du coût de revient</p>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 <footer class="btm"><small>Replit (Node + SQLite). Auth locale, CRUD acteurs/logistique, coût de revient par activité, budget par compte.</small></footer>
