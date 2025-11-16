@@ -54,7 +54,10 @@ AgriRéseau Pro utilizes a modern web stack:
         - Complete reset flow with password confirmation and validation
 - **Subscription System**:
     - **Free Plan**: Limited to 2 actors per user.
-    - **Premium Plan**: Offers unlimited actors, a premium badge, and access to future advanced features like analytics, internal messaging, alerts, digital contracts, stock history, and weather forecasts.
+    - **Premium Plan**: Offers unlimited actors, a premium badge, and access to advanced features:
+        - **Statistics & Analytics Dashboard** (Added November 2025): Comprehensive dashboard with KPIs (actors count, budgets, views, expenses, harvests, ratings), actor performance metrics (ratings, views, products, available harvests), budget variance analysis (planned vs real, variance %, profit, status), visual evolution charts, and CSV/PDF export functionality.
+        - **Mobile Money Payment Integration** (Added November 2025): PayGate integration for T-Money and Flooz payments, payment initiation UI with provider selection and phone number input, transaction history display with status badges (completed, pending, failed), automatic premium activation upon successful payment.
+        - **Notification System** (Added November 2025): Twilio-ready endpoints for SMS and WhatsApp notifications, notification history display with status tracking, test notification functionality for integration validation.
 - **Admin System** (Added November 2025):
     - **Role-Based Authorization**: `is_admin` flag in users table enables admin privileges.
     - **Admin Panel**: Dedicated "Administration" tab visible only to admins.
@@ -72,18 +75,38 @@ AgriRéseau Pro utilizes a modern web stack:
 - **Trust & Reputation System**:
     - **Rating System**: Users can rate actors (1-5 stars) with optional comments, displayed as an average rating with count on actor cards.
     - **Certification Badges**: Visual badges for Bio (🌿), Qualité (✅), and Commerce Équitable (🤝) certifications on actor cards.
-- **Product Presentation**: Support for product photos and price display (FCFA/kg) on actor cards and in stock summaries.
+- **Product Presentation**: Support for product photos. Harvest quantities are visible on actor cards ("📦 Disponible: [product]: [quantity] kg"), but prices are hidden to encourage direct negotiation between buyers and sellers.
 - **Enhanced Communication**: WhatsApp integration with pre-filled message templates.
+- **Monetization Infrastructure** (Added November 2025):
+    - **Payment Processing**: Complete PayGate API integration for T-Money (60% market share) and Flooz (40% market share) mobile money payments.
+    - **Payment Endpoints**: `/api/payments/initiate` (requireAuth) for payment initiation with transaction tracking, `/api/payments/callback` for PayGate webhook processing and auto-premium activation, `/api/payments/history` (requireAuth) for transaction history.
+    - **Notification Endpoints**: `/api/notifications/send` (requireAuth) for SMS/WhatsApp sending via Twilio, `/api/notifications/history` (requireAuth) for notification tracking.
+    - **Database Tables**: `payments` table for transaction tracking (user_id, amount, payment_method, provider, transaction_id, status, metadata), `notifications` table for notification logging (user_id, type, channel, recipient, message, status, sent_at, error_message).
+    - **Security**: All payment and notification endpoints protected by requireAuth middleware, environment variables for API keys (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, PAYGATE_API_KEY), transaction ID generation with unique identifiers.
 
 **System Design Choices**:
 - Separation of concerns between frontend and backend.
 - Use of environment variables for sensitive configurations.
 - Connection pooling for database performance.
 - Asynchronous programming with `async/await` for better error handling and responsiveness.
-- Database schema supports users, subscriptions, actors, ratings, logistics, activities, activity items, budget entries, regions, and products.
+- Database schema supports users, subscriptions, actors, ratings, logistics, activities, activity items, budget entries, regions, products, payments, and notifications.
+- Progressive monetization model: Freemium (2 actors) → Premium subscription (5,000 FCFA/month, unlimited actors + analytics) → Future: Transaction fees, Featured actors, Financial services.
 
 ## External Dependencies
 - **PostgreSQL (Neon serverless)**: Primary database for all application data.
 - **Leaflet.js**: JavaScript library for interactive maps.
 - **bcryptjs**: Library for password hashing and security.
-- **PayGate**: Payment gateway integration planned for T-Money and Flooz mobile money services (awaiting API credentials for full activation).
+- **PayGate**: Payment gateway integration for T-Money and Flooz mobile money services. Infrastructure ready, awaiting API credentials for live activation. See INTEGRATION_GUIDE.md for setup instructions.
+- **Twilio**: SMS and WhatsApp notification service. Framework ready, awaiting API credentials for live activation. See INTEGRATION_GUIDE.md for setup instructions.
+
+## Production Deployment Checklist
+Before deploying to production, configure the following environment variables:
+- [ ] `SESSION_SECRET` - Secure random string for session encryption
+- [ ] `TWILIO_ACCOUNT_SID` - Twilio Account SID (for SMS/WhatsApp notifications)
+- [ ] `TWILIO_AUTH_TOKEN` - Twilio Auth Token
+- [ ] `TWILIO_PHONE_NUMBER` - Twilio phone number (format: +1234567890)
+- [ ] `PAYGATE_API_KEY` - PayGate API Key (UUID format)
+- [ ] `PAYGATE_MERCHANT_ID` - PayGate Merchant ID
+- [ ] `PAYGATE_CALLBACK_URL` - PayGate callback URL (https://your-app.replit.app/api/payments/callback)
+
+Refer to INTEGRATION_GUIDE.md for detailed configuration instructions and testing procedures.
