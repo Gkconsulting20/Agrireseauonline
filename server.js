@@ -33,6 +33,7 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 function requireAuth(req,res,next){ if(!req.session.user) return res.status(401).json({error:'auth_required'}); next(); }
+function requireAdmin(req,res,next){ if(!req.session.user) return res.status(401).json({error:'auth_required'}); if(!req.session.user.is_admin) return res.status(403).json({error:'admin_required'}); next(); }
 
 app.post('/api/auth/register', async (req,res)=>{ 
   const {email,password,name,region,role,phone,whatsapp,lat,lng}=req.body; 
@@ -40,11 +41,13 @@ app.post('/api/auth/register', async (req,res)=>{
   if(!email && !phone) return res.status(400).json({error:'email_or_phone_required'}); 
   if(!name) return res.status(400).json({error:'name_required'}); 
   const hash=bcrypt.hashSync(password,10); 
+  const normalizedPhone = phone ? phone.replace(/\s+/g, '') : null;
+  const normalizedWhatsapp = whatsapp ? whatsapp.replace(/\s+/g, '') : null;
   try{ 
-    const user = await db.insertOne('INSERT INTO users (email,name,password_hash,region,role,phone,whatsapp,lat,lng) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)', [email?(email.trim().toLowerCase()):null,name||'',hash,region||'',role||'',phone||null,whatsapp||null,lat||null,lng||null]); 
+    const user = await db.insertOne('INSERT INTO users (email,name,password_hash,region,role,phone,whatsapp,lat,lng) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)', [email?(email.trim().toLowerCase()):null,name||'',hash,region||'',role||'',normalizedPhone,normalizedWhatsapp,lat||null,lng||null]); 
     const userId=user.id; 
     await db.query('INSERT INTO subscriptions (user_id,plan,status) VALUES ($1,$2,$3)', [userId,'free','active']); 
-    req.session.user={id:userId,email,name,region,role,phone,whatsapp,lat,lng}; 
+    req.session.user={id:userId,email,name,region,role,phone:normalizedPhone,whatsapp:normalizedWhatsapp,lat,lng}; 
     res.status(201).json(req.session.user); 
   } catch(e){ 
     res.status(400).json({error:'registration_failed',message:e.message}); 
@@ -52,12 +55,18 @@ app.post('/api/auth/register', async (req,res)=>{
 });
 
 app.post('/api/auth/login', async (req,res)=>{ 
-  const {email,password}=req.body; 
-  if(!email) return res.status(400).json({error:'email_required'}); 
-  const u = await db.getOne('SELECT * FROM users WHERE email=$1', [(email||'').trim().toLowerCase()]); 
+  const {email,phone,password}=req.body; 
+  if(!email && !phone) return res.status(400).json({error:'email_or_phone_required'}); 
+  let u = null;
+  if(email) {
+    u = await db.getOne('SELECT * FROM users WHERE email=$1', [(email||'').trim().toLowerCase()]); 
+  } else if(phone) {
+    u = await db.getOne('SELECT * FROM users WHERE phone=$1', [phone.trim()]); 
+  }
   if(!u) return res.status(400).json({error:'invalid_credentials'}); 
+  if(u.status === 'blocked') return res.status(403).json({error:'account_blocked',message:'Votre compte a été bloqué'}); 
   if(!bcrypt.compareSync(password||'',u.password_hash)) return res.status(400).json({error:'invalid_credentials'}); 
-  req.session.user={id:u.id,email:u.email,name:u.name,region:u.region,role:u.role,phone:u.phone,whatsapp:u.whatsapp,lat:u.lat,lng:u.lng}; 
+  req.session.user={id:u.id,email:u.email,name:u.name,region:u.region,role:u.role,phone:u.phone,whatsapp:u.whatsapp,lat:u.lat,lng:u.lng,is_admin:u.is_admin,status:u.status}; 
   res.json(req.session.user); 
 });
 
@@ -318,6 +327,30 @@ app.post('/api/admin/activate-premium', requireAuth, async (req,res)=>{
     console.error('Error activating premium:', e);
     res.status(500).json({error:'Failed to activate premium'});
   }
+});
+
+// Admin endpoints - User management
+app.get('/api/admin/users', requireAdmin, async (req,res)=>{
+  const users = await db.getAll('SELECT id, email, name, phone, whatsapp, region, role, is_admin, status, created_at FROM users ORDER BY created_at DESC', []);
+  res.json(users);
+});
+
+app.put('/api/admin/users/:id', requireAdmin, async (req,res)=>{
+  const userId = Number(req.params.id);
+  const {name, email, phone, whatsapp, region, role, is_admin, status} = req.body;
+  await db.query(
+    'UPDATE users SET name=$1, email=$2, phone=$3, whatsapp=$4, region=$5, role=$6, is_admin=$7, status=$8 WHERE id=$9',
+    [name, email, phone, whatsapp, region, role, is_admin, status, userId]
+  );
+  const updated = await db.getOne('SELECT id, email, name, phone, whatsapp, region, role, is_admin, status, created_at FROM users WHERE id=$1', [userId]);
+  res.json(updated);
+});
+
+app.delete('/api/admin/users/:id', requireAdmin, async (req,res)=>{
+  const userId = Number(req.params.id);
+  if(userId === req.session.user.id) return res.status(400).json({error:'Cannot delete your own account'});
+  await db.query('DELETE FROM users WHERE id=$1', [userId]);
+  res.status(204).end();
 });
 
 app.use(express.static(path.join(__dirname,'public')));

@@ -7,12 +7,13 @@ tabs.forEach(b=> b.addEventListener('click',()=>{
   if(b.dataset.tab==='map') renderMap(); 
   if(b.dataset.tab==='budget'){ loadBudgets(); refreshCostBudgets(); }
   if(b.dataset.tab==='costing'){ loadCosts(); refreshCostBudgets(); }
+  if(b.dataset.tab==='admin'){ loadAdminUsers(); }
 }));
 
 const btnLogin=document.getElementById('btnLogin'), btnLogout=document.getElementById('btnLogout'), meEl=document.getElementById('me');
 
 // Variables globales
-let ME=null, ACTORS=[], LOGISTICS=[], PRODUCTS=[], REGIONS=[], BUDGETS=[], CURRENT_BUDGET=null, COSTS=[], CURRENT_COST_BUDGET=null;
+let ME=null, ACTORS=[], LOGISTICS=[], PRODUCTS=[], REGIONS=[], BUDGETS=[], CURRENT_BUDGET=null, COSTS=[], CURRENT_COST_BUDGET=null, ADMIN_USERS=[];
 
 async function openLogin(){
   const dlg=document.createElement('dialog');
@@ -55,10 +56,11 @@ async function openLogin(){
   dlg.querySelector('#btnDoLogin').onclick=async()=>{
     const form = dlg.querySelector('#frmLogin');
     const email = form.querySelector('[name="email"]').value;
+    const phone = form.querySelector('[name="phone"]').value;
     const password = form.querySelector('[name="password"]').value;
-    if(!email || !password) return alert('Email et mot de passe requis pour se connecter');
-    const r = await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email, password}),credentials:'include'});
-    if(r.ok){ dlg.close(); await boot(); } else { alert('Email ou mot de passe incorrect'); }
+    if((!email && !phone) || !password) return alert('Email OU Téléphone + Mot de passe requis');
+    const r = await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email: email||null, phone: phone||null, password}),credentials:'include'});
+    if(r.ok){ dlg.close(); await boot(); } else { alert('Identifiants incorrects'); }
   };
   
   dlg.querySelector('#btnDoRegister').onclick=async()=>{
@@ -1073,5 +1075,214 @@ document.getElementById('costAdd')?.addEventListener('click',async()=>{
   await loadCosts();await loadBudgets();
 });
 
-async function boot(){ const me = await fetch('/api/auth/me'); ME = await me.json(); meEl.textContent = ME? `Connecté: ${ME.email}`:''; btnLogin.style.display = ME? 'none':'inline-block'; btnLogout.style.display = ME? 'inline-block':'none'; const btnSub=document.getElementById('btnSubscription'); if(btnSub) btnSub.style.display = ME? 'inline-block':'none'; await loadRefs(); await loadActors(); await loadLogistics(); await loadBudgets(); await loadCosts(); if(window._booted) return; window._booted=true; }
+async function loadAdminUsers(){
+  if(!ME || !ME.is_admin) return;
+  try {
+    const r = await fetch('/api/admin/users');
+    if(r.ok){
+      ADMIN_USERS = await r.json();
+      renderAdminUsers();
+    }
+  } catch(e) {
+    console.error('Error loading admin users:', e);
+  }
+}
+
+function renderAdminUsers(){
+  const tbody = document.getElementById('adminUserList');
+  if(!tbody) return;
+  
+  if(ADMIN_USERS.length === 0){
+    tbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:20px;">Aucun utilisateur</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = ADMIN_USERS.map(u => {
+    const statusBadge = u.status === 'active' ? '<span class="badge" style="background:#10b981;color:white">✓ Active</span>' :
+                        u.status === 'blocked' ? '<span class="badge" style="background:#ef4444;color:white">✖ Bloqué</span>' :
+                        '<span class="badge" style="background:#fbbf24;color:#000">⏳ En attente</span>';
+    
+    const adminBadge = u.is_admin ? '<span class="badge" style="background:#fbbf24;color:#000">💎 ADMIN</span>' : '-';
+    
+    const blockBtn = u.status === 'blocked' 
+      ? `<button onclick="toggleBlockUser(${u.id}, '${u.status}')" style="background:#10b981;color:white;padding:4px 8px;font-size:12px;">Débloquer</button>`
+      : `<button onclick="toggleBlockUser(${u.id}, '${u.status}')" style="background:#ef4444;color:white;padding:4px 8px;font-size:12px;">Bloquer</button>`;
+    
+    const deleteBtn = u.id === ME.id 
+      ? '<button disabled style="opacity:0.5;padding:4px 8px;font-size:12px;">Supprimer</button>'
+      : `<button onclick="deleteAdminUser(${u.id})" style="background:#dc2626;color:white;padding:4px 8px;font-size:12px;">Supprimer</button>`;
+    
+    return `<tr>
+      <td>${u.id}</td>
+      <td><strong>${u.name || '-'}</strong></td>
+      <td>${u.email || '-'}</td>
+      <td>${u.phone || '-'}</td>
+      <td>${u.region || '-'}</td>
+      <td><span class="badge">${u.role || '-'}</span></td>
+      <td>${statusBadge}</td>
+      <td>${adminBadge}</td>
+      <td>
+        <button onclick="openEditUserDialog(${u.id})" style="background:#3b82f6;color:white;padding:4px 8px;font-size:12px;margin-right:4px;">Modifier</button>
+        ${blockBtn}
+        ${deleteBtn}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function openEditUserDialog(userId){
+  if(!ME || !ME.is_admin) return alert('Accès refusé');
+  
+  const user = ADMIN_USERS.find(u => u.id === userId);
+  if(!user) return alert('Utilisateur non trouvé');
+  
+  const dlg = document.createElement('dialog');
+  dlg.innerHTML = `<form id="frmEditUser" class="dialog-body">
+    <h3>Modifier l'utilisateur #${user.id}</h3>
+    <div class="grid2">
+      <label>Nom <input name="name" value="${user.name || ''}" required></label>
+      <label>Email <input name="email" type="email" value="${user.email || ''}"></label>
+      <label>Téléphone <input name="phone" value="${user.phone || ''}"></label>
+      <label>WhatsApp <input name="whatsapp" value="${user.whatsapp || ''}"></label>
+      <label>Région <input name="region" value="${user.region || ''}"></label>
+      <label>Rôle <select name="role">
+        <option value="">-</option>
+        ${['producteur','transporteur','transformateur','grossiste','detaillant','institution'].map(r => 
+          `<option value="${r}" ${user.role === r ? 'selected' : ''}>${r}</option>`
+        ).join('')}
+      </select></label>
+      <label>Statut <select name="status" required>
+        <option value="active" ${user.status === 'active' ? 'selected' : ''}>Active</option>
+        <option value="blocked" ${user.status === 'blocked' ? 'selected' : ''}>Bloqué</option>
+        <option value="pending" ${user.status === 'pending' ? 'selected' : ''}>En attente</option>
+      </select></label>
+      <label>Administrateur <select name="is_admin" required>
+        <option value="false" ${!user.is_admin ? 'selected' : ''}>Non</option>
+        <option value="true" ${user.is_admin ? 'selected' : ''}>Oui</option>
+      </select></label>
+    </div>
+    <div class="dialog-actions">
+      <button type="submit">Enregistrer</button>
+      <button type="button" id="cancelEdit">Annuler</button>
+    </div>
+  </form>`;
+  
+  document.body.appendChild(dlg);
+  dlg.showModal();
+  
+  dlg.querySelector('#cancelEdit').onclick = () => dlg.close();
+  
+  dlg.querySelector('#frmEditUser').onsubmit = async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target).entries());
+    
+    const payload = {
+      name: data.name.trim(),
+      email: data.email ? data.email.trim() : null,
+      phone: data.phone ? data.phone.trim() : null,
+      whatsapp: data.whatsapp ? data.whatsapp.trim() : null,
+      region: data.region ? data.region.trim() : null,
+      role: data.role || null,
+      status: data.status,
+      is_admin: data.is_admin === 'true'
+    };
+    
+    const r = await fetch(`/api/admin/users/${userId}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    
+    if(r.ok){
+      dlg.close();
+      await loadAdminUsers();
+      alert('Utilisateur mis à jour avec succès');
+    } else {
+      alert('Erreur lors de la mise à jour');
+    }
+  };
+}
+
+async function toggleBlockUser(userId, currentStatus){
+  if(!ME || !ME.is_admin) return alert('Accès refusé');
+  
+  const user = ADMIN_USERS.find(u => u.id === userId);
+  if(!user) return;
+  
+  const newStatus = currentStatus === 'blocked' ? 'active' : 'blocked';
+  const action = newStatus === 'blocked' ? 'bloquer' : 'débloquer';
+  
+  if(!confirm(`Voulez-vous vraiment ${action} l'utilisateur "${user.name}" ?`)) return;
+  
+  const payload = {
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    whatsapp: user.whatsapp,
+    region: user.region,
+    role: user.role,
+    status: newStatus,
+    is_admin: user.is_admin
+  };
+  
+  const r = await fetch(`/api/admin/users/${userId}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  });
+  
+  if(r.ok){
+    await loadAdminUsers();
+    alert(`Utilisateur ${action === 'bloquer' ? 'bloqué' : 'débloqué'} avec succès`);
+  } else {
+    alert('Erreur lors de la mise à jour');
+  }
+}
+
+async function deleteAdminUser(userId){
+  if(!ME || !ME.is_admin) return alert('Accès refusé');
+  if(userId === ME.id) return alert('Vous ne pouvez pas supprimer votre propre compte');
+  
+  const user = ADMIN_USERS.find(u => u.id === userId);
+  if(!user) return;
+  
+  if(!confirm(`⚠️ ATTENTION ⚠️\n\nVoulez-vous vraiment supprimer définitivement l'utilisateur "${user.name}" ?\n\nCette action est irréversible et supprimera toutes les données associées à cet utilisateur.`)) return;
+  
+  const r = await fetch(`/api/admin/users/${userId}`, {
+    method: 'DELETE'
+  });
+  
+  if(r.ok){
+    await loadAdminUsers();
+    alert('Utilisateur supprimé avec succès');
+  } else {
+    const err = await r.json();
+    alert(err.error || 'Erreur lors de la suppression');
+  }
+}
+
+window.openEditUserDialog = openEditUserDialog;
+window.toggleBlockUser = toggleBlockUser;
+window.deleteAdminUser = deleteAdminUser;
+
+async function boot(){ 
+  const me = await fetch('/api/auth/me'); 
+  ME = await me.json(); 
+  meEl.textContent = ME? `Connecté: ${ME.email}`:''; 
+  btnLogin.style.display = ME? 'none':'inline-block'; 
+  btnLogout.style.display = ME? 'inline-block':'none'; 
+  const btnSub=document.getElementById('btnSubscription'); 
+  if(btnSub) btnSub.style.display = ME? 'inline-block':'none'; 
+  
+  const adminTab = document.getElementById('adminTab');
+  if(adminTab) adminTab.style.display = ME && ME.is_admin ? 'inline-block' : 'none';
+  
+  await loadRefs(); 
+  await loadActors(); 
+  await loadLogistics(); 
+  await loadBudgets(); 
+  await loadCosts(); 
+  if(window._booted) return; 
+  window._booted=true; 
+}
 await boot();

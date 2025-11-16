@@ -22,6 +22,7 @@
   <button data-tab="logistics">Logistique</button>
   <button data-tab="costing">Coût de revient</button>
   <button data-tab="budget">Budget</button>
+  <button data-tab="admin" id="adminTab" style="display:none">Administration</button>
 </nav>
 <section id="actors" class="tab active">
   <div class="card" style="margin-bottom: 20px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);">
@@ -114,6 +115,32 @@
           <p class="muted">Sélectionnez un budget pour voir le calcul du coût de revient</p>
         </div>
       </div>
+    </div>
+  </div>
+</section>
+<section id="admin" class="tab">
+  <div class="card">
+    <h3>👥 Gestion des utilisateurs</h3>
+    <p class="muted" style="margin:10px 0;">Administration de la plateforme - gérez les utilisateurs et leurs permissions</p>
+    <div style="overflow-x:auto;">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nom</th>
+            <th>Email</th>
+            <th>Téléphone</th>
+            <th>Région</th>
+            <th>Rôle</th>
+            <th>Statut</th>
+            <th>Admin</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="adminUserList">
+          <tr><td colspan="9" class="muted" style="text-align:center;padding:20px;">Chargement...</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </section>
