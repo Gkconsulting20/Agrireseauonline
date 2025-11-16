@@ -982,19 +982,20 @@ function showPaymentInstructions(provider, phone, data){
 // Nouvelles fonctions pour Budget (module prévisionnel)
 function openBudgetDialog(){ 
   if(!ME) return alert("Connecte-toi d'abord.");
-  const dlg=document.createElement('dialog');
-  const productsOptions = PRODUCTS.map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
   const myActors = ACTORS.filter(a=>a.owner_id===ME.id);
-  const actorsOptions = myActors.length > 0 ? myActors.map(a=>`<option value="${a.id}">${a.name}</option>`).join('') : '<option value="">Aucun acteur</option>';
+  if(myActors.length === 0) return alert("Vous devez d'abord créer un acteur avant de créer un budget.");
+  
+  const dlg=document.createElement('dialog');
+  const actorsOptions = myActors.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
   const unitsOptions = (REFS.units||['kg','unité','plateau','litre','sac','tonne','tête']).map(u=>`<option value="${u}">${u}</option>`).join('');
   const today = new Date().toISOString().split('T')[0];
   dlg.innerHTML=`<form id="frmBudget" class="dialog-body"><h3>📋 Créer un Budget Prévisionnel</h3>
     <p class="muted">Créez une activité et définissez vos prévisions</p>
     <div class="grid2">
       <label>Activité <input name="label" required placeholder="Ex: Production de maïs 2025"></label>
-      <label>Acteur concerné <select name="actor_id">${actorsOptions}</select></label>
+      <label>Acteur concerné <select name="actor_id" id="budgetActorSelect" required>${actorsOptions}</select></label>
       <label>Filière <select name="filiere"><option>Maïs</option><option>Manioc</option><option>Riz</option><option>Maraîchage</option><option>Soja</option><option>Volailles</option><option>Élevage bovin</option><option>Aviculture</option><option>Porcins</option></select></label>
-      <label>Produit récolté <select name="harvest_product">${productsOptions}</select></label>
+      <label>Produit récolté <select name="harvest_product" id="budgetProductSelect" required><option value="">Choisir un produit...</option></select></label>
       <label>Date de début <input name="started_at" type="date" value="${today}" required></label>
       <label>Cycle de production (jours) <input name="production_cycle_days" type="number" placeholder="Ex: 90" min="1" required></label>
       <label>Période <select name="periode"><option>Annuel</option><option>Trimestriel</option><option>Mensuel</option></select></label>
@@ -1010,6 +1011,27 @@ function openBudgetDialog(){
     <div class="dialog-actions"><button type="submit">💾 Créer</button><button type="button" id="cancelB">Annuler</button></div></form>`;
   document.body.appendChild(dlg); dlg.showModal(); dlg.querySelector('#cancelB').onclick=()=> dlg.close();
   const f=dlg.querySelector('#frmBudget'); 
+  
+  // Fonction pour charger les produits de l'acteur sélectionné
+  const loadActorProducts = () => {
+    const actorId = Number(f.actor_id.value);
+    const actor = myActors.find(a => a.id === actorId);
+    const productSelect = dlg.querySelector('#budgetProductSelect');
+    
+    if(actor && actor.products && actor.products.length > 0){
+      productSelect.innerHTML = '<option value="">Choisir un produit...</option>' + 
+        actor.products.map(p => `<option value="${p}">${p}</option>`).join('');
+    } else {
+      productSelect.innerHTML = '<option value="">Aucun produit défini pour cet acteur</option>';
+    }
+  };
+  
+  // Charger les produits de l'acteur initial
+  loadActorProducts();
+  
+  // Recharger les produits quand l'acteur change
+  f.actor_id.onchange = loadActorProducts;
+  
   const up=()=>{
     const qty=Number(f.output_qty.value||0),price=Number(f.price_expected.value||0),dep=Number(f.transport.value||0);
     dlg.querySelector('#previewCA').textContent=(qty*price).toLocaleString();
