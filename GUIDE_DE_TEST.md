@@ -32,7 +32,148 @@ Votre application est accessible via le webview Replit (port 5000).
 
 ## 📋 Scénarios de Test
 
-### **Test 1 : Connexion et Navigation** ✅
+### **Test 1 : Affichage des Onglets selon État de Connexion** 🔐
+
+**Objectif** : Vérifier que les onglets Budget et Coût de revient sont cachés pour les visiteurs
+
+#### Étape 1 : Mode Visiteur (non connecté)
+1. **Ouvrir l'application** sans se connecter
+2. **Vérifier les onglets visibles** :
+   - ✅ **Acteurs** (visible)
+   - ✅ **Carte** (visible)
+   - ✅ **Logistique** (visible)
+   - ❌ **Coût de revient** (MASQUÉ)
+   - ❌ **Budget** (MASQUÉ)
+   - ❌ **Statistiques** (MASQUÉ)
+   - ❌ **Paramètres** (MASQUÉ)
+   - ❌ **Administration** (MASQUÉ)
+
+#### Étape 2 : Mode Utilisateur Connecté
+1. **Se connecter** (n'importe quel compte)
+2. **Vérifier les onglets visibles** :
+   - ✅ **Acteurs** (visible)
+   - ✅ **Carte** (visible)
+   - ✅ **Logistique** (visible)
+   - ✅ **Coût de revient** (maintenant visible)
+   - ✅ **Budget** (maintenant visible)
+   - ✅ **Statistiques** (maintenant visible)
+   - ✅ **Paramètres** (maintenant visible)
+   - ❓ **Administration** (visible UNIQUEMENT si admin)
+
+#### Étape 3 : Se déconnecter
+1. **Cliquer sur "Se déconnecter"**
+2. **Vérifier** : Les onglets Budget et Coût de revient disparaissent
+
+✅ **Résultat attendu** : Les visiteurs ne peuvent pas accéder aux fonctionnalités de gestion budgétaire
+
+---
+
+### **Test 2 : Onglet Logistique - Offres et Demandes** 🚚
+
+**Objectif** : Vérifier le fonctionnement de l'onglet Logistique
+
+#### Étape 1 : Consulter les offres/demandes existantes
+1. **Cliquer sur l'onglet "Logistique"**
+2. **Vérifier l'affichage des cartes** :
+   - Titre de la demande/offre
+   - Badge **"BESOIN"** (en rouge/orange) ou **"OFFRE"** (en vert)
+   - Badge avec la région
+   - Détails de la demande/offre
+   - Liens **WhatsApp** et **Appeler** si disponibles
+   - Bouton **"Supprimer"** (uniquement pour les utilisateurs connectés sur leurs propres entrées)
+
+#### Étape 2 : Ajouter une nouvelle demande
+1. **Se connecter** (obligatoire)
+2. **Cliquer sur "+ Nouvelle demande/offre"**
+3. **Remplir le formulaire** :
+   - **Titre** : "Besoin de transport de Lomé à Kara"
+   - **Type** : Sélectionner **"Besoin"**
+   - **Région** : "Savanes"
+   - **Détails** : "Transport de 5 tonnes de maïs, départ urgent"
+   - **Téléphone** : "90 12 34 56"
+   - **WhatsApp** : "90 12 34 56"
+4. **Cliquer "Enregistrer"**
+
+#### Étape 3 : Vérifier l'affichage
+1. **Retourner dans "Logistique"**
+2. **Voir votre nouvelle entrée** avec :
+   - Badge **"BESOIN"**
+   - Badge **"Savanes"**
+   - Lien WhatsApp cliquable
+   - Bouton **"Supprimer"** (car c'est votre entrée)
+
+#### Étape 4 : Ajouter une offre
+1. **Cliquer "+ Nouvelle demande/offre"**
+2. **Remplir** :
+   - **Titre** : "Camion disponible pour transport"
+   - **Type** : Sélectionner **"Offre"**
+   - **Région** : "Maritime"
+   - **Détails** : "Camion 10 tonnes disponible toute la semaine"
+   - **Téléphone** : "91 23 45 67"
+3. **Enregistrer**
+
+#### Étape 5 : Vérifier la différence visuelle
+- Les **BESOINS** et **OFFRES** doivent être clairement identifiables par leurs badges
+
+✅ **Résultat attendu** : L'onglet Logistique permet de publier et consulter facilement les besoins de transport et les capacités disponibles
+
+---
+
+### **Test 3 : Produits avec Site de Production et Images** 📦
+
+**Objectif** : Tester la nouvelle structure des produits (nom, site de production, image)
+
+#### Étape 1 : Créer un acteur avec produits enrichis
+1. **Se connecter**
+2. **Onglet "Acteurs"** → **"+ Ajouter"**
+3. **Remplir les informations de base** :
+   - **Nom** : "Ferme Bio Atakpamé"
+   - **Rôle** : producteur
+   - **Région** : Plateaux
+   - **Localité** : Atakpamé
+
+#### Étape 2 : Ajouter des produits avec détails
+1. **Dans la section "📦 Produits"**
+2. **Cliquer "+ Ajouter un produit"**
+3. **Premier produit** :
+   - **Nom du produit** : Tomates
+   - **Site de production** : Ferme d'Atakpamé, Route de Kpalimé
+   - **URL de l'image** : https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=200
+
+4. **Cliquer "+ Ajouter un produit"** pour un 2ème produit
+5. **Deuxième produit** :
+   - **Nom du produit** : Laitue bio
+   - **Site de production** : Serres Atakpamé, Zone Agou
+   - **URL de l'image** : https://images.unsplash.com/photo-1622206151226-18ca2c9ab4a1?w=200
+
+6. **Supprimer un produit** (tester) :
+   - Cliquer sur le bouton **"🗑️"** d'un produit pour le retirer
+
+#### Étape 3 : Enregistrer et vérifier l'affichage
+1. **Remplir les autres champs** (volume, prix, etc.)
+2. **Cliquer "Enregistrer"**
+3. **Voir la carte de l'acteur** :
+   - **Images des produits** (60x60 pixels) affichées sur la carte
+   - **Nom des produits** visible
+   - **Site de production** accessible (au survol ou dans les détails)
+
+#### Étape 4 : Modifier un acteur existant
+1. **Cliquer "Modifier"** sur un acteur existant
+2. **Vérifier** :
+   - Les produits existants (anciens, format texte) s'affichent correctement
+   - On peut ajouter le site de production et l'image
+   - La rétrocompatibilité fonctionne
+
+#### Étape 5 : Tester la recherche
+1. **Onglet "Acteurs"**
+2. **Rechercher par nom de produit** : "Tomates"
+3. **Vérifier** : Les acteurs avec tomates apparaissent
+
+✅ **Résultat attendu** : Les produits ont maintenant une structure enrichie (site + image) tout en restant compatibles avec les anciennes données
+
+---
+
+### **Test 4 : Connexion et Navigation Complète** ✅
 
 1. **Se connecter en tant qu'admin** :
    - Email: `admin@agrireseau.tg`
