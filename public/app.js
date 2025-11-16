@@ -172,9 +172,6 @@ function actorCard(a){
   // Photo thumbnail
   const photoHtml = a.photo_url ? `<img src="${a.photo_url}" alt="${a.name}" style="max-width:100px;max-height:80px;border-radius:8px;margin-bottom:8px;">` : '';
   
-  // Price display
-  const priceText = a.price ? `<div><strong>Prix:</strong> ${Number(a.price).toFixed(0)} FCFA/kg</div>` : '';
-  
   // Rating display
   const stars = a.rating_avg > 0 ? '⭐'.repeat(Math.round(a.rating_avg)) : '';
   const ratingText = a.rating_avg > 0 ? `<span class="badge" style="background:#fbbf24;color:#000">${stars} ${a.rating_avg.toFixed(1)} (${a.rating_count})</span>` : '';
@@ -188,7 +185,7 @@ function actorCard(a){
   
   const premiumBadge = a.owner_plan === 'premium' ? '<span class="badge" style="background:#fbbf24;color:#000">💎 PREMIUM</span>' : '';
   el.innerHTML=`${photoHtml}<div class="name"><strong>${a.name}</strong> ${a.verified?'<span class="badge">✔︎ vérifié</span>':''} ${premiumBadge} ${ratingText}${distanceText}</div>
-  <div><span class="badge">${a.role}</span> <span class="badge">${a.region}</span> ${a.localite? '· '+a.localite:''} ${certBadges}</div><div>${(a.products||[]).join('; ')}</div>${priceText}<div>${a.need||''}</div>
+  <div><span class="badge">${a.role}</span> <span class="badge">${a.region}</span> ${a.localite? '· '+a.localite:''} ${certBadges}</div><div>${(a.products||[]).join('; ')}</div><div>${a.need||''}</div>
   <div id="harvests-${a.id}" style="margin-top:8px;font-size:0.9em;color:#059669;"></div>
   <div class="links">${a.whatsapp? `<a target="_blank" href="https://wa.me/${digits(a.whatsapp)}?text=Bonjour, je suis intéressé par vos produits">WhatsApp</a>`:''}${a.email? `<a href="mailto:${a.email}">Email</a>`:''}${a.phone? `<a href="tel:${digits(a.phone)}">Appeler</a>`:''}
   ${ME? `<a href="#" data-id="${a.id}" class="rate">Noter</a> <a href="#" data-id="${a.id}" class="edit">Modifier</a> <a href="#" data-id="${a.id}" class="del">Supprimer</a>`:`<a href="#" data-id="${a.id}" class="rate">Noter</a>`}</div>`;
@@ -351,10 +348,7 @@ function renderStockSummary(){
   }
   
   const stockText = sortedProducts.map(([name, data]) => {
-    const avgPrice = data.prices.length > 0 
-      ? (data.prices.reduce((a,b)=>a+b,0) / data.prices.length).toFixed(0)
-      : null;
-    return `<strong>${name}</strong> ${data.volume.toFixed(0)} kg${avgPrice ? ` <span class="badge" style="background:#10b981;color:white">${avgPrice} FCFA/kg</span>` : ''}`;
+    return `<strong>${name}</strong> ${data.volume.toFixed(0)} kg`;
   }).join(', ');
   
   summaryEl.innerHTML = stockText;
