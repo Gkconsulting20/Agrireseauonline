@@ -39,6 +39,19 @@ AgriRéseau Pro utilizes a modern web stack:
     - **Geolocation Support**: Registration captures user lat/lng coordinates for proximity features.
     - **Account Status Management**: Users have a `status` field (active, blocked, pending) checked during login.
     - Phone numbers are normalized (spaces removed) to prevent authentication mismatches.
+    - **User Account Settings** (Added November 2025):
+        - Dedicated "Paramètres" tab for logged-in users to manage their profile
+        - Profile modification: Update name, email, phone, WhatsApp, region, and role
+        - Password change: Secure password update with current password verification
+        - Role preservation: Backend ensures role is never accidentally cleared during updates
+    - **Password Recovery System** (Added November 2025):
+        - "Mot de passe oublié" link in login dialog for easy access
+        - Token-based password reset with 1-hour expiration
+        - Database table `password_reset_tokens` stores secure reset tokens
+        - Reset link generation with shareable URL (#reset-password?token=XXX)
+        - WhatsApp integration: Users with WhatsApp can send reset link directly via WhatsApp
+        - Copy-to-clipboard functionality for easy link sharing
+        - Complete reset flow with password confirmation and validation
 - **Subscription System**:
     - **Free Plan**: Limited to 2 actors per user.
     - **Premium Plan**: Offers unlimited actors, a premium badge, and access to future advanced features like analytics, internal messaging, alerts, digital contracts, stock history, and weather forecasts.
