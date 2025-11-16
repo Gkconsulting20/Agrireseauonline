@@ -86,40 +86,41 @@ The server runs on port 5000 and is configured for the Replit environment:
 
 ## Recent Changes
 
-### November 16, 2025 - Advanced Cost Tracking & Budget Analysis 📊
-- **Cost Accumulation System**:
-  - Activities now track status: 📋 Planifié, 🚜 En cours, ✅ Terminé
-  - Farmers can record expenses chronologically with dates throughout the growing season
-  - Budget entries automatically accumulate to calculate real costs vs planned costs
-  - Added `status`, `started_at`, `ended_at`, `actual_harvest` columns to activities table
-  - Real-time cost tracking as farmers add expenses during the production cycle
+### November 16, 2025 - Budget/Coût de revient Module Restructuration 📊💰
+- **MODULE BUDGET (Prévisionnel)**:
+  - Liste des activités avec 3 colonnes : Budget Prévisionnel (vert), Suivi Coûts Réels (rouge), Écart (jaune)
+  - Création facile de budget prévisionnel : activité, filière, période, quantité, prix, dépenses prévues
+  - Aperçu instantané : CA prévu et Profit prévu calculés en temps réel
+  - Vue détaillée par budget : comparaison côte-à-côte Prévu vs Réel avec historique complet
+  - Colonne "SUIVI" affiche automatiquement tous les coûts enregistrés dans Coût de revient
 
-- **Planned vs Actual Comparison Dashboard**:
-  - Split-screen view comparing BUDGET PRÉVISIONNEL and COÛTS RÉELS side by side
-  - Planned budget shows: intrants, main d'œuvre, transport, frais généraux with unit costs
-  - Real costs section displays: total expenses, total revenues, profit, actual harvest quantity
-  - Calculates cost variance and profitability metrics automatically
-  - Visual indicators (green for planned, red for actual) for easy comparison
+- **MODULE COÛT DE REVIENT (Dépenses Réelles)**:
+  - Formulaire simplifié pour enregistrer chronologiquement les dépenses réelles
+  - Sélection du budget lié pour accumulation automatique
+  - Catégories agricoles : Semences, Engrais, Pesticides, Main d'œuvre, Transport, Récolte, etc.
+  - Enregistrement avec date, montant, catégorie et note
+  - Stockage dans `budget_entries` table (ledger canonique)
+  - Accumulation automatique vers le module Budget pour comparaison
 
-- **Crop Templates for Togolese Agriculture**:
-  - Pre-configured templates for 5 major Togolese crops: Maïs, Soja, Manioc, Riz, Maraîchage
-  - Each template includes realistic inputs (seeds, fertilizer, pesticides) with local pricing
-  - Labor costs configured for Togolese agricultural practices
-  - Expected yields and pricing based on market data
-  - Farmers can start with templates and adjust based on their specific conditions
+- **Architecture & Flow Utilisateur**:
+  - `activities` table = budgets prévisionnels (planification)
+  - `budget_entries` table = dépenses réelles chronologiques (exécution)
+  - Flow : Créer budget → Enregistrer dépenses réelles → Voir comparaison automatique
+  - Lien automatique via `activity_id` dans budget_entries
+  - Calcul d'écart : Coûts réels - Dépenses prévues (rouge si dépassement, vert si économie)
+  - Suivi récolte réelle vs prévue avec bouton d'édition rapide
 
-- **Enhanced Budget Module**:
-  - Budget entries can now be linked to specific activities for automatic cost accumulation
-  - Agricultural-specific expense categories (Semences, Engrais, Main d'œuvre, Récolte, etc.)
-  - Chronological expense tracking with dates for accurate cost flow analysis
-  - Separate tracking of income and expenses with automatic profit calculation
-  - Budget-to-activity integration enables real vs planned performance analysis
+- **Database Improvements**:
+  - Index ajouté sur `budget_entries(activity_id, occurred_on)` pour performance
+  - Endpoint `/api/activities/:id/summary` agrège automatiquement les coûts réels
+  - Support complet dépenses et recettes avec calcul profit automatique
+  - Colonne `actual_harvest` dans activities pour comparaison récolte prévue/réelle
 
-- **Backend Improvements**:
-  - Enhanced `/api/activities/:id/summary` endpoint to include both planned and actual metrics
-  - Automatic aggregation of budget expenses and incomes linked to each activity
-  - Unit cost calculation: total expenses ÷ actual harvest quantity (or planned if not harvested)
-  - Profit margin calculation: (revenues - expenses) / revenues × 100
+- **Technical Enhancements**:
+  - Nouvelles fonctions frontend : `loadBudgets()`, `renderBudgets()`, `openBudgetDialog()`, `openBudget()`
+  - Module Coût de revient : `loadCosts()`, `renderCosts()`, `refreshCostBudgets()`
+  - O(n) fetch pour enrichir chaque budget avec totaux réels (optimisation possible via batch endpoint)
+  - Séparation claire entre prévisionnel (Budget) et réel (Coût de revient)
   - PUT `/api/activities/:id` endpoint supports updating status, dates, and actual harvest
   - Budget entries can be linked to activities via `activity_id` field
 
