@@ -35,6 +35,12 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 function requireAuth(req,res,next){ if(!req.session.user) return res.status(401).json({error:'auth_required'}); next(); }
 function requireAdmin(req,res,next){ if(!req.session.user) return res.status(401).json({error:'auth_required'}); if(!req.session.user.is_admin) return res.status(403).json({error:'admin_required'}); next(); }
+async function requirePremium(req,res,next){ 
+  if(!req.session.user) return res.status(401).json({error:'auth_required'}); 
+  const sub = await db.getOne('SELECT * FROM subscriptions WHERE user_id=$1', [req.session.user.id]);
+  if(!sub || sub.plan !== 'premium' || sub.status !== 'active') return res.status(403).json({error:'premium_required', message:'Cette fonctionnalité est réservée aux utilisateurs Premium'}); 
+  next(); 
+}
 
 app.post('/api/auth/register', async (req,res)=>{ 
   const {email,password,name,region,role,phone,whatsapp,lat,lng}=req.body; 
@@ -583,8 +589,8 @@ app.get('/api/payments/history', requireAuth, async (req,res)=>{
   res.json(payments);
 });
 
-// Notification endpoints - Twilio integration for SMS/WhatsApp
-app.post('/api/notifications/send', requireAuth, async (req,res)=>{
+// Notification endpoints - Twilio integration for SMS/WhatsApp (Premium only)
+app.post('/api/notifications/send', requirePremium, async (req,res)=>{
   const {type, channel, recipient, message} = req.body;
   const userId = req.session.user.id;
   
@@ -608,7 +614,7 @@ app.post('/api/notifications/send', requireAuth, async (req,res)=>{
   }
 });
 
-app.get('/api/notifications/history', requireAuth, async (req,res)=>{
+app.get('/api/notifications/history', requirePremium, async (req,res)=>{
   const notifications = await db.getAll('SELECT * FROM notifications WHERE user_id=$1 ORDER BY created_at DESC LIMIT 50', [req.session.user.id]);
   res.json(notifications);
 });

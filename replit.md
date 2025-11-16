@@ -61,7 +61,7 @@ AgriRéseau Pro utilizes a modern web stack:
     - **Premium Plan**: Offers unlimited actors, a premium badge, and access to advanced features:
         - **Statistics & Analytics Dashboard** (Added November 2025): Comprehensive dashboard with KPIs (actors count, budgets, views, expenses, harvests, ratings), actor performance metrics (ratings, views, products, available harvests), budget variance analysis (planned vs real, variance %, profit, status), visual evolution charts, and CSV/PDF export functionality.
         - **Mobile Money Payment Integration** (Added November 2025): PayGate integration for T-Money and Flooz payments, payment initiation UI with provider selection and phone number input, transaction history display with status badges (completed, pending, failed), automatic premium activation upon successful payment.
-        - **Notification System** (Added November 2025): Twilio-ready endpoints for SMS and WhatsApp notifications, notification history display with status tracking, test notification functionality for integration validation.
+        - **Notification System - Premium Only** (Added November 2025): Twilio-based SMS and WhatsApp notifications exclusively for Premium users. Endpoints protected by requirePremium middleware. Notification history, test functionality, and sending capabilities accessible only in Statistics tab for Premium subscribers. Non-Premium users see upgrade prompt when accessing notification features.
 - **Admin System** (Added November 2025):
     - **Role-Based Authorization**: `is_admin` flag in users table enables admin privileges.
     - **Admin Panel**: Dedicated "Administration" tab visible only to admins.
@@ -100,8 +100,8 @@ AgriRéseau Pro utilizes a modern web stack:
 - **PostgreSQL (Neon serverless)**: Primary database for all application data.
 - **Leaflet.js**: JavaScript library for interactive maps.
 - **bcryptjs**: Library for password hashing and security.
-- **PayGate**: Payment gateway integration for T-Money and Flooz mobile money services. Infrastructure ready, awaiting API credentials for live activation. See INTEGRATION_GUIDE.md for setup instructions.
-- **Twilio**: SMS and WhatsApp notification service. Framework ready, awaiting API credentials for live activation. See INTEGRATION_GUIDE.md for setup instructions.
+- **PayGate**: Payment gateway integration for T-Money and Flooz mobile money services. Infrastructure ready, awaiting API credentials for live activation. See GUIDE_API_KEYS.md for account creation and setup instructions.
+- **Twilio**: SMS and WhatsApp notification service (Premium only). Framework ready, awaiting API credentials for live activation. Manual configuration required (Replit integration dismissed by user). See GUIDE_API_KEYS.md for account creation and setup instructions.
 
 ## Production Deployment Checklist
 Before deploying to production, configure the following environment variables:

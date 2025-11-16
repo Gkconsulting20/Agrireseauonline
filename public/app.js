@@ -8,8 +8,8 @@ tabs.forEach(b=> b.addEventListener('click',()=>{
   if(b.dataset.tab==='budget'){ loadBudgets(); refreshCostBudgets(); }
   if(b.dataset.tab==='costing'){ loadCosts(); refreshCostBudgets(); }
   if(b.dataset.tab==='admin'){ loadAdminUsers(); }
-  if(b.dataset.tab==='settings'){ loadUserSettings(); loadPaymentHistory(); loadNotifications(); }
-  if(b.dataset.tab==='stats'){ loadStats(); }
+  if(b.dataset.tab==='settings'){ loadUserSettings(); loadPaymentHistory(); }
+  if(b.dataset.tab==='stats'){ loadStats(); loadNotifications(); }
 }));
 
 const btnLogin=document.getElementById('btnLogin'), btnLogout=document.getElementById('btnLogout'), meEl=document.getElementById('me');
@@ -2276,6 +2276,24 @@ async function loadNotifications(){
   
   try {
     const r = await fetch('/api/notifications/history');
+    
+    if(r.status === 403){
+      const err = await r.json();
+      container.innerHTML = `
+        <div style="text-align:center;padding:40px 20px;background:#fef3c7;border-radius:8px;">
+          <h3 style="color:#92400e;margin-bottom:15px;">💎 Fonctionnalité Premium</h3>
+          <p style="color:#92400e;margin-bottom:20px;">
+            Les notifications SMS et WhatsApp sont réservées aux utilisateurs Premium.<br>
+            Passez Premium pour envoyer des notifications automatiques à vos clients.
+          </p>
+          <button onclick="document.getElementById('btnSubscription').click()" style="background:#fbbf24;color:#000;padding:12px 24px;border:none;border-radius:6px;cursor:pointer;font-weight:bold;">
+            ✨ Passer Premium (1,000 FCFA/mois)
+          </button>
+        </div>
+      `;
+      return;
+    }
+    
     if(!r.ok){
       container.innerHTML = '<p class="muted">Erreur lors du chargement des notifications</p>';
       return;
@@ -2323,18 +2341,34 @@ if(btnSendTestNotification){
   btnSendTestNotification.onclick = async () => {
     if(!ME) return alert('Connectez-vous d\'abord');
     
+    const recipient = prompt('Entrez le numéro de téléphone (format: +228XXXXXXXX) :');
+    if(!recipient) return;
+    
     try {
-      const r = await fetch('/api/notifications/test', {
+      const r = await fetch('/api/notifications/send', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'}
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          type: 'test',
+          channel: 'sms',
+          recipient: recipient,
+          message: '🌾 Test AgriRéseau Pro : Vos notifications fonctionnent parfaitement !'
+        })
       });
+      
+      if(r.status === 403){
+        const err = await r.json();
+        alert('💎 Cette fonctionnalité est réservée aux utilisateurs Premium.\n\nPassez Premium pour 1,000 FCFA/mois et bénéficiez de notifications SMS et WhatsApp illimitées !');
+        document.getElementById('btnSubscription').click();
+        return;
+      }
       
       if(r.ok){
         alert('✓ Notification test envoyée avec succès !');
         await loadNotifications();
       } else {
         const err = await r.json();
-        alert('Erreur: ' + (err.error || 'Impossible d\'envoyer la notification'));
+        alert('Erreur: ' + (err.message || err.error || 'Impossible d\'envoyer la notification'));
       }
     } catch(e) {
       console.error('Erreur:', e);
