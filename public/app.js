@@ -431,15 +431,83 @@ const CROP_TEMPLATES = {
   }
 };
 
-let BUDGETS=[], BUDGET_ITEMS=[], CURRENT_BUDGET=null, SELECTED_TEMPLATE=null;
+let BUDGETS=[], CURRENT_BUDGET=null;
 document.getElementById('btnAddBudget').onclick=()=> openBudgetDialog();
-async function loadBudgets(){ const r=await fetch('/api/activities'); if(r.status===401){ BUDGETS=[]; renderBudgets(); return; } BUDGETS=await r.json(); renderBudgets(); refreshCostBudgets(); }
-function renderBudgets(){ const list=document.getElementById('budgetList'); list.innerHTML=''; BUDGETS.forEach(b=>{ const el=document.createElement('div'); el.className='card'; el.innerHTML=`<div><strong>${b.label}</strong> <span class="badge">${b.filiere}</span> <span class="badge">${b.periode}</span> <span class="right"><a href="#" data-id="${b.id}" class="open">Voir</a> · <a href="#" data-id="${b.id}" class="del">Supprimer</a></span></div>
-  <div class="muted">Quantité prévue: ${b.output_qty||0} kg · PV: ${b.price_expected||0} FCFA/kg · CA prévu: ${((b.output_qty||0)*(b.price_expected||0)).toLocaleString()} FCFA</div>`;
-  list.appendChild(el);
-  el.querySelector('.open').onclick=(e)=>{ e.preventDefault(); openBudget(b); };
-  el.querySelector('.del').onclick=async(e)=>{ e.preventDefault(); if(!confirm('Supprimer ce budget ?')) return; await fetch('/api/activities/'+b.id,{method:'DELETE'}); await loadBudgets(); document.getElementById('budgetEditor').innerHTML='<p class="muted">Sélectionnez un budget…</p>'; };
-}); }
+async function loadBudgets(){ 
+  const r=await fetch('/api/activities'); 
+  if(r.status===401){ BUDGETS=[]; renderBudgets(); return; } 
+  BUDGETS=await r.json(); 
+  // Charger les totaux réels pour chaque budget
+  for(let b of BUDGETS){
+    const sumR = await fetch(`/api/activities/${b.id}/summary`);
+    if(sumR.ok){
+      const summary = await sumR.json();
+      b.realTotal = summary.totalRealExpenses || 0;
+      b.realIncomes = summary.totalRealIncomes || 0;
+      b.actualHarvest = summary.actual_harvest || 0;
+    }
+  }
+  renderBudgets(); 
+  refreshCostBudgets(); 
+}
+function renderBudgets(){ 
+  const list=document.getElementById('budgetList'); 
+  list.innerHTML=''; 
+  BUDGETS.forEach(b=>{
+    const prevuDep = (b.transport||0) + (b.autres||0) + (b.overhead_pct||0);
+    const prevuCA = (b.output_qty||0) * (b.price_expected||0);
+    const prevuProfit = prevuCA - prevuDep;
+    const realTotal = b.realTotal || 0;
+    const realIncomes = b.realIncomes || 0;
+    const realProfit = realIncomes - realTotal;
+    const variance = realTotal - prevuDep;
+    const varianceColor = variance > 0 ? '#dc2626' : '#059669';
+    
+    const el=document.createElement('div'); 
+    el.className='card'; 
+    el.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <strong>${b.label}</strong> 
+          <span class="badge">${b.filiere}</span> 
+          <span class="badge">${b.periode}</span>
+        </div>
+        <div>
+          <a href="#" data-id="${b.id}" class="open" style="margin-right:10px;">📊 Voir détails</a>
+          <a href="#" data-id="${b.id}" class="del">🗑 Supprimer</a>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;margin-top:10px;">
+        <div style="background:#f0fdf4;padding:10px;border-radius:6px;">
+          <p style="margin:0;font-size:12px;color:#6b7280;">📊 BUDGET PRÉVISIONNEL</p>
+          <p style="margin:5px 0;font-weight:bold;color:#059669;">${prevuDep.toLocaleString()} FCFA</p>
+          <p style="margin:0;font-size:11px;color:#6b7280;">CA prévu: ${prevuCA.toLocaleString()} FCFA</p>
+          <p style="margin:0;font-size:11px;color:#6b7280;">Profit prévu: ${prevuProfit.toLocaleString()} FCFA</p>
+        </div>
+        <div style="background:#fee2e2;padding:10px;border-radius:6px;">
+          <p style="margin:0;font-size:12px;color:#6b7280;">💰 SUIVI COÛTS RÉELS</p>
+          <p style="margin:5px 0;font-weight:bold;color:#dc2626;">${realTotal.toLocaleString()} FCFA</p>
+          <p style="margin:0;font-size:11px;color:#6b7280;">Recettes: ${realIncomes.toLocaleString()} FCFA</p>
+          <p style="margin:0;font-size:11px;color:#6b7280;">Profit réel: ${realProfit.toLocaleString()} FCFA</p>
+        </div>
+        <div style="background:#fef3c7;padding:10px;border-radius:6px;">
+          <p style="margin:0;font-size:12px;color:#6b7280;">📈 ÉCART</p>
+          <p style="margin:5px 0;font-weight:bold;color:${varianceColor};">${variance > 0 ? '+' : ''}${variance.toLocaleString()} FCFA</p>
+          <p style="margin:0;font-size:11px;color:#6b7280;">Récolte: ${b.actualHarvest || 0} / ${b.output_qty || 0} kg</p>
+        </div>
+      </div>
+    `;
+    list.appendChild(el);
+    el.querySelector('.open').onclick=(e)=>{ e.preventDefault(); openBudget(b); };
+    el.querySelector('.del').onclick=async(e)=>{ 
+      e.preventDefault(); 
+      if(!confirm('Supprimer ce budget et tous ses coûts réels ?')) return; 
+      await fetch('/api/activities/'+b.id,{method:'DELETE'}); 
+      await loadBudgets(); 
+      document.getElementById('budgetEditor').innerHTML='<p class="muted">Sélectionnez un budget…</p>'; 
+    };
+  }); 
+}
 function openActDialog(){ if(!ME) return alert('Connecte-toi d’abord.'); const dlg=document.createElement('dialog'); dlg.innerHTML=`<form id="frmAct" class="dialog-body"><h3>Nouvelle activité</h3><div class="grid2">
   <label>Filière <select name="filiere"><option>Maïs</option><option>Manioc</option><option>Riz</option><option>Maraîchage</option><option>Soja</option><option>Volailles</option></select></label>
   <label>Libellé <input name="label" required></label>
@@ -718,5 +786,83 @@ window.showPaymentInstructions = function(){
   overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
 }
 
-async function boot(){ const me = await fetch('/api/auth/me'); ME = await me.json(); meEl.textContent = ME? `Connecté: ${ME.email}`:''; btnLogin.style.display = ME? 'none':'inline-block'; btnLogout.style.display = ME? 'inline-block':'none'; const btnSub=document.getElementById('btnSubscription'); if(btnSub) btnSub.style.display = ME? 'inline-block':'none'; await loadRefs(); await loadActors(); await loadLogistics(); await loadActs(); await loadBudget(); if(window._booted) return; window._booted=true; }
+// Nouvelles fonctions pour Budget (module prévisionnel)
+function openBudgetDialog(){ 
+  if(!ME) return alert('Connecte-toi d'abord.');
+  const dlg=document.createElement('dialog');
+  dlg.innerHTML=`<form id="frmBudget" class="dialog-body"><h3>📋 Créer un Budget Prévisionnel</h3>
+    <p class="muted">Créez une activité et définissez vos prévisions</p>
+    <div class="grid2">
+      <label>Activité <input name="label" required placeholder="Ex: Production de maïs 2025"></label>
+      <label>Filière <select name="filiere"><option>Maïs</option><option>Manioc</option><option>Riz</option><option>Maraîchage</option><option>Soja</option><option>Volailles</option></select></label>
+      <label>Période <select name="periode"><option>Annuel</option><option>Trimestriel</option><option>Mensuel</option></select></label>
+      <label>Quantité prévue (kg) <input name="output_qty" type="number" value="1000"></label>
+      <label>Prix de vente prévu (FCFA/kg) <input name="price_expected" type="number" value="300"></label>
+      <label>Dépenses prévues (FCFA) <input name="transport" type="number" value="0"></label>
+    </div>
+    <div class="card" style="background:#f0fdf4;margin:15px 0;"><p style="margin:0;">CA prévu: <span id="previewCA">0</span> FCFA · Profit: <span id="previewProfit">0</span> FCFA</p></div>
+    <div class="dialog-actions"><button type="submit">💾 Créer</button><button type="button" id="cancelB">Annuler</button></div></form>`;
+  document.body.appendChild(dlg); dlg.showModal(); dlg.querySelector('#cancelB').onclick=()=> dlg.close();
+  const f=dlg.querySelector('#frmBudget'); const up=()=>{const qty=Number(f.output_qty.value||0),price=Number(f.price_expected.value||0),dep=Number(f.transport.value||0);dlg.querySelector('#previewCA').textContent=(qty*price).toLocaleString();dlg.querySelector('#previewProfit').textContent=(qty*price-dep).toLocaleString();};
+  f.output_qty.oninput=up;f.price_expected.oninput=up;f.transport.oninput=up;up();
+  f.onsubmit=async(e)=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target).entries());d.output_qty=Number(d.output_qty||0);d.price_expected=Number(d.price_expected||0);d.transport=Number(d.transport||0);d.target_margin=0;d.autres=0;d.overhead_pct=0;
+    const r=await fetch('/api/activities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});if(!r.ok){alert('Erreur');return;}dlg.close();await loadBudgets();};
+}
+async function openBudget(b){
+  CURRENT_BUDGET=b;const sumR=await fetch(`/api/activities/${b.id}/summary`);const S=await sumR.json();const expenses=S.budgetExpenses||[];const incomes=S.budgetIncomes||[];
+  const root=document.getElementById('budgetEditor');
+  root.innerHTML=`<h4>${b.label} <span class="badge">${b.filiere}</span></h4>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+      <div class="card" style="background:#f0fdf4;"><h5 style="color:#059669;">📊 Budget Prévisionnel</h5>
+        <p>Quantité: <strong>${b.output_qty||0} kg</strong></p><p>Prix: <strong>${b.price_expected||0} FCFA/kg</strong></p>
+        <p>CA prévu: <strong>${((b.output_qty||0)*(b.price_expected||0)).toLocaleString()} FCFA</strong></p>
+        <p>Dépenses prévues: <strong>${(b.transport||0).toLocaleString()} FCFA</strong></p>
+        <p style="color:#059669;"><strong>Profit prévu: ${(((b.output_qty||0)*(b.price_expected||0))-(b.transport||0)).toLocaleString()} FCFA</strong></p></div>
+      <div class="card" style="background:#fee2e2;"><h5 style="color:#dc2626;">💰 Coûts Réels</h5>
+        <p>Dépenses: <strong>${(S.totalRealExpenses||0).toLocaleString()} FCFA</strong></p>
+        <p>Recettes: <strong>${(S.totalRealIncomes||0).toLocaleString()} FCFA</strong></p>
+        <p>Récolte: <strong>${S.actual_harvest||0} kg</strong> <button id="btnEditH" style="font-size:11px;">✏️</button></p>
+        <p style="color:#dc2626;"><strong>Profit réel: ${((S.totalRealIncomes||0)-(S.totalRealExpenses||0)).toLocaleString()} FCFA</strong></p></div>
+    </div>
+    <div class="card" style="margin-top:15px;"><h5>📈 Détail (du Coût de revient)</h5>
+      <table class="tbl"><thead><tr><th>Date</th><th>Type</th><th>Catégorie</th><th>Montant</th><th>Note</th></tr></thead><tbody>
+        ${expenses.map(e=>`<tr><td>${e.occurred_on}</td><td>💸 Dépense</td><td>${e.category||'-'}</td><td>${Number(e.amount).toLocaleString()} FCFA</td><td>${e.note||'-'}</td></tr>`).join('')}
+        ${incomes.map(i=>`<tr><td>${i.occurred_on}</td><td>💰 Recette</td><td>${i.category||'-'}</td><td style="color:#059669;">${Number(i.amount).toLocaleString()} FCFA</td><td>${i.note||'-'}</td></tr>`).join('')}
+        ${expenses.length===0&&incomes.length===0?'<tr><td colspan="5" style="text-align:center;color:#9ca3af;">Aucun coût. Allez dans "Coût de revient".</td></tr>':''}
+      </tbody></table></div>`;
+  root.querySelector('#btnEditH').onclick=()=>{const dlg=document.createElement('dialog');dlg.innerHTML=`<form id="fH"><h3>Récolte réelle</h3><label>Quantité (kg) <input name="h" type="number" step="0.01" value="${b.actual_harvest||''}" required></label><div class="dialog-actions"><button type="submit">💾 OK</button><button type="button" id="cH">Annuler</button></div></form>`;document.body.appendChild(dlg);dlg.showModal();dlg.querySelector('#cH').onclick=()=>dlg.close();dlg.querySelector('#fH').onsubmit=async(e)=>{e.preventDefault();const h=Number(e.target.h.value);const p={...b,actual_harvest:h};const r=await fetch(`/api/activities/${b.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});if(!r.ok){alert('Erreur');return;}dlg.close();await loadBudgets();const u=await r.json();openBudget(u);};};
+}
+
+// Nouvelles fonctions pour Coût de revient (module réel)
+let COSTS=[], COST_SUMMARY={totalExpenses:0,totalIncomes:0,balance:0};
+async function loadCosts(){
+  const r=await fetch('/api/budget');if(r.status===401){COSTS=[];renderCosts();return;}
+  const data=await r.json();COSTS=data.rows||[];
+  COST_SUMMARY={totalExpenses:data.totals.expense||0,totalIncomes:data.totals.income||0,balance:data.totals.balance||0};
+  renderCosts();
+}
+function renderCosts(){
+  const list=document.getElementById('costList');const sum=document.getElementById('costSum');
+  list.innerHTML='';COSTS.forEach(c=>{const el=document.createElement('div');el.className='card';
+    el.innerHTML=`<div><strong>${c.kind==='income'?'💰 Recette':'💸 Dépense'}</strong> · ${c.category||'-'} · <strong>${Number(c.amount).toLocaleString()} FCFA</strong> <span class="muted right">${c.occurred_on}</span></div>
+      <div class="muted">${c.note||''} ${c.activity_id?'(Lié au budget)':''}</div>`;
+    list.appendChild(el);
+  });
+  sum.innerHTML=`<p>Total dépenses: <strong>${COST_SUMMARY.totalExpenses.toLocaleString()} FCFA</strong></p>
+    <p>Total recettes: <strong>${COST_SUMMARY.totalIncomes.toLocaleString()} FCFA</strong></p>
+    <p><strong>Solde: ${COST_SUMMARY.balance.toLocaleString()} FCFA</strong></p>`;
+}
+async function refreshCostBudgets(){const sel=document.getElementById('costBudget');if(!sel)return;sel.innerHTML='<option value="">Sélectionner un budget...</option>'+BUDGETS.map(b=>`<option value="${b.id}">${b.label}</option>`).join('');}
+document.getElementById('costAdd')?.addEventListener('click',async()=>{
+  if(!ME)return alert('Connecte-toi d'abord.');
+  const budgetId=document.getElementById('costBudget').value;
+  if(!budgetId)return alert('Sélectionnez un budget d\'abord.');
+  const payload={kind:'expense',occurred_on:document.getElementById('costDate').value||new Date().toISOString().slice(0,10),amount:Number(document.getElementById('costAmount').value||0),category:document.getElementById('costCat').value,activity_id:budgetId,note:document.getElementById('costNote').value};
+  const r=await fetch('/api/budget',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  if(!r.ok)return alert('Erreur');
+  document.getElementById('costAmount').value='';document.getElementById('costNote').value='';
+  await loadCosts();await loadBudgets();
+});
+
+async function boot(){ const me = await fetch('/api/auth/me'); ME = await me.json(); meEl.textContent = ME? `Connecté: ${ME.email}`:''; btnLogin.style.display = ME? 'none':'inline-block'; btnLogout.style.display = ME? 'inline-block':'none'; const btnSub=document.getElementById('btnSubscription'); if(btnSub) btnSub.style.display = ME? 'inline-block':'none'; await loadRefs(); await loadActors(); await loadLogistics(); await loadBudgets(); await loadCosts(); if(window._booted) return; window._booted=true; }
 await boot();
