@@ -163,10 +163,12 @@ function renderActors(){
     const okRole=role? (a.role||'').toLowerCase()===role:true; 
     const okReg=reg? (a.region||'').toLowerCase()===reg:true; 
     const okCat=cat? (a.products||[]).some(p=> {
-      const product = REFS.products?.find(prod=> prod.name === p);
+      const productName = typeof p === 'string' ? p : p.name;
+      const product = REFS.products?.find(prod=> prod.name === productName);
       return product?.category === cat;
     }):true;
-    const txt=(a.name+' '+(a.products||[]).join(';')+' '+(a.need||'')+' '+(a.localite||'')).toLowerCase(); 
+    const productNames = (a.products||[]).map(p => typeof p === 'string' ? p : p.name).join(';');
+    const txt=(a.name+' '+productNames+' '+(a.need||'')+' '+(a.localite||'')).toLowerCase(); 
     const okQ=q? txt.includes(q):true; 
     return okRole&&okReg&&okCat&&okQ; 
   })
@@ -199,8 +201,28 @@ function actorCard(a){
   }).join(' ');
   
   const premiumBadge = a.owner_plan === 'premium' ? '<span class="badge" style="background:#fbbf24;color:#000">💎 PREMIUM</span>' : '';
+  
+  // Afficher les produits avec images si disponibles
+  const productsHtml = (a.products||[]).map(p => {
+    const productName = typeof p === 'string' ? p : p.name;
+    const productImage = (typeof p === 'object' && p.image_url) ? p.image_url : '';
+    const productSite = (typeof p === 'object' && p.production_site) ? p.production_site : '';
+    
+    if(productImage){
+      return `<div style="display:inline-block;margin:5px;text-align:center;">
+        <img src="${productImage}" alt="${productName}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;display:block;">
+        <div style="font-size:0.85em;margin-top:3px;"><strong>${productName}</strong></div>
+        ${productSite ? `<div style="font-size:0.75em;color:#6b7280;">📍 ${productSite}</div>` : ''}
+      </div>`;
+    } else {
+      return `<span style="margin-right:5px;"><strong>${productName}</strong>${productSite ? ` <span style="font-size:0.85em;color:#6b7280;">(${productSite})</span>` : ''}</span>`;
+    }
+  }).join('');
+  
   el.innerHTML=`${photoHtml}<div class="name"><strong>${a.name}</strong> ${a.verified?'<span class="badge">✔︎ vérifié</span>':''} ${premiumBadge} ${ratingText}${distanceText}</div>
-  <div><span class="badge">${a.role}</span> <span class="badge">${a.region}</span> ${a.localite? '· '+a.localite:''} ${certBadges}</div><div>${(a.products||[]).join('; ')}</div><div>${a.need||''}</div>
+  <div><span class="badge">${a.role}</span> <span class="badge">${a.region}</span> ${a.localite? '· '+a.localite:''} ${certBadges}</div>
+  <div style="margin-top:8px;">${productsHtml}</div>
+  <div>${a.need||''}</div>
   <div id="harvests-${a.id}" style="margin-top:8px;font-size:0.9em;color:#059669;"></div>
   <div id="upcoming-${a.id}" style="margin-top:8px;font-size:0.9em;color:#0369a1;"></div>
   <div class="links">${a.whatsapp? `<a target="_blank" href="https://wa.me/${digits(a.whatsapp)}?text=Bonjour, je suis intéressé par vos produits">WhatsApp</a>`:''}${a.email? `<a href="mailto:${a.email}">Email</a>`:''}${a.phone? `<a href="tel:${digits(a.phone)}">Appeler</a>`:''}
@@ -260,29 +282,115 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   return R * c;
 }
-function openActorDialog(a){ if(!ME) return alert('Connecte-toi d’abord.'); const dlg=document.createElement('dialog'); dlg.innerHTML=`<form id="frmActor" class="dialog-body"><h3>${a?'Modifier':'Nouvel'} acteur</h3>
-  <div class="grid2"><label>Nom <input name="name" required value="${a?.name||''}"></label>
-  <label>Rôle <select name="role" required>${['producteur','éleveur','transporteur','transformateur','grossiste','detaillant','institution'].map(r=>`<option ${a?.role===r?'selected':''}>${r}</option>`).join('')}</select></label>
-  <label>Région <select name="region" required>${(REFS.regions||[]).map(r=>`<option ${a?.region===r?'selected':''}>${r}</option>`).join('')}</select></label>
-  <label>Localité <input name="localite" value="${a?.localite||''}"></label>
-  <label>Produits (séparés par ;) <input name="products" value="${(a?.products||[]).join(';')}"></label>
-  <label>Besoin <input name="need" value="${a?.need||''}"></label>
-  <label>Volume (kg) <input name="volume" type="number" min="0" value="${a?.volume||''}"></label>
-  <label>Prix (FCFA/kg) <input name="price" type="number" min="0" step="1" value="${a?.price||''}"></label>
-  <label>Photo URL <input name="photo_url" type="url" placeholder="https://..." value="${a?.photo_url||''}"></label>
-  <label style="grid-column:1/-1"><strong>Certifications:</strong> 
-    <label style="display:inline-block;margin-right:15px"><input type="checkbox" name="cert_bio" ${(a?.certifications||[]).includes('bio')?'checked':''}> 🌿 Bio</label>
-    <label style="display:inline-block;margin-right:15px"><input type="checkbox" name="cert_quality" ${(a?.certifications||[]).includes('quality')?'checked':''}> ✅ Qualité</label>
-    <label style="display:inline-block"><input type="checkbox" name="cert_fair" ${(a?.certifications||[]).includes('fair')?'checked':''}> 🤝 Commerce Équitable</label>
-  </label>
-  <label>Latitude <input name="lat" type="number" step="0.0001" value="${a?.lat??''}"></label>
-  <label>Longitude <input name="lng" type="number" step="0.0001" value="${a?.lng??''}"></label>
-  <label>Téléphone <input name="phone" value="${a?.phone||''}"></label>
-  <label>WhatsApp <input name="whatsapp" value="${a?.whatsapp||''}"></label>
-  <label>Email <input name="email" type="email" value="${a?.email||''}"></label>
-  <label>Vérifié ? <select name="verified"><option value="false" ${!a?.verified?'selected':''}>Non</option><option value="true" ${a?.verified?'selected':''}>Oui</option></select></label></div>
+function openActorDialog(a){ 
+  if(!ME) return alert('Connecte-toi d\'abord.'); 
+  
+  // Normaliser les produits : string → object
+  const normalizeProducts = (products) => {
+    if(!products || products.length === 0) return [];
+    return products.map(p => {
+      if(typeof p === 'string') return {name: p, production_site: '', image_url: ''};
+      return p;
+    });
+  };
+  
+  const actorProducts = normalizeProducts(a?.products||[]);
+  
+  const dlg=document.createElement('dialog'); 
+  dlg.innerHTML=`<form id="frmActor" class="dialog-body" style="max-width:800px;"><h3>${a?'Modifier':'Nouvel'} acteur</h3>
+  <div class="grid2">
+    <label>Nom <input name="name" required value="${a?.name||''}"></label>
+    <label>Rôle <select name="role" required>${['producteur','éleveur','transporteur','transformateur','grossiste','detaillant','institution'].map(r=>`<option ${a?.role===r?'selected':''}>${r}</option>`).join('')}</select></label>
+    <label>Région <select name="region" required>${(REFS.regions||[]).map(r=>`<option ${a?.region===r?'selected':''}>${r}</option>`).join('')}</select></label>
+    <label>Localité <input name="localite" value="${a?.localite||''}"></label>
+    
+    <label style="grid-column:1/-1;margin-top:15px;">
+      <strong>📦 Produits</strong>
+      <div id="productsList" style="margin-top:10px;"></div>
+      <button type="button" id="btnAddProduct" style="margin-top:10px;padding:8px 12px;background:#059669;color:white;border:none;border-radius:4px;cursor:pointer;">+ Ajouter un produit</button>
+    </label>
+    
+    <label>Besoin <input name="need" value="${a?.need||''}"></label>
+    <label>Volume (kg) <input name="volume" type="number" min="0" value="${a?.volume||''}"></label>
+    <label>Prix (FCFA/kg) <input name="price" type="number" min="0" step="1" value="${a?.price||''}"></label>
+    <label>Photo URL de l'acteur <input name="photo_url" type="url" placeholder="https://..." value="${a?.photo_url||''}"></label>
+    <label style="grid-column:1/-1"><strong>Certifications:</strong> 
+      <label style="display:inline-block;margin-right:15px"><input type="checkbox" name="cert_bio" ${(a?.certifications||[]).includes('bio')?'checked':''}> 🌿 Bio</label>
+      <label style="display:inline-block;margin-right:15px"><input type="checkbox" name="cert_quality" ${(a?.certifications||[]).includes('quality')?'checked':''}> ✅ Qualité</label>
+      <label style="display:inline-block"><input type="checkbox" name="cert_fair" ${(a?.certifications||[]).includes('fair')?'checked':''}> 🤝 Commerce Équitable</label>
+    </label>
+    <label>Latitude <input name="lat" type="number" step="0.0001" value="${a?.lat??''}"></label>
+    <label>Longitude <input name="lng" type="number" step="0.0001" value="${a?.lng??''}"></label>
+    <label>Téléphone <input name="phone" value="${a?.phone||''}"></label>
+    <label>WhatsApp <input name="whatsapp" value="${a?.whatsapp||''}"></label>
+    <label>Email <input name="email" type="email" value="${a?.email||''}"></label>
+    <label>Vérifié ? <select name="verified"><option value="false" ${!a?.verified?'selected':''}>Non</option><option value="true" ${a?.verified?'selected':''}>Oui</option></select></label>
+  </div>
   <div class="dialog-actions"><button type="button" id="btnUseLocation">📍 Utiliser ma position</button><button type="submit">Enregistrer</button><button type="button" id="cancelActor">Annuler</button></div></form>`;
-  document.body.appendChild(dlg); dlg.showModal(); dlg.querySelector('#cancelActor').onclick=()=> dlg.close();
+  document.body.appendChild(dlg); 
+  dlg.showModal(); 
+  dlg.querySelector('#cancelActor').onclick=()=> dlg.close();
+  
+  // Gestion des produits dynamiques
+  const productsList = dlg.querySelector('#productsList');
+  let products = [...actorProducts];
+  
+  const renderProducts = () => {
+    productsList.innerHTML = products.map((p, idx) => `
+      <div class="card" style="padding:12px;margin-bottom:10px;background:#f9fafb;">
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:start;">
+          <label style="margin:0;">
+            Nom du produit *
+            <input type="text" class="product-name" data-idx="${idx}" value="${p.name}" required placeholder="Ex: Maïs" style="width:100%;padding:6px;border:1px solid #d1d5db;border-radius:4px;">
+          </label>
+          <label style="margin:0;">
+            Site de production
+            <input type="text" class="product-site" data-idx="${idx}" value="${p.production_site||''}" placeholder="Ex: Sokodé, Centrale" style="width:100%;padding:6px;border:1px solid #d1d5db;border-radius:4px;">
+          </label>
+          <button type="button" class="btn-remove-product" data-idx="${idx}" style="margin-top:20px;padding:6px 12px;background:#dc2626;color:white;border:none;border-radius:4px;cursor:pointer;">🗑️</button>
+        </div>
+        <label style="margin:10px 0 0 0;display:block;">
+          Image du produit (URL)
+          <input type="url" class="product-image" data-idx="${idx}" value="${p.image_url||''}" placeholder="https://..." style="width:100%;padding:6px;border:1px solid #d1d5db;border-radius:4px;">
+        </label>
+      </div>
+    `).join('');
+    
+    // Événements pour mise à jour
+    productsList.querySelectorAll('.product-name').forEach(input => {
+      input.oninput = (e) => {
+        const idx = Number(e.target.dataset.idx);
+        products[idx].name = e.target.value;
+      };
+    });
+    productsList.querySelectorAll('.product-site').forEach(input => {
+      input.oninput = (e) => {
+        const idx = Number(e.target.dataset.idx);
+        products[idx].production_site = e.target.value;
+      };
+    });
+    productsList.querySelectorAll('.product-image').forEach(input => {
+      input.oninput = (e) => {
+        const idx = Number(e.target.dataset.idx);
+        products[idx].image_url = e.target.value;
+      };
+    });
+    productsList.querySelectorAll('.btn-remove-product').forEach(btn => {
+      btn.onclick = () => {
+        const idx = Number(btn.dataset.idx);
+        products.splice(idx, 1);
+        renderProducts();
+      };
+    });
+  };
+  
+  dlg.querySelector('#btnAddProduct').onclick = () => {
+    products.push({name: '', production_site: '', image_url: ''});
+    renderProducts();
+  };
+  
+  renderProducts();
+  
   dlg.querySelector('#btnUseLocation').onclick=async()=>{ 
     const btn = dlg.querySelector('#btnUseLocation');
     btn.disabled = true;
@@ -299,17 +407,46 @@ function openActorDialog(a){ if(!ME) return alert('Connecte-toi d’abord.'); co
       btn.textContent = '📍 Utiliser ma position';
     }
   };
-  dlg.querySelector('#frmActor').onsubmit=async(e)=>{ e.preventDefault(); const data=Object.fromEntries(new FormData(e.target).entries());
+  
+  dlg.querySelector('#frmActor').onsubmit=async(e)=>{ 
+    e.preventDefault(); 
+    const data=Object.fromEntries(new FormData(e.target).entries());
     const certifications = [];
     if(data.cert_bio) certifications.push('bio');
     if(data.cert_quality) certifications.push('quality');
     if(data.cert_fair) certifications.push('fair');
-    const payload={name:data.name.trim(), role:data.role, region:data.region, localite:(data.localite||'').trim(), products:(data.products||'').split(';').map(s=>s.trim()).filter(Boolean), need:(data.need||'').trim(), volume:data.volume?Number(data.volume):null, price:data.price?Number(data.price):null, photo_url:(data.photo_url||'').trim(), certifications, lat:data.lat?Number(data.lat):null, lng:data.lng?Number(data.lng):null, phone:(data.phone||'').trim(), whatsapp:(data.whatsapp||'').trim(), email:(data.email||'').trim(), verified:data.verified==='true'};
+    
+    // Filtrer les produits vides
+    const validProducts = products.filter(p => p.name && p.name.trim());
+    
+    const payload={
+      name:data.name.trim(), 
+      role:data.role, 
+      region:data.region, 
+      localite:(data.localite||'').trim(), 
+      products: validProducts,
+      need:(data.need||'').trim(), 
+      volume:data.volume?Number(data.volume):null, 
+      price:data.price?Number(data.price):null, 
+      photo_url:(data.photo_url||'').trim(), 
+      certifications, 
+      lat:data.lat?Number(data.lat):null, 
+      lng:data.lng?Number(data.lng):null, 
+      phone:(data.phone||'').trim(), 
+      whatsapp:(data.whatsapp||'').trim(), 
+      email:(data.email||'').trim(), 
+      verified:data.verified==='true'
+    };
+    
     let r;
     if(a&&a.id) r = await fetch('/api/actors/'+a.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     else r = await fetch('/api/actors',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(r.status===403){ const err=await r.json(); alert(err.message||'Limite atteinte'); dlg.close(); return; }
-    dlg.close(); await loadActors(); renderMap(); }; }
+    dlg.close(); 
+    await loadActors(); 
+    renderMap(); 
+  }; 
+}
 
 function openRatingDialog(actor){ 
   if(!ME) return alert('Connectez-vous pour noter cet acteur');
@@ -1020,7 +1157,11 @@ function openBudgetDialog(){
     
     if(actor && actor.products && actor.products.length > 0){
       productSelect.innerHTML = '<option value="">Choisir un produit...</option>' + 
-        actor.products.map(p => `<option value="${p}">${p}</option>`).join('');
+        actor.products.map(p => {
+          const productName = typeof p === 'string' ? p : p.name;
+          const productSite = (typeof p === 'object' && p.production_site) ? ` (${p.production_site})` : '';
+          return `<option value="${productName}">${productName}${productSite}</option>`;
+        }).join('');
     } else {
       productSelect.innerHTML = '<option value="">Aucun produit défini pour cet acteur</option>';
     }

@@ -226,11 +226,21 @@ app.post('/api/seed', async (req,res)=>{
   res.status(201).json({ok:true}); 
 });
 
+// Fonction pour normaliser les produits (rétrocompatibilité string → object)
+function normalizeProducts(products) {
+  if (!products || products.length === 0) return [];
+  return products.map(p => {
+    if (typeof p === 'string') return { name: p, production_site: '', image_url: '' };
+    return p;
+  });
+}
+
 app.get('/api/actors', async (req,res)=>{ 
   const rows = await db.getAll('SELECT * FROM actors ORDER BY id DESC', []); 
   const result = [];
   for(const r of rows) {
-    const actor = {...r,products:JSON.parse(r.products||'[]'),certifications:JSON.parse(r.certifications||'[]')};
+    const rawProducts = JSON.parse(r.products||'[]');
+    const actor = {...r,products:normalizeProducts(rawProducts),certifications:JSON.parse(r.certifications||'[]')};
     const ratings = await db.getOne('SELECT AVG(rating) as avg, COUNT(*) as count FROM ratings WHERE actor_id=$1', [r.id]);
     actor.rating_avg = ratings?.avg ? parseFloat(ratings.avg) : 0;
     actor.rating_count = ratings?.count ? parseInt(ratings.count) : 0;
@@ -250,7 +260,7 @@ app.post('/api/actors', requireAuth, async (req,res)=>{
   if(sub && sub.plan==='free' && actorCount>=2) return res.status(403).json({error:'limit_reached',message:'Version gratuite limitée à 2 acteurs. Passez à Premium pour plus !'});
   const b=req.body; 
   const row = await db.insertOne(`INSERT INTO actors (name,role,region,localite,products,need,volume,price,photo_url,certifications,lat,lng,phone,whatsapp,email,verified,owner_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`, [b.name,b.role,b.region,b.localite||'',JSON.stringify(b.products||[]),b.need||'',b.volume||null,b.price||null,b.photo_url||'',JSON.stringify(b.certifications||[]),b.lat||null,b.lng||null,b.phone||'',b.whatsapp||'',b.email||'',b.verified||false,req.session.user.id]); 
-  row.products=JSON.parse(row.products||'[]'); 
+  row.products=normalizeProducts(JSON.parse(row.products||'[]')); 
   row.certifications=JSON.parse(row.certifications||'[]'); 
   res.status(201).json(row); 
 });
@@ -259,7 +269,7 @@ app.put('/api/actors/:id', requireAuth, async (req,res)=>{
   const id=Number(req.params.id), b=req.body; 
   await db.query(`UPDATE actors SET name=$1,role=$2,region=$3,localite=$4,products=$5,need=$6,volume=$7,price=$8,photo_url=$9,certifications=$10,lat=$11,lng=$12,phone=$13,whatsapp=$14,email=$15,verified=$16 WHERE id=$17`, [b.name,b.role,b.region,b.localite||'',JSON.stringify(b.products||[]),b.need||'',b.volume||null,b.price||null,b.photo_url||'',JSON.stringify(b.certifications||[]),b.lat||null,b.lng||null,b.phone||'',b.whatsapp||'',b.email||'',b.verified||false,id]); 
   const row = await db.getOne('SELECT * FROM actors WHERE id=$1', [id]); 
-  row.products=JSON.parse(row.products||'[]'); 
+  row.products=normalizeProducts(JSON.parse(row.products||'[]')); 
   row.certifications=JSON.parse(row.certifications||'[]'); 
   res.json(row); 
 });
