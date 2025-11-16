@@ -497,7 +497,8 @@ function renderStockSummary(){
     const volume = Number(actor.volume) || 0;
     
     products.forEach(product => {
-      const productName = product.trim();
+      // Normaliser le produit : peut être un string ou un objet {name, production_site, image_url}
+      const productName = typeof product === 'string' ? product.trim() : (product?.name || '').trim();
       if(!productName) return;
       
       const productInfo = REFS.products?.find(p => p.name === productName);
@@ -2343,6 +2344,12 @@ async function boot(){
   
   const settingsTab = document.getElementById('settingsTab');
   if(settingsTab) settingsTab.style.display = ME ? 'inline-block' : 'none';
+  
+  const budgetTab = document.getElementById('budgetTab');
+  if(budgetTab) budgetTab.style.display = ME ? 'inline-block' : 'none';
+  
+  const costingTab = document.getElementById('costingTab');
+  if(costingTab) costingTab.style.display = ME ? 'inline-block' : 'none';
   
   await loadRefs(); 
   await loadActors(); 
