@@ -47,7 +47,7 @@ app.post('/api/auth/register', async (req,res)=>{
     const user = await db.insertOne('INSERT INTO users (email,name,password_hash,region,role,phone,whatsapp,lat,lng) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)', [email?(email.trim().toLowerCase()):null,name||'',hash,region||'',role||'',normalizedPhone,normalizedWhatsapp,lat||null,lng||null]); 
     const userId=user.id; 
     await db.query('INSERT INTO subscriptions (user_id,plan,status) VALUES ($1,$2,$3)', [userId,'free','active']); 
-    req.session.user={id:userId,email,name,region,role,phone:normalizedPhone,whatsapp:normalizedWhatsapp,lat,lng}; 
+    req.session.user={id:userId,email,name,region,role,phone:normalizedPhone,whatsapp:normalizedWhatsapp,lat,lng,is_admin:user.is_admin||false,status:user.status||'active'}; 
     res.status(201).json(req.session.user); 
   } catch(e){ 
     res.status(400).json({error:'registration_failed',message:e.message}); 
@@ -307,7 +307,7 @@ app.get('/api/subscription', requireAuth, async (req,res)=>{
   res.json({subscription:sub||{plan:'free',status:'active'},actorCount,limit}); 
 });
 
-app.post('/api/admin/activate-premium', requireAuth, async (req,res)=>{
+app.post('/api/admin/activate-premium', requireAdmin, async (req,res)=>{
   const {userEmail, transactionId, paymentMethod} = req.body;
   if(!userEmail || !transactionId) return res.status(400).json({error:'Missing userEmail or transactionId'});
   

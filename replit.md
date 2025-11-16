@@ -33,10 +33,29 @@ AgriRéseau Pro utilizes a modern web stack:
     - **Coût de Revient Module (Dépenses Réelles)**: A simplified form to record real expenses chronologically, linked to specific budgets for automatic accumulation and comparison.
     - **Harvest Product Linkage**: `activities` are linked to specific actors and `harvest_product` for accurate, real-time stock tracking.
     - **Automatic Availability Display**: Endpoint `/api/actors/:id/harvests` aggregates actual harvest quantities by product, automatically displaying "📦 Disponible: [product]: [quantity] kg" on actor cards.
-- **User Authentication & Authorization**: Register/login system with session management and role-based access control.
+- **User Authentication & Authorization**: 
+    - Register/login system with session management and role-based access control.
+    - **Enhanced Registration**: Users can register with phone OR email (flexible authentication).
+    - **Geolocation Support**: Registration captures user lat/lng coordinates for proximity features.
+    - **Account Status Management**: Users have a `status` field (active, blocked, pending) checked during login.
+    - Phone numbers are normalized (spaces removed) to prevent authentication mismatches.
 - **Subscription System**:
     - **Free Plan**: Limited to 2 actors per user.
     - **Premium Plan**: Offers unlimited actors, a premium badge, and access to future advanced features like analytics, internal messaging, alerts, digital contracts, stock history, and weather forecasts.
+- **Admin System** (Added November 2025):
+    - **Role-Based Authorization**: `is_admin` flag in users table enables admin privileges.
+    - **Admin Panel**: Dedicated "Administration" tab visible only to admins.
+    - **User Management**: Complete CRUD operations for user accounts:
+        - View all users with details (ID, name, email, phone, region, role, status, admin flag)
+        - Edit user information and permissions
+        - Block/unblock user accounts (prevents login when status='blocked')
+        - Delete users (with self-deletion protection for admins)
+    - **Security Implementation**:
+        - `requireAdmin` middleware protects all admin routes
+        - Admin endpoints whitelist safe fields (exclude password_hash)
+        - Session includes `is_admin` and `status` for proper authorization
+        - Premium activation requires admin privileges
+    - **Test Admin Credentials**: admin@agrireseau.tg / Admin2025!
 - **Trust & Reputation System**:
     - **Rating System**: Users can rate actors (1-5 stars) with optional comments, displayed as an average rating with count on actor cards.
     - **Certification Badges**: Visual badges for Bio (🌿), Qualité (✅), and Commerce Équitable (🤝) certifications on actor cards.
