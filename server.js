@@ -164,10 +164,36 @@ app.get('/api/refs', async (req,res)=>{
   const regions = await db.getAll('SELECT name FROM regions', []); 
   const products = await db.getAll('SELECT name, category FROM products ORDER BY category, name', []); 
   const categories = await db.getAll('SELECT DISTINCT category FROM products ORDER BY category', []);
+  
+  const units = [
+    'kg',
+    'unité',
+    'plateau',
+    'litre',
+    'sac',
+    'tonne',
+    'tête',
+    'boîte',
+    'bouteille',
+    'paquet'
+  ];
+  
+  const inputCategories = [
+    {category: 'Semences et plants', items: ['Semences certifiées', 'Plants', 'Boutures']},
+    {category: 'Engrais et amendements', items: ['NPK', 'Urée', 'Compost', 'Fumier', 'Chaux']},
+    {category: 'Produits phytosanitaires', items: ['Herbicides', 'Insecticides', 'Fongicides']},
+    {category: 'Aliments pour animaux', items: ['Provende poulets', 'Provende porcs', 'Provende bovins', 'Tourteau', 'Son de maïs', 'Son de riz', 'Fourrage']},
+    {category: 'Santé animale', items: ['Vaccins', 'Antibiotiques', 'Antiparasitaires', 'Vitamines', 'Désinfectants']},
+    {category: 'Équipements et matériels', items: ['Abreuvoirs', 'Mangeoires', 'Cages', 'Filets', 'Outils']},
+    {category: 'Autres intrants', items: ['Emballages', 'Ficelles', 'Plastiques', 'Carburant']}
+  ];
+  
   res.json({
     regions: regions.map(r=>r.name), 
     products: products.map(p=>({name: p.name, category: p.category})),
-    productCategories: categories.map(c=>c.category)
+    productCategories: categories.map(c=>c.category),
+    units,
+    inputCategories
   }); 
 });
 
@@ -245,20 +271,21 @@ app.delete('/api/actors/:id', requireAuth, async (req,res)=>{
 
 app.get('/api/actors/:id/harvests', async (req,res)=>{ 
   const actorId = Number(req.params.id);
-  const harvests = await db.getAll(`SELECT harvest_product, actual_harvest FROM activities WHERE actor_id=$1 AND harvest_product IS NOT NULL AND actual_harvest > 0`, [actorId]);
+  const harvests = await db.getAll(`SELECT harvest_product, actual_harvest, unit FROM activities WHERE actor_id=$1 AND harvest_product IS NOT NULL AND actual_harvest > 0`, [actorId]);
   const grouped = {};
   harvests.forEach(h => {
-    if (!grouped[h.harvest_product]) grouped[h.harvest_product] = 0;
-    grouped[h.harvest_product] += h.actual_harvest;
+    const key = `${h.harvest_product}|${h.unit||'kg'}`;
+    if (!grouped[key]) grouped[key] = {product: h.harvest_product, quantity: 0, unit: h.unit||'kg'};
+    grouped[key].quantity += parseFloat(h.actual_harvest);
   });
-  const result = Object.keys(grouped).map(product => ({product, quantity: grouped[product]}));
+  const result = Object.values(grouped);
   res.json(result);
 });
 
 app.get('/api/actors/:id/upcoming', async (req,res)=>{
   const actorId = Number(req.params.id);
   const upcoming = await db.getAll(
-    `SELECT harvest_product, started_at, production_cycle_days, output_qty 
+    `SELECT harvest_product, started_at, production_cycle_days, output_qty, unit 
      FROM activities 
      WHERE actor_id=$1 
        AND harvest_product IS NOT NULL 
@@ -282,6 +309,7 @@ app.get('/api/actors/:id/upcoming', async (req,res)=>{
       cycleDays: Number(a.production_cycle_days),
       estimatedAvailability: availabilityDate.toISOString().split('T')[0],
       estimatedQuantity: parseFloat(a.output_qty) || 0,
+      unit: a.unit || 'kg',
       isAvailable: availabilityDate <= new Date()
     };
   });
@@ -319,13 +347,13 @@ app.get('/api/activities', requireAuth, async (req,res)=>{
 
 app.post('/api/activities', requireAuth, async (req,res)=>{ 
   const b=req.body; 
-  const act = await db.insertOne(`INSERT INTO activities (user_id,filiere,label,periode,output_qty,target_margin,price_expected,transport,autres,overhead_pct,status,started_at,harvest_product,actor_id,production_cycle_days) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`, [req.session.user.id,b.filiere,b.label,b.periode,b.output_qty||0,b.target_margin||0,b.price_expected||0,b.transport||0,b.autres||0,b.overhead_pct||10,b.status||'planned',b.started_at||null,b.harvest_product||null,b.actor_id||null,b.production_cycle_days||null]); 
+  const act = await db.insertOne(`INSERT INTO activities (user_id,filiere,label,periode,output_qty,target_margin,price_expected,transport,autres,overhead_pct,status,started_at,harvest_product,actor_id,production_cycle_days,unit) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`, [req.session.user.id,b.filiere,b.label,b.periode,b.output_qty||0,b.target_margin||0,b.price_expected||0,b.transport||0,b.autres||0,b.overhead_pct||10,b.status||'planned',b.started_at||null,b.harvest_product||null,b.actor_id||null,b.production_cycle_days||null,b.unit||'kg']); 
   res.status(201).json(act); 
 });
 
 app.put('/api/activities/:id', requireAuth, async (req,res)=>{ 
   const id=Number(req.params.id), b=req.body; 
-  await db.query(`UPDATE activities SET filiere=$1,label=$2,periode=$3,output_qty=$4,target_margin=$5,price_expected=$6,transport=$7,autres=$8,overhead_pct=$9,status=$10,started_at=$11,ended_at=$12,actual_harvest=$13,harvest_product=$14,actor_id=$15,production_cycle_days=$16 WHERE id=$17 AND user_id=$18`, [b.filiere,b.label,b.periode,b.output_qty||0,b.target_margin||0,b.price_expected||0,b.transport||0,b.autres||0,b.overhead_pct||10,b.status||'planned',b.started_at||null,b.ended_at||null,b.actual_harvest||null,b.harvest_product||null,b.actor_id||null,b.production_cycle_days||null,id,req.session.user.id]); 
+  await db.query(`UPDATE activities SET filiere=$1,label=$2,periode=$3,output_qty=$4,target_margin=$5,price_expected=$6,transport=$7,autres=$8,overhead_pct=$9,status=$10,started_at=$11,ended_at=$12,actual_harvest=$13,harvest_product=$14,actor_id=$15,production_cycle_days=$16,unit=$17 WHERE id=$18 AND user_id=$19`, [b.filiere,b.label,b.periode,b.output_qty||0,b.target_margin||0,b.price_expected||0,b.transport||0,b.autres||0,b.overhead_pct||10,b.status||'planned',b.started_at||null,b.ended_at||null,b.actual_harvest||null,b.harvest_product||null,b.actor_id||null,b.production_cycle_days||null,b.unit||'kg',id,req.session.user.id]); 
   const act = await db.getOne('SELECT * FROM activities WHERE id=$1', [id]); 
   res.json(act); 
 });

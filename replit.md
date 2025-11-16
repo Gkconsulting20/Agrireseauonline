@@ -24,15 +24,17 @@ AgriRéseau Pro utilizes a modern web stack:
 - A clear freemium model with distinct Free and Premium plans, visually differentiated with a "💎 PREMIUM" badge for premium actors.
 
 **Technical Implementations & Feature Specifications**:
+- **Flexible Units of Measure** (Added November 2025): Replaced fixed "kg" unit with customizable measurement units (kg, unité, plateau, litre, sac, tonne, tête, boîte, bouteille, paquet). All quantity displays (harvests, budgets, production cycles) now use the activity-specific unit. Particularly important for livestock (eggs by plateau, chickens by unité) and diverse products.
 - **Actors Management**: Full CRUD operations for all value chain actors (producers, livestock farmers, transporters, processors, wholesalers, retailers, institutions) with detailed profiles including location, products (crops, meat, eggs, dairy, processed goods), contact info, price, photos, and certifications.
 - **Stock Summary (Public)**: A publicly accessible aggregate view of all available products and quantities, displaying average prices and allowing search/filter by product or region.
 - **Geographic Mapping**: Actors' locations are visualized on a Leaflet map, with user geolocation and distance calculation features.
 - **Logistics**: Functionality to track transport and logistics needs and offers.
 - **Cost Calculation & Budgeting**:
-    - **Budget Module (Prévisionnel)**: Allows creation of forecast budgets for activities, tracking planned expenses, and calculating projected revenue and profit. It provides a side-by-side comparison with real costs.
-    - **Coût de Revient Module (Dépenses Réelles)**: A simplified form to record real expenses chronologically, linked to specific budgets for automatic accumulation and comparison.
-    - **Harvest Product Linkage**: `activities` are linked to specific actors and `harvest_product` for accurate, real-time stock tracking.
-    - **Automatic Availability Display**: Endpoint `/api/actors/:id/harvests` aggregates actual harvest quantities by product, automatically displaying "📦 Disponible: [product]: [quantity] kg" on actor cards.
+    - **Budget Module (Prévisionnel)**: Allows creation of forecast budgets for activities with flexible units, tracking planned expenses, and calculating projected revenue and profit. It provides a side-by-side comparison with real costs.
+    - **Coût de Revient Module (Dépenses Réelles)**: A simplified form to record real expenses chronologically with livestock-specific categories (provende, vaccins, antibiotiques, abreuvoirs, mangeoires, etc.), linked to specific budgets for automatic accumulation and comparison.
+    - **Harvest Product Linkage**: `activities` are linked to specific actors and `harvest_product` for accurate, real-time stock tracking with dynamic units.
+    - **Automatic Availability Display**: Endpoint `/api/actors/:id/harvests` aggregates actual harvest quantities by product with unit, automatically displaying "📦 Disponible: [product]: [quantity] [unit]" on actor cards.
+    - **Automatic Evaluation Table** (Added November 2025): Dynamic monitoring dashboard comparing planned vs actual for all budgets, automatically updated when expenses are recorded. Shows budget-by-budget variance (économie/dépassement), profit analysis, and harvest progress with color-coded status indicators.
 - **User Authentication & Authorization**: 
     - Register/login system with session management and role-based access control.
     - **Enhanced Registration**: Users can register with phone OR email (flexible authentication).

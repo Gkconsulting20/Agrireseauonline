@@ -215,7 +215,7 @@ function actorCard(a){
     .then(harvests=>{
       const harvestDiv = el.querySelector('#harvests-'+a.id);
       if(harvests && harvests.length > 0){
-        const harvestText = harvests.map(h=>`${h.product}: ${h.quantity} kg`).join(', ');
+        const harvestText = harvests.map(h=>`${h.product}: ${h.quantity} ${h.unit||'kg'}`).join(', ');
         harvestDiv.innerHTML = `<strong>📦 Disponible:</strong> ${harvestText}`;
       }
     })
@@ -235,8 +235,8 @@ function actorCard(a){
           const dateStr = date.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'});
           const isReady = u.isAvailable;
           return isReady ? 
-            `<strong>${u.product}: Bientôt disponible (${u.estimatedQuantity} kg)</strong>` :
-            `${u.product}: Dispo. estimée ${dateStr} (${u.estimatedQuantity} kg)`;
+            `<strong>${u.product}: Bientôt disponible (${u.estimatedQuantity} ${u.unit||'kg'})</strong>` :
+            `${u.product}: Dispo. estimée ${dateStr} (${u.estimatedQuantity} ${u.unit||'kg'})`;
         }).join(', ');
         upcomingDiv.innerHTML = `<strong>📅 En production:</strong> ${upcomingText}`;
       }
@@ -986,6 +986,7 @@ function openBudgetDialog(){
   const productsOptions = PRODUCTS.map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
   const myActors = ACTORS.filter(a=>a.owner_id===ME.id);
   const actorsOptions = myActors.length > 0 ? myActors.map(a=>`<option value="${a.id}">${a.name}</option>`).join('') : '<option value="">Aucun acteur</option>';
+  const unitsOptions = (REFS.units||['kg','unité','plateau','litre','sac','tonne','tête']).map(u=>`<option value="${u}">${u}</option>`).join('');
   const today = new Date().toISOString().split('T')[0];
   dlg.innerHTML=`<form id="frmBudget" class="dialog-body"><h3>📋 Créer un Budget Prévisionnel</h3>
     <p class="muted">Créez une activité et définissez vos prévisions</p>
@@ -997,8 +998,9 @@ function openBudgetDialog(){
       <label>Date de début <input name="started_at" type="date" value="${today}" required></label>
       <label>Cycle de production (jours) <input name="production_cycle_days" type="number" placeholder="Ex: 90" min="1" required></label>
       <label>Période <select name="periode"><option>Annuel</option><option>Trimestriel</option><option>Mensuel</option></select></label>
-      <label>Quantité prévue (kg) <input name="output_qty" type="number" value="1000"></label>
-      <label>Prix de vente prévu (FCFA/kg) <input name="price_expected" type="number" value="300"></label>
+      <label>Unité <select name="unit">${unitsOptions}</select></label>
+      <label>Quantité prévue <input name="output_qty" type="number" value="1000"></label>
+      <label>Prix de vente prévu (FCFA/unité) <input name="price_expected" type="number" value="300"></label>
       <label>Dépenses prévues (FCFA) <input name="transport" type="number" value="0"></label>
     </div>
     <div class="card" style="background:#f0fdf4;margin:15px 0;">
@@ -1046,17 +1048,18 @@ function openBudgetDialog(){
 async function openBudget(b){
   CURRENT_BUDGET=b;const sumR=await fetch(`/api/activities/${b.id}/summary`);const S=await sumR.json();const expenses=S.budgetExpenses||[];const incomes=S.budgetIncomes||[];
   const root=document.getElementById('budgetEditor');
+  const unit = b.unit || 'kg';
   root.innerHTML=`<h4>${b.label} <span class="badge">${b.filiere}</span></h4>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
       <div class="card" style="background:#f0fdf4;"><h5 style="color:#059669;">📊 Budget Prévisionnel</h5>
-        <p>Quantité: <strong>${b.output_qty||0} kg</strong></p><p>Prix: <strong>${b.price_expected||0} FCFA/kg</strong></p>
+        <p>Quantité: <strong>${b.output_qty||0} ${unit}</strong></p><p>Prix: <strong>${b.price_expected||0} FCFA/${unit}</strong></p>
         <p>CA prévu: <strong>${((b.output_qty||0)*(b.price_expected||0)).toLocaleString()} FCFA</strong></p>
         <p>Dépenses prévues: <strong>${(b.transport||0).toLocaleString()} FCFA</strong></p>
         <p style="color:#059669;"><strong>Profit prévu: ${(((b.output_qty||0)*(b.price_expected||0))-(b.transport||0)).toLocaleString()} FCFA</strong></p></div>
       <div class="card" style="background:#fee2e2;"><h5 style="color:#dc2626;">💰 Coûts Réels</h5>
         <p>Dépenses: <strong>${(S.totalRealExpenses||0).toLocaleString()} FCFA</strong></p>
         <p>Recettes: <strong>${(S.totalRealIncomes||0).toLocaleString()} FCFA</strong></p>
-        <p>Récolte: <strong>${S.actual_harvest||0} kg</strong> <button id="btnEditH" style="font-size:11px;">✏️</button></p>
+        <p>Récolte: <strong>${S.actual_harvest||0} ${unit}</strong> <button id="btnEditH" style="font-size:11px;">✏️</button></p>
         <p style="color:#dc2626;"><strong>Profit réel: ${((S.totalRealIncomes||0)-(S.totalRealExpenses||0)).toLocaleString()} FCFA</strong></p></div>
     </div>
     <div class="card" style="margin-top:15px;"><h5>📈 Détail (du Coût de revient)</h5>
@@ -1069,14 +1072,15 @@ async function openBudget(b){
 }
 function editHarvest(b){
   const dlg=document.createElement('dialog');
-  dlg.innerHTML=`<form id="fH"><h3>Récolte réelle</h3><label>Quantité (kg) <input name="h" type="number" step="0.01" value="${b.actual_harvest||''}" required></label><div class="dialog-actions"><button type="submit">💾 OK</button><button type="button" id="cH">Annuler</button></div></form>`;
+  const unit = b.unit || 'kg';
+  dlg.innerHTML=`<form id="fH"><h3>Récolte réelle</h3><label>Quantité (${unit}) <input name="h" type="number" step="0.01" value="${b.actual_harvest||''}" required></label><div class="dialog-actions"><button type="submit">💾 OK</button><button type="button" id="cH">Annuler</button></div></form>`;
   document.body.appendChild(dlg);
   dlg.showModal();
   dlg.querySelector('#cH').onclick=()=>dlg.close();
   dlg.querySelector('#fH').onsubmit=async(e)=>{
     e.preventDefault();
     const h=Number(e.target.h.value);
-    const payload = {label:b.label,filiere:b.filiere,periode:b.periode,output_qty:b.output_qty,price_expected:b.price_expected,transport:b.transport,target_margin:b.target_margin,autres:b.autres,overhead_pct:b.overhead_pct,actual_harvest:h};
+    const payload = {label:b.label,filiere:b.filiere,periode:b.periode,output_qty:b.output_qty,price_expected:b.price_expected,transport:b.transport,target_margin:b.target_margin,autres:b.autres,overhead_pct:b.overhead_pct,actual_harvest:h,unit:b.unit};
     const r=await fetch(`/api/activities/${b.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(!r.ok){alert('Erreur');return;}
     dlg.close();
@@ -1089,10 +1093,11 @@ function editHarvest(b){
 // Nouvelles fonctions pour Coût de revient (module réel)
 async function loadCosts(){
   const r=await fetch('/api/budget');
-  if(r.status===401){COSTS=[];renderCosts();return;}
+  if(r.status===401){COSTS=[];renderCosts();renderEvaluationTable();return;}
   const data=await r.json();
   COSTS=data.rows||[];
   renderCosts();
+  renderEvaluationTable();
   if(CURRENT_COST_BUDGET) await showCostSummary(CURRENT_COST_BUDGET);
 }
 function renderCosts(){
@@ -1194,6 +1199,90 @@ async function showCostSummary(budgetId){
     await showCostSummary(budgetId);
   };
 }
+
+async function renderEvaluationTable(){
+  const root = document.getElementById('evaluationTable');
+  if(!root) return;
+  
+  if(!ME || BUDGETS.length === 0) {
+    root.innerHTML='<p class="muted">Aucun budget créé. Créez un budget pour voir le suivi-évaluation.</p>';
+    return;
+  }
+  
+  const tableData = await Promise.all(BUDGETS.map(async(b)=>{
+    const sumR = await fetch(`/api/activities/${b.id}/summary`);
+    const S = await sumR.json();
+    const prevuDep = (b.transport||0);
+    const prevuCA = (b.output_qty||0) * (b.price_expected||0);
+    const prevuProfit = prevuCA - prevuDep;
+    const realDep = S.totalRealExpenses || 0;
+    const realRecettes = S.totalRealIncomes || 0;
+    const realProfit = realRecettes - realDep;
+    const variance = realDep - prevuDep;
+    const variancePct = prevuDep > 0 ? ((variance / prevuDep) * 100).toFixed(1) : 0;
+    const unit = b.unit || 'kg';
+    
+    return {
+      id: b.id,
+      label: b.label,
+      filiere: b.filiere,
+      prevuDep,
+      prevuCA,
+      prevuProfit,
+      realDep,
+      realRecettes,
+      realProfit,
+      variance,
+      variancePct,
+      actualHarvest: S.actual_harvest || 0,
+      prevuQty: b.output_qty || 0,
+      unit,
+      status: realDep > 0 ? (variance < 0 ? '✅ Économie' : '⚠️ Dépassement') : '⏳ En cours'
+    };
+  }));
+  
+  root.innerHTML=`
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>Budget</th>
+          <th>Filière</th>
+          <th>Dépenses Prévues</th>
+          <th>Dépenses Réelles</th>
+          <th>Écart</th>
+          <th>CA Prévu</th>
+          <th>Recettes Réelles</th>
+          <th>Profit Prévu</th>
+          <th>Profit Réel</th>
+          <th>Récolte</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tableData.map(d=>{
+          const varColor = d.variance < 0 ? '#059669' : (d.variance > 0 ? '#dc2626' : '#6b7280');
+          const profitColor = d.realProfit > d.prevuProfit ? '#059669' : '#dc2626';
+          return `
+            <tr>
+              <td><strong>${d.label}</strong></td>
+              <td><span class="badge">${d.filiere}</span></td>
+              <td>${d.prevuDep.toLocaleString()} FCFA</td>
+              <td><strong>${d.realDep.toLocaleString()} FCFA</strong></td>
+              <td style="color:${varColor};font-weight:bold;">${d.variance > 0 ? '+' : ''}${d.variance.toLocaleString()} FCFA<br><small>(${d.variance > 0 ? '+' : ''}${d.variancePct}%)</small></td>
+              <td>${d.prevuCA.toLocaleString()} FCFA</td>
+              <td><strong>${d.realRecettes.toLocaleString()} FCFA</strong></td>
+              <td>${d.prevuProfit.toLocaleString()} FCFA</td>
+              <td style="color:${profitColor};font-weight:bold;">${d.realProfit.toLocaleString()} FCFA</td>
+              <td>${d.actualHarvest} / ${d.prevuQty} ${d.unit}</td>
+              <td>${d.status}</td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
 async function refreshCostBudgets(){
   const sel=document.getElementById('costBudget');
   if(!sel)return;

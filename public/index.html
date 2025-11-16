@@ -78,12 +78,28 @@
           <input id="costDate" type="date">
           <select id="costCat">
             <option value="">Choisir une catégorie...</option>
-            <optgroup label="🌾 Intrants">
+            <optgroup label="🌾 Intrants agricoles">
               <option value="Semences">Semences</option>
               <option value="Engrais">Engrais (NPK, Urée)</option>
               <option value="Pesticides">Pesticides/Herbicides</option>
               <option value="Fumure">Fumure organique</option>
               <option value="Matériel agricole">Matériel agricole</option>
+            </optgroup>
+            <optgroup label="🐔 Intrants d'élevage">
+              <option value="Provende poulets">Provende poulets</option>
+              <option value="Provende porcs">Provende porcs</option>
+              <option value="Provende bovins">Provende bovins</option>
+              <option value="Tourteau">Tourteau</option>
+              <option value="Son de maïs">Son de maïs</option>
+              <option value="Fourrage">Fourrage</option>
+              <option value="Vaccins">Vaccins</option>
+              <option value="Antibiotiques">Antibiotiques</option>
+              <option value="Antiparasitaires">Antiparasitaires</option>
+              <option value="Vitamines">Vitamines</option>
+              <option value="Désinfectants">Désinfectants</option>
+              <option value="Abreuvoirs">Abreuvoirs</option>
+              <option value="Mangeoires">Mangeoires</option>
+              <option value="Cages">Cages</option>
             </optgroup>
             <optgroup label="👷 Main d'œuvre">
               <option value="Labour">Labour/Préparation sol</option>
@@ -91,6 +107,7 @@
               <option value="Entretien">Entretien/Sarclage</option>
               <option value="Récolte">Récolte</option>
               <option value="Transformation">Transformation</option>
+              <option value="Soins animaux">Soins animaux</option>
             </optgroup>
             <optgroup label="🚚 Logistique">
               <option value="Transport">Transport</option>
@@ -117,6 +134,10 @@
         <div id="costSummary">
           <p class="muted">Sélectionnez un budget pour voir le calcul du coût de revient</p>
         </div>
+      </div>
+      <div class="card" style="margin-top:15px;"><h3>📈 Tableau de Suivi-Évaluation</h3>
+        <p class="muted" style="margin-bottom:15px;">Vue d'ensemble automatique : Prévu vs Réel</p>
+        <div id="evaluationTable"></div>
       </div>
     </div>
   </div>
