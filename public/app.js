@@ -311,9 +311,24 @@ function openActorDialog(a){
     </label>
     
     <label>Besoin <input name="need" value="${a?.need||''}"></label>
-    <label>Volume (kg) <input name="volume" type="number" min="0" value="${a?.volume||''}"></label>
-    <label>Prix (FCFA/kg) <input name="price" type="number" min="0" step="1" value="${a?.price||''}"></label>
-    <label>Photo URL de l'acteur <input name="photo_url" type="url" placeholder="https://..." value="${a?.photo_url||''}"></label>
+    <label>Volume <input name="volume" type="number" min="0" value="${a?.volume||''}" placeholder="Quantité disponible"></label>
+    <label>Unité de mesure <select name="unit">
+      <option value="kg" ${a?.unit==='kg'?'selected':''}>kg (kilogramme)</option>
+      <option value="tonne" ${a?.unit==='tonne'?'selected':''}>tonne</option>
+      <option value="sac" ${a?.unit==='sac'?'selected':''}>sac</option>
+      <option value="unité" ${a?.unit==='unité'?'selected':''}>unité</option>
+      <option value="plateau" ${a?.unit==='plateau'?'selected':''}>plateau</option>
+      <option value="litre" ${a?.unit==='litre'?'selected':''}>litre</option>
+      <option value="tête" ${a?.unit==='tête'?'selected':''}>tête (bétail)</option>
+      <option value="boîte" ${a?.unit==='boîte'?'selected':''}>boîte</option>
+      <option value="bouteille" ${a?.unit==='bouteille'?'selected':''}>bouteille</option>
+      <option value="paquet" ${a?.unit==='paquet'?'selected':''}>paquet</option>
+    </select></label>
+    <label>Prix unitaire (FCFA) - Optionnel <input name="price" type="number" min="0" step="1" value="${a?.price||''}" placeholder="Laissez vide si pas encore fixé"></label>
+    <label style="grid-column:1/-1;">Photo de l'acteur (URL) - Optionnel
+      <input name="photo_url" type="url" placeholder="https://exemple.com/ma-photo.jpg" value="${a?.photo_url||''}">
+      <small style="color:#6b7280;display:block;margin-top:4px;">💡 Hébergez votre photo sur imgur.com, imgbb.com ou Google Photos puis collez le lien ici</small>
+    </label>
     <label style="grid-column:1/-1"><strong>Certifications:</strong> 
       <label style="display:inline-block;margin-right:15px"><input type="checkbox" name="cert_bio" ${(a?.certifications||[]).includes('bio')?'checked':''}> 🌿 Bio</label>
       <label style="display:inline-block;margin-right:15px"><input type="checkbox" name="cert_quality" ${(a?.certifications||[]).includes('quality')?'checked':''}> ✅ Qualité</label>

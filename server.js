@@ -259,7 +259,7 @@ app.post('/api/actors', requireAuth, async (req,res)=>{
   const actorCount = actorCountRow.c;
   if(sub && sub.plan==='free' && actorCount>=2) return res.status(403).json({error:'limit_reached',message:'Version gratuite limitée à 2 acteurs. Passez à Premium pour plus !'});
   const b=req.body; 
-  const row = await db.insertOne(`INSERT INTO actors (name,role,region,localite,products,need,volume,price,photo_url,certifications,lat,lng,phone,whatsapp,email,verified,owner_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`, [b.name,b.role,b.region,b.localite||'',JSON.stringify(b.products||[]),b.need||'',b.volume||null,b.price||null,b.photo_url||'',JSON.stringify(b.certifications||[]),b.lat||null,b.lng||null,b.phone||'',b.whatsapp||'',b.email||'',b.verified||false,req.session.user.id]); 
+  const row = await db.insertOne(`INSERT INTO actors (name,role,region,localite,products,need,volume,unit,price,photo_url,certifications,lat,lng,phone,whatsapp,email,verified,owner_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`, [b.name,b.role,b.region,b.localite||'',JSON.stringify(b.products||[]),b.need||'',b.volume||null,b.unit||'kg',b.price||null,b.photo_url||'',JSON.stringify(b.certifications||[]),b.lat||null,b.lng||null,b.phone||'',b.whatsapp||'',b.email||'',b.verified||false,req.session.user.id]); 
   row.products=normalizeProducts(JSON.parse(row.products||'[]')); 
   row.certifications=JSON.parse(row.certifications||'[]'); 
   res.status(201).json(row); 
@@ -267,7 +267,7 @@ app.post('/api/actors', requireAuth, async (req,res)=>{
 
 app.put('/api/actors/:id', requireAuth, async (req,res)=>{ 
   const id=Number(req.params.id), b=req.body; 
-  await db.query(`UPDATE actors SET name=$1,role=$2,region=$3,localite=$4,products=$5,need=$6,volume=$7,price=$8,photo_url=$9,certifications=$10,lat=$11,lng=$12,phone=$13,whatsapp=$14,email=$15,verified=$16 WHERE id=$17`, [b.name,b.role,b.region,b.localite||'',JSON.stringify(b.products||[]),b.need||'',b.volume||null,b.price||null,b.photo_url||'',JSON.stringify(b.certifications||[]),b.lat||null,b.lng||null,b.phone||'',b.whatsapp||'',b.email||'',b.verified||false,id]); 
+  await db.query(`UPDATE actors SET name=$1,role=$2,region=$3,localite=$4,products=$5,need=$6,volume=$7,unit=$8,price=$9,photo_url=$10,certifications=$11,lat=$12,lng=$13,phone=$14,whatsapp=$15,email=$16,verified=$17 WHERE id=$18`, [b.name,b.role,b.region,b.localite||'',JSON.stringify(b.products||[]),b.need||'',b.volume||null,b.unit||'kg',b.price||null,b.photo_url||'',JSON.stringify(b.certifications||[]),b.lat||null,b.lng||null,b.phone||'',b.whatsapp||'',b.email||'',b.verified||false,id]); 
   const row = await db.getOne('SELECT * FROM actors WHERE id=$1', [id]); 
   row.products=normalizeProducts(JSON.parse(row.products||'[]')); 
   row.certifications=JSON.parse(row.certifications||'[]'); 
