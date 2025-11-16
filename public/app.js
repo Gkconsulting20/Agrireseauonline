@@ -330,7 +330,108 @@ async function renderMap(){
   }
 }
 
-let ACTS=[], ACT_ITEMS=[], CURRENT_ACT=null;
+const CROP_TEMPLATES = {
+  'Maïs': {
+    label: 'Production de Maïs 1ha',
+    output_qty: 2000,
+    price_expected: 250,
+    target_margin: 20,
+    transport: 50000,
+    autres: 30000,
+    items: [
+      {kind:'input',label:'Semences hybrides',qty:25,unit:'kg',unit_price:2500},
+      {kind:'input',label:'Engrais NPK 15-15-15',qty:200,unit:'kg',unit_price:400},
+      {kind:'input',label:'Urée 46%',qty:100,unit:'kg',unit_price:350},
+      {kind:'input',label:'Herbicide pré-levée',qty:4,unit:'L',unit_price:8000},
+      {kind:'input',label:'Herbicide post-levée',qty:3,unit:'L',unit_price:7500},
+      {kind:'input',label:'Insecticide',qty:2,unit:'L',unit_price:6000},
+      {kind:'labor',label:'Labour/Billonnage',qty:1,unit:'ha',unit_price:80000},
+      {kind:'labor',label:'Semis',qty:8,unit:'h-j',unit_price:3000},
+      {kind:'labor',label:'Sarclage (2 passages)',qty:16,unit:'h-j',unit_price:3000},
+      {kind:'labor',label:'Épandage engrais',qty:6,unit:'h-j',unit_price:3000},
+      {kind:'labor',label:'Récolte et égrenage',qty:20,unit:'h-j',unit_price:3000}
+    ]
+  },
+  'Soja': {
+    label: 'Production de Soja 1ha',
+    output_qty: 1500,
+    price_expected: 350,
+    target_margin: 25,
+    transport: 40000,
+    autres: 25000,
+    items: [
+      {kind:'input',label:'Semences certifiées',qty:60,unit:'kg',unit_price:1200},
+      {kind:'input',label:'Engrais NPK 14-23-14',qty:150,unit:'kg',unit_price:450},
+      {kind:'input',label:'Inoculant (rhizobium)',qty:1,unit:'sachet',unit_price:5000},
+      {kind:'input',label:'Herbicide',qty:3,unit:'L',unit_price:8000},
+      {kind:'input',label:'Insecticide',qty:2,unit:'L',unit_price:7000},
+      {kind:'labor',label:'Labour',qty:1,unit:'ha',unit_price:75000},
+      {kind:'labor',label:'Semis',qty:6,unit:'h-j',unit_price:3000},
+      {kind:'labor',label:'Sarclage',qty:12,unit:'h-j',unit_price:3000},
+      {kind:'labor',label:'Récolte et battage',qty:15,unit:'h-j',unit_price:3000}
+    ]
+  },
+  'Manioc': {
+    label: 'Production de Manioc 1ha',
+    output_qty: 15000,
+    price_expected: 100,
+    target_margin: 30,
+    transport: 60000,
+    autres: 20000,
+    items: [
+      {kind:'input',label:'Boutures (20000 tiges)',qty:20000,unit:'pièce',unit_price:20},
+      {kind:'input',label:'Engrais NPK',qty:100,unit:'kg',unit_price:400},
+      {kind:'input',label:'Herbicide',qty:2,unit:'L',unit_price:7000},
+      {kind:'labor',label:'Débroussaillage',qty:10,unit:'h-j',unit_price:3000},
+      {kind:'labor',label:'Billonnage',qty:1,unit:'ha',unit_price:70000},
+      {kind:'labor',label:'Bouturage',qty:20,unit:'h-j',unit_price:3000},
+      {kind:'labor',label:'Sarclage (2 passages)',qty:20,unit:'h-j',unit_price:3000},
+      {kind:'labor',label:'Récolte',qty:25,unit:'h-j',unit_price:3000}
+    ]
+  },
+  'Riz': {
+    label: 'Production de Riz irrigué 1ha',
+    output_qty: 5000,
+    price_expected: 350,
+    target_margin: 20,
+    transport: 70000,
+    autres: 40000,
+    items: [
+      {kind:'input',label:'Semences améliorées',qty:80,unit:'kg',unit_price:600},
+      {kind:'input',label:'Engrais NPK 15-15-15',qty:250,unit:'kg',unit_price:400},
+      {kind:'input',label:'Urée 46%',qty:150,unit:'kg',unit_price:350},
+      {kind:'input',label:'Herbicide',qty:4,unit:'L',unit_price:8000},
+      {kind:'input',label:'Insecticide (riz)',qty:2,unit:'L',unit_price:9000},
+      {kind:'labor',label:'Labour et aménagement',qty:1,unit:'ha',unit_price:90000},
+      {kind:'labor',label:'Repiquage',qty:25,unit:'h-j',unit_price:3000},
+      {kind:'labor',label:'Sarclage',qty:15,unit:'h-j',unit_price:3000},
+      {kind:'labor',label:'Récolte et battage',qty:30,unit:'h-j',unit_price:3000}
+    ]
+  },
+  'Maraîchage': {
+    label: 'Maraîchage (Tomate) 0.25ha',
+    output_qty: 8000,
+    price_expected: 200,
+    target_margin: 35,
+    transport: 25000,
+    autres: 15000,
+    items: [
+      {kind:'input',label:'Plants de tomate',qty:5000,unit:'pièce',unit_price:50},
+      {kind:'input',label:'Engrais NPK',qty:100,unit:'kg',unit_price:450},
+      {kind:'input',label:'Fumure organique',qty:2000,unit:'kg',unit_price:50},
+      {kind:'input',label:'Pesticides (fongicide)',qty:3,unit:'L',unit_price:8000},
+      {kind:'input',label:'Insecticide bio',qty:2,unit:'L',unit_price:6000},
+      {kind:'input',label:'Tuteurs',qty:500,unit:'pièce',unit_price:100},
+      {kind:'labor',label:'Préparation terrain',qty:8,unit:'h-j',unit_price:3000},
+      {kind:'labor',label:'Repiquage',qty:10,unit:'h-j',unit_price:3000},
+      {kind:'labor',label:'Arrosage (90 jours)',qty:45,unit:'h-j',unit_price:2500},
+      {kind:'labor',label:'Tuteurage',qty:5,unit:'h-j',unit_price:3000},
+      {kind:'labor',label:'Récolte (étalée)',qty:30,unit:'h-j',unit_price:3000}
+    ]
+  }
+};
+
+let ACTS=[], ACT_ITEMS=[], CURRENT_ACT=null, SELECTED_TEMPLATE=null;
 document.getElementById('btnAddAct').onclick=()=> openActDialog();
 async function loadActs(){ const r=await fetch('/api/activities'); if(r.status===401){ ACTS=[]; renderActs(); return; } ACTS=await r.json(); renderActs(); refreshBudgetActs(); }
 function renderActs(){ const list=document.getElementById('actList'); list.innerHTML=''; ACTS.forEach(a=>{ const el=document.createElement('div'); el.className='card'; el.innerHTML=`<div><strong>${a.label}</strong> <span class="badge">${a.filiere}</span> <span class="badge">${a.periode}</span> <span class="right"><a href="#" data-id="${a.id}" class="open">Ouvrir</a> · <a href="#" data-id="${a.id}" class="del">Supprimer</a></span></div>
