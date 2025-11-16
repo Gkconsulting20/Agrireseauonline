@@ -1,5 +1,13 @@
 const tabs=document.querySelectorAll('.tabs button'), sections=document.querySelectorAll('.tab');
-tabs.forEach(b=> b.addEventListener('click',()=>{ tabs.forEach(x=>x.classList.remove('active')); sections.forEach(s=>s.classList.remove('active')); b.classList.add('active'); document.getElementById(b.dataset.tab).classList.add('active'); if(b.dataset.tab==='map') renderMap(); if(b.dataset.tab==='budget') refreshBudgetActs(); }));
+tabs.forEach(b=> b.addEventListener('click',()=>{ 
+  tabs.forEach(x=>x.classList.remove('active')); 
+  sections.forEach(s=>s.classList.remove('active')); 
+  b.classList.add('active'); 
+  document.getElementById(b.dataset.tab).classList.add('active'); 
+  if(b.dataset.tab==='map') renderMap(); 
+  if(b.dataset.tab==='budget'){ loadBudgets(); refreshCostBudgets(); }
+  if(b.dataset.tab==='costing'){ loadCosts(); refreshCostBudgets(); }
+}));
 
 const btnLogin=document.getElementById('btnLogin'), btnLogout=document.getElementById('btnLogout'), meEl=document.getElementById('me');
 
@@ -788,7 +796,7 @@ window.showPaymentInstructions = function(){
 
 // Nouvelles fonctions pour Budget (module prévisionnel)
 function openBudgetDialog(){ 
-  if(!ME) return alert('Connecte-toi d'abord.');
+  if(!ME) return alert("Connecte-toi d'abord.");
   const dlg=document.createElement('dialog');
   dlg.innerHTML=`<form id="frmBudget" class="dialog-body"><h3>📋 Créer un Budget Prévisionnel</h3>
     <p class="muted">Créez une activité et définissez vos prévisions</p>
@@ -830,7 +838,25 @@ async function openBudget(b){
         ${incomes.map(i=>`<tr><td>${i.occurred_on}</td><td>💰 Recette</td><td>${i.category||'-'}</td><td style="color:#059669;">${Number(i.amount).toLocaleString()} FCFA</td><td>${i.note||'-'}</td></tr>`).join('')}
         ${expenses.length===0&&incomes.length===0?'<tr><td colspan="5" style="text-align:center;color:#9ca3af;">Aucun coût. Allez dans "Coût de revient".</td></tr>':''}
       </tbody></table></div>`;
-  root.querySelector('#btnEditH').onclick=()=>{const dlg=document.createElement('dialog');dlg.innerHTML=`<form id="fH"><h3>Récolte réelle</h3><label>Quantité (kg) <input name="h" type="number" step="0.01" value="${b.actual_harvest||''}" required></label><div class="dialog-actions"><button type="submit">💾 OK</button><button type="button" id="cH">Annuler</button></div></form>`;document.body.appendChild(dlg);dlg.showModal();dlg.querySelector('#cH').onclick=()=>dlg.close();dlg.querySelector('#fH').onsubmit=async(e)=>{e.preventDefault();const h=Number(e.target.h.value);const p={...b,actual_harvest:h};const r=await fetch(`/api/activities/${b.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});if(!r.ok){alert('Erreur');return;}dlg.close();await loadBudgets();const u=await r.json();openBudget(u);};};
+  root.querySelector('#btnEditH').onclick=()=>editHarvest(b);
+}
+function editHarvest(b){
+  const dlg=document.createElement('dialog');
+  dlg.innerHTML=`<form id="fH"><h3>Récolte réelle</h3><label>Quantité (kg) <input name="h" type="number" step="0.01" value="${b.actual_harvest||''}" required></label><div class="dialog-actions"><button type="submit">💾 OK</button><button type="button" id="cH">Annuler</button></div></form>`;
+  document.body.appendChild(dlg);
+  dlg.showModal();
+  dlg.querySelector('#cH').onclick=()=>dlg.close();
+  dlg.querySelector('#fH').onsubmit=async(e)=>{
+    e.preventDefault();
+    const h=Number(e.target.h.value);
+    const payload = {label:b.label,filiere:b.filiere,periode:b.periode,output_qty:b.output_qty,price_expected:b.price_expected,transport:b.transport,target_margin:b.target_margin,autres:b.autres,overhead_pct:b.overhead_pct,actual_harvest:h};
+    const r=await fetch(`/api/activities/${b.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!r.ok){alert('Erreur');return;}
+    dlg.close();
+    await loadBudgets();
+    const u=await r.json();
+    openBudget(u);
+  };
 }
 
 // Nouvelles fonctions pour Coût de revient (module réel)
@@ -854,9 +880,9 @@ function renderCosts(){
 }
 async function refreshCostBudgets(){const sel=document.getElementById('costBudget');if(!sel)return;sel.innerHTML='<option value="">Sélectionner un budget...</option>'+BUDGETS.map(b=>`<option value="${b.id}">${b.label}</option>`).join('');}
 document.getElementById('costAdd')?.addEventListener('click',async()=>{
-  if(!ME)return alert('Connecte-toi d'abord.');
+  if(!ME)return alert("Connecte-toi d'abord.");
   const budgetId=document.getElementById('costBudget').value;
-  if(!budgetId)return alert('Sélectionnez un budget d\'abord.');
+  if(!budgetId)return alert("Sélectionnez un budget d'abord.");
   const payload={kind:'expense',occurred_on:document.getElementById('costDate').value||new Date().toISOString().slice(0,10),amount:Number(document.getElementById('costAmount').value||0),category:document.getElementById('costCat').value,activity_id:budgetId,note:document.getElementById('costNote').value};
   const r=await fetch('/api/budget',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   if(!r.ok)return alert('Erreur');
