@@ -800,11 +800,13 @@ window.showPaymentInstructions = function(){
 function openBudgetDialog(){ 
   if(!ME) return alert("Connecte-toi d'abord.");
   const dlg=document.createElement('dialog');
+  const productsOptions = PRODUCTS.map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
   dlg.innerHTML=`<form id="frmBudget" class="dialog-body"><h3>📋 Créer un Budget Prévisionnel</h3>
     <p class="muted">Créez une activité et définissez vos prévisions</p>
     <div class="grid2">
       <label>Activité <input name="label" required placeholder="Ex: Production de maïs 2025"></label>
       <label>Filière <select name="filiere"><option>Maïs</option><option>Manioc</option><option>Riz</option><option>Maraîchage</option><option>Soja</option><option>Volailles</option></select></label>
+      <label>Produit récolté <select name="harvest_product">${productsOptions}</select></label>
       <label>Période <select name="periode"><option>Annuel</option><option>Trimestriel</option><option>Mensuel</option></select></label>
       <label>Quantité prévue (kg) <input name="output_qty" type="number" value="1000"></label>
       <label>Prix de vente prévu (FCFA/kg) <input name="price_expected" type="number" value="300"></label>
