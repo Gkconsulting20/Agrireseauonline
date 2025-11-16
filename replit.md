@@ -1,7 +1,7 @@
 # AgriRéseau Pro — Togo
 
 ## Overview
-AgriRéseau Pro is an agricultural network platform designed to connect agricultural actors in Togo. Its primary purpose is to facilitate collaboration, logistics coordination, cost management, and geographic visualization of agricultural stakeholders (producers, transporters, processors, wholesalers, retailers, and institutions) across Togo's diverse regions. The platform aims to enhance efficiency and connectivity within the agricultural sector.
+AgriRéseau Pro is a comprehensive agricultural and livestock network platform designed to connect all actors across the complete value chain in Togo. Its primary purpose is to facilitate collaboration, logistics coordination, cost management, and geographic visualization of stakeholders including producers (crops and livestock), livestock farmers (cattle, poultry, pigs), transporters, processors, wholesalers, retailers, and institutions across Togo's diverse regions. The platform aims to enhance efficiency and connectivity within both the agricultural and livestock sectors.
 
 ## User Preferences
 The user prefers detailed explanations of changes and functionality. The user wants to be informed about how new features affect the overall system and user workflow. The user prefers clear, concise communication regarding technical implementations and architectural decisions.
@@ -24,7 +24,7 @@ AgriRéseau Pro utilizes a modern web stack:
 - A clear freemium model with distinct Free and Premium plans, visually differentiated with a "💎 PREMIUM" badge for premium actors.
 
 **Technical Implementations & Feature Specifications**:
-- **Actors Management**: Full CRUD operations for various agricultural actors with detailed profiles including location, products, contact info, price, photos, and certifications.
+- **Actors Management**: Full CRUD operations for all value chain actors (producers, livestock farmers, transporters, processors, wholesalers, retailers, institutions) with detailed profiles including location, products (crops, meat, eggs, dairy, processed goods), contact info, price, photos, and certifications.
 - **Stock Summary (Public)**: A publicly accessible aggregate view of all available products and quantities, displaying average prices and allowing search/filter by product or region.
 - **Geographic Mapping**: Actors' locations are visualized on a Leaflet map, with user geolocation and distance calculation features.
 - **Logistics**: Functionality to track transport and logistics needs and offers.

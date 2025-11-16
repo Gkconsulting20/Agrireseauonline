@@ -225,7 +225,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 function openActorDialog(a){ if(!ME) return alert('Connecte-toi d’abord.'); const dlg=document.createElement('dialog'); dlg.innerHTML=`<form id="frmActor" class="dialog-body"><h3>${a?'Modifier':'Nouvel'} acteur</h3>
   <div class="grid2"><label>Nom <input name="name" required value="${a?.name||''}"></label>
-  <label>Rôle <select name="role" required>${['producteur','transporteur','transformateur','grossiste','detaillant','institution'].map(r=>`<option ${a?.role===r?'selected':''}>${r}</option>`).join('')}</select></label>
+  <label>Rôle <select name="role" required>${['producteur','éleveur','transporteur','transformateur','grossiste','detaillant','institution'].map(r=>`<option ${a?.role===r?'selected':''}>${r}</option>`).join('')}</select></label>
   <label>Région <select name="region" required>${(REFS.regions||[]).map(r=>`<option ${a?.region===r?'selected':''}>${r}</option>`).join('')}</select></label>
   <label>Localité <input name="localite" value="${a?.localite||''}"></label>
   <label>Produits (séparés par ;) <input name="products" value="${(a?.products||[]).join(';')}"></label>
