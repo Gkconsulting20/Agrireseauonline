@@ -35,26 +35,29 @@ app.use(express.static(path.join(__dirname, 'public')));
 function requireAuth(req,res,next){ if(!req.session.user) return res.status(401).json({error:'auth_required'}); next(); }
 
 app.post('/api/auth/register', async (req,res)=>{ 
-  const {email,password,name,region,role}=req.body; 
-  if(!email||!password) return res.status(400).json({error:'missing_fields'}); 
+  const {email,password,name,region,role,phone,whatsapp,lat,lng}=req.body; 
+  if(!password) return res.status(400).json({error:'password_required'}); 
+  if(!email && !phone) return res.status(400).json({error:'email_or_phone_required'}); 
+  if(!name) return res.status(400).json({error:'name_required'}); 
   const hash=bcrypt.hashSync(password,10); 
   try{ 
-    const user = await db.insertOne('INSERT INTO users (email,name,password_hash,region,role) VALUES ($1,$2,$3,$4,$5)', [email.trim().toLowerCase(),name||'',hash,region||'',role||'']); 
+    const user = await db.insertOne('INSERT INTO users (email,name,password_hash,region,role,phone,whatsapp,lat,lng) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)', [email?(email.trim().toLowerCase()):null,name||'',hash,region||'',role||'',phone||null,whatsapp||null,lat||null,lng||null]); 
     const userId=user.id; 
     await db.query('INSERT INTO subscriptions (user_id,plan,status) VALUES ($1,$2,$3)', [userId,'free','active']); 
-    req.session.user={id:userId,email,name,region,role}; 
+    req.session.user={id:userId,email,name,region,role,phone,whatsapp,lat,lng}; 
     res.status(201).json(req.session.user); 
   } catch(e){ 
-    res.status(400).json({error:'email_exists'}); 
+    res.status(400).json({error:'registration_failed',message:e.message}); 
   } 
 });
 
 app.post('/api/auth/login', async (req,res)=>{ 
   const {email,password}=req.body; 
+  if(!email) return res.status(400).json({error:'email_required'}); 
   const u = await db.getOne('SELECT * FROM users WHERE email=$1', [(email||'').trim().toLowerCase()]); 
   if(!u) return res.status(400).json({error:'invalid_credentials'}); 
   if(!bcrypt.compareSync(password||'',u.password_hash)) return res.status(400).json({error:'invalid_credentials'}); 
-  req.session.user={id:u.id,email:u.email,name:u.name,region:u.region,role:u.role}; 
+  req.session.user={id:u.id,email:u.email,name:u.name,region:u.region,role:u.role,phone:u.phone,whatsapp:u.whatsapp,lat:u.lat,lng:u.lng}; 
   res.json(req.session.user); 
 });
 

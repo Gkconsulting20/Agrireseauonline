@@ -17,21 +17,46 @@ let ME=null, ACTORS=[], LOGISTICS=[], PRODUCTS=[], REGIONS=[], BUDGETS=[], CURRE
 async function openLogin(){
   const dlg=document.createElement('dialog');
   dlg.innerHTML=`<form id="frmLogin" class="dialog-body"><h3>Connexion / Inscription</h3>
-  <div class="grid2"><label>Email <input name="email" type="email" required></label>
-  <label>Mot de passe <input name="password" type="password" required></label>
-  <label>Nom <input name="name" placeholder="(pour inscription)"></label>
-  <label>Région <input name="region" placeholder="ex: Plateaux"></label>
-  <label>Rôle <select name="role"><option></option>${['producteur','transporteur','transformateur','grossiste','detaillant','institution'].map(r=>`<option>${r}</option>`).join('')}</select></label>
+  <p class="muted" style="margin-bottom:15px;">Pour vous connecter : Email + Mot de passe<br>Pour créer un compte : Remplissez tous les champs (email OU téléphone requis)</p>
+  <div class="grid2">
+    <label>Email <input name="email" type="email" placeholder="exemple@email.com"></label>
+    <label>Mot de passe <input name="password" type="password" required></label>
+    <label>Nom complet <input name="name" placeholder="(pour inscription)"></label>
+    <label>Téléphone <input name="phone" type="tel" placeholder="+228 XX XX XX XX"></label>
+    <label>WhatsApp <input name="whatsapp" type="tel" placeholder="+228 XX XX XX XX"></label>
+    <label>Région <input name="region" placeholder="ex: Plateaux"></label>
+    <label>Rôle <select name="role"><option></option>${['producteur','transporteur','transformateur','grossiste','detaillant','institution'].map(r=>`<option>${r}</option>`).join('')}</select></label>
+    <label>Latitude <input name="lat" type="number" step="0.0001" placeholder="Ex: 6.1375"></label>
+    <label>Longitude <input name="lng" type="number" step="0.0001" placeholder="Ex: 1.2123"></label>
   </div>
+  <div style="margin:10px 0;"><button type="button" id="btnUseLocationReg" style="width:100%;">📍 Utiliser ma position actuelle</button></div>
   <div class="dialog-actions"><button type="button" id="btnDoLogin">Se connecter</button><button type="button" id="btnDoRegister">Créer un compte</button><button type="button" id="cancelL">Annuler</button></div></form>`;
   document.body.appendChild(dlg); dlg.showModal(); 
   dlg.querySelector('#cancelL').onclick=()=> dlg.close();
+  
+  // Géolocalisation pour inscription
+  dlg.querySelector('#btnUseLocationReg').onclick=async()=>{
+    const btn = dlg.querySelector('#btnUseLocationReg');
+    btn.disabled = true;
+    btn.textContent = '⏳ Récupération...';
+    try {
+      const loc = await getUserLocation();
+      dlg.querySelector('[name="lat"]').value = loc.lat.toFixed(4);
+      dlg.querySelector('[name="lng"]').value = loc.lng.toFixed(4);
+      btn.textContent = '✓ Position obtenue';
+      setTimeout(() => { btn.disabled = false; btn.textContent = '📍 Utiliser ma position actuelle'; }, 2000);
+    } catch(err) {
+      alert(err.message);
+      btn.disabled = false;
+      btn.textContent = '📍 Utiliser ma position actuelle';
+    }
+  };
   
   dlg.querySelector('#btnDoLogin').onclick=async()=>{
     const form = dlg.querySelector('#frmLogin');
     const email = form.querySelector('[name="email"]').value;
     const password = form.querySelector('[name="password"]').value;
-    if(!email || !password) return alert('Email et mot de passe requis');
+    if(!email || !password) return alert('Email et mot de passe requis pour se connecter');
     const r = await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email, password}),credentials:'include'});
     if(r.ok){ dlg.close(); await boot(); } else { alert('Email ou mot de passe incorrect'); }
   };
@@ -39,9 +64,14 @@ async function openLogin(){
   dlg.querySelector('#btnDoRegister').onclick=async()=>{
     const form = dlg.querySelector('#frmLogin');
     const data = Object.fromEntries(new FormData(form).entries());
-    if(!data.email || !data.password) return alert('Email et mot de passe requis');
+    if(!data.password) return alert('Mot de passe requis');
+    if(!data.email && !data.phone) return alert('Email OU Téléphone requis');
+    if(!data.name) return alert('Nom requis');
+    // Convertir lat/lng en nombres
+    if(data.lat) data.lat = Number(data.lat);
+    if(data.lng) data.lng = Number(data.lng);
     const r = await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),credentials:'include'});
-    if(r.ok){ dlg.close(); await boot(); } else { alert('Erreur: Email déjà utilisé ou données invalides'); }
+    if(r.ok){ dlg.close(); await boot(); } else { const err = await r.json(); alert(err.error || 'Erreur lors de l\'inscription'); }
   };
 }
 
