@@ -136,6 +136,20 @@ app.delete('/api/actors/:id', requireAuth, async (req,res)=>{
   res.status(204).end(); 
 });
 
+app.get('/api/actors/:id/harvests', async (req,res)=>{ 
+  const actorId = Number(req.params.id);
+  const actor = await db.getOne('SELECT owner_id FROM actors WHERE id=$1', [actorId]);
+  if (!actor) return res.status(404).json({error:'Actor not found'});
+  const harvests = await db.getAll(`SELECT harvest_product, actual_harvest FROM activities WHERE user_id=$1 AND harvest_product IS NOT NULL AND actual_harvest > 0`, [actor.owner_id]);
+  const grouped = {};
+  harvests.forEach(h => {
+    if (!grouped[h.harvest_product]) grouped[h.harvest_product] = 0;
+    grouped[h.harvest_product] += h.actual_harvest;
+  });
+  const result = Object.keys(grouped).map(product => ({product, quantity: grouped[product]}));
+  res.json(result);
+});
+
 app.get('/api/logistics', async (req,res)=>{ 
   const rows = await db.getAll('SELECT * FROM logistics ORDER BY id DESC', []); 
   res.json(rows); 

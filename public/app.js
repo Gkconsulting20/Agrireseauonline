@@ -137,8 +137,21 @@ function actorCard(a){
   const premiumBadge = a.owner_plan === 'premium' ? '<span class="badge" style="background:#fbbf24;color:#000">💎 PREMIUM</span>' : '';
   el.innerHTML=`${photoHtml}<div class="name"><strong>${a.name}</strong> ${a.verified?'<span class="badge">✔︎ vérifié</span>':''} ${premiumBadge} ${ratingText}${distanceText}</div>
   <div><span class="badge">${a.role}</span> <span class="badge">${a.region}</span> ${a.localite? '· '+a.localite:''} ${certBadges}</div><div>${(a.products||[]).join('; ')}</div>${priceText}<div>${a.need||''}</div>
+  <div id="harvests-${a.id}" style="margin-top:8px;font-size:0.9em;color:#059669;"></div>
   <div class="links">${a.whatsapp? `<a target="_blank" href="https://wa.me/${digits(a.whatsapp)}?text=Bonjour, je suis intéressé par vos produits">WhatsApp</a>`:''}${a.email? `<a href="mailto:${a.email}">Email</a>`:''}${a.phone? `<a href="tel:${digits(a.phone)}">Appeler</a>`:''}
   ${ME? `<a href="#" data-id="${a.id}" class="rate">Noter</a> <a href="#" data-id="${a.id}" class="edit">Modifier</a> <a href="#" data-id="${a.id}" class="del">Supprimer</a>`:`<a href="#" data-id="${a.id}" class="rate">Noter</a>`}</div>`;
+  
+  // Load and display harvests (real quantities available)
+  fetch('/api/actors/'+a.id+'/harvests')
+    .then(r=>r.json())
+    .then(harvests=>{
+      const harvestDiv = el.querySelector('#harvests-'+a.id);
+      if(harvests && harvests.length > 0){
+        const harvestText = harvests.map(h=>`${h.product}: ${h.quantity} kg`).join(', ');
+        harvestDiv.innerHTML = `<strong>📦 Disponible:</strong> ${harvestText}`;
+      }
+    })
+    .catch(()=>{});
   if(ME){ 
     el.querySelector('.edit').onclick=(e)=>{e.preventDefault(); openActorDialog(a);};
     el.querySelector('.del').onclick=async(e)=>{e.preventDefault(); if(!confirm('Supprimer ?')) return; await fetch('/api/actors/'+a.id,{method:'DELETE'}); await loadActors(); renderMap();}; 
