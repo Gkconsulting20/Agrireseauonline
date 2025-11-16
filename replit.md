@@ -1,260 +1,57 @@
 # AgriRéseau Pro — Togo
 
 ## Overview
-AgriRéseau Pro is an agricultural network platform designed to connect agricultural actors in Togo. The application helps producers, transporters, processors, wholesalers, retailers, and institutions collaborate and manage their agricultural activities efficiently.
+AgriRéseau Pro is an agricultural network platform designed to connect agricultural actors in Togo. Its primary purpose is to facilitate collaboration, logistics coordination, cost management, and geographic visualization of agricultural stakeholders (producers, transporters, processors, wholesalers, retailers, and institutions) across Togo's diverse regions. The platform aims to enhance efficiency and connectivity within the agricultural sector.
 
-## Purpose
-- Connect agricultural stakeholders across different regions of Togo (Maritime, Plateaux, Centrale, Kara, Savanes)
-- Facilitate logistics coordination (transport, storage)
-- Manage cost calculations and budgeting for agricultural activities
-- Provide mapping visualization of agricultural actors
+## User Preferences
+The user prefers detailed explanations of changes and functionality. The user wants to be informed about how new features affect the overall system and user workflow. The user prefers clear, concise communication regarding technical implementations and architectural decisions.
 
-## Technology Stack
-- **Backend**: Node.js with Express
-- **Database**: PostgreSQL (Neon-backed serverless)
-- **Frontend**: Vanilla HTML/CSS/JavaScript
-- **Map**: Leaflet.js for geographic visualization
-- **Authentication**: Session-based with bcryptjs
-- **Deployment**: Autoscale (auto-scaling web service)
+## System Architecture
+AgriRéseau Pro utilizes a modern web stack:
+- **Backend**: Node.js with Express for handling API requests and business logic.
+- **Database**: PostgreSQL, specifically a Neon-backed serverless instance, for robust and scalable data storage.
+- **Frontend**: A lightweight, responsive interface built with Vanilla HTML, CSS, and JavaScript.
+- **Mapping**: Leaflet.js is integrated for dynamic geographic visualization of agricultural actors.
+- **Authentication**: Session-based authentication using `bcryptjs` for secure user management.
+- **Deployment**: Configured for Autoscale, ensuring automatic scaling based on traffic.
 
-## Project Structure
-```
-/
-├── server.js                # Main Express server (PostgreSQL)
-├── db.js                    # PostgreSQL database connection module
-├── package.json             # Node.js dependencies
-├── migrate-to-postgres.js   # Migration script (SQLite → PostgreSQL)
-├── public/                  # Frontend assets
-│   ├── index.html          # Main HTML file
-│   ├── app.js              # Frontend JavaScript
-│   ├── style.css           # Styles
-│   └── assets/             # Images and static files
-└── server.sqlite.backup.js  # SQLite backup (for reference)
-```
+**UI/UX Decisions**:
+- Modern green gradient header and professional styling.
+- Smooth animations, transitions, and enhanced card shadows with hover effects.
+- Improved typography and spacing for readability.
+- Mobile-responsive layout ensuring accessibility across devices.
+- Focus states with green highlights for interactive elements.
+- A clear freemium model with distinct Free and Premium plans, visually differentiated with a "💎 PREMIUM" badge for premium actors.
 
-## Features
-1. **Actors Management**: CRUD operations for agricultural actors (producers, transporters, etc.)
-2. **Stock Summary (PUBLIC)**: Aggregate view of all available products and quantities across all actors - no login required
-3. **Geographic Mapping**: Leaflet-based map showing actor locations
-4. **Logistics**: Track transport and logistics needs/offers
-5. **Cost Calculation**: Calculate production costs with inputs and labor
-6. **Budget Tracking**: Income and expense management
-7. **User Authentication**: Register/login system with session management
-
-## Database Schema
-- **users**: User accounts with email, password, region, role
-- **subscriptions**: User subscriptions (free/premium) with payment tracking
-- **actors**: Agricultural actors with location, products, contact info, price, photo_url, certifications
-- **ratings**: Actor ratings (1-5 stars) with comments, one per user per actor
-- **logistics**: Transport and logistics offers/needs
-- **activities**: Cost calculation activities
-- **activity_items**: Input and labor items for activities
-- **budget_entries**: Income and expense entries
-- **regions**: Reference table for Togo regions
-- **products**: Reference table for agricultural products
-
-## Running the Application
-The server runs on port 5000 and is configured for the Replit environment:
-- Port: 5000 (required for Replit)
-- Host: 0.0.0.0 (accessible via Replit proxy)
-- Cache headers disabled for development
-
-## Subscription System (Freemium Model)
-
-### Free Plan (Default)
-- **Limit**: 2 acteurs maximum
-- **Access**: All basic features (stock view, map, logistics, costing, budget)
-- **Contact**: WhatsApp, Email, Phone
-- **Price**: FREE
-
-### Premium Plan (5,000 FCFA/month)
-- **Limit**: Acteurs illimités
-- **Badge**: 💎 PREMIUM visible on actor cards
-- **Future features** (coming soon):
-  - 📊 Analytics dashboard (views, contacts tracking)
-  - 💬 Internal messaging between actors
-  - 🔔 SMS/Email alerts (new products, price changes)
-  - 📝 Digital contracts
-  - 📈 Stock history tracking
-  - 🌤️ Agricultural weather forecasts
-
-### Payment Integration (Ready for T-Money & Flooz)
-- Infrastructure prepared for PayGate integration
-- Database schema supports payment tracking
-- Awaiting PayGate API credentials for activation
-- Will accept both T-Money and Flooz mobile money
-
-## Recent Changes
-
-### November 16, 2025 - Budget/Coût de revient Module Restructuration 📊💰
-- **MODULE BUDGET (Prévisionnel)**:
-  - Liste des activités avec 3 colonnes : Budget Prévisionnel (vert), Suivi Coûts Réels (rouge), Écart (jaune)
-  - Création facile de budget prévisionnel : activité, filière, période, quantité, prix, dépenses prévues
-  - Aperçu instantané : CA prévu et Profit prévu calculés en temps réel
-  - Vue détaillée par budget : comparaison côte-à-côte Prévu vs Réel avec historique complet
-  - Colonne "SUIVI" affiche automatiquement tous les coûts enregistrés dans Coût de revient
-
-- **MODULE COÛT DE REVIENT (Dépenses Réelles)**:
-  - Formulaire simplifié pour enregistrer chronologiquement les dépenses réelles
-  - Sélection du budget lié pour accumulation automatique
-  - Catégories agricoles : Semences, Engrais, Pesticides, Main d'œuvre, Transport, Récolte, etc.
-  - Enregistrement avec date, montant, catégorie et note
-  - Stockage dans `budget_entries` table (ledger canonique)
-  - Accumulation automatique vers le module Budget pour comparaison
-
-- **Architecture & Flow Utilisateur**:
-  - `activities` table = budgets prévisionnels (planification)
-  - `budget_entries` table = dépenses réelles chronologiques (exécution)
-  - Flow : Créer budget → Enregistrer dépenses réelles → Voir comparaison automatique
-  - Lien automatique via `activity_id` dans budget_entries
-  - Calcul d'écart : Coûts réels - Dépenses prévues (rouge si dépassement, vert si économie)
-  - Suivi récolte réelle vs prévue avec bouton d'édition rapide
-
-- **Database Improvements**:
-  - Index ajouté sur `budget_entries(activity_id, occurred_on)` pour performance
-  - Endpoint `/api/activities/:id/summary` agrège automatiquement les coûts réels
-  - Support complet dépenses et recettes avec calcul profit automatique
-  - Colonne `actual_harvest` dans activities pour comparaison récolte prévue/réelle
-
-- **Technical Enhancements**:
-  - Nouvelles fonctions frontend : `loadBudgets()`, `renderBudgets()`, `openBudgetDialog()`, `openBudget()`
-  - Module Coût de revient : `loadCosts()`, `renderCosts()`, `refreshCostBudgets()`
-  - O(n) fetch pour enrichir chaque budget avec totaux réels (optimisation possible via batch endpoint)
-  - Séparation claire entre prévisionnel (Budget) et réel (Coût de revient)
-  - PUT `/api/activities/:id` endpoint supports updating status, dates, and actual harvest
-  - Budget entries can be linked to activities via `activity_id` field
-
-### October 20, 2025 - Payment System Implementation 💳
-- **Manual Payment Flow (ACTIVE)**:
-  - Complete payment instructions for T-Money (*145#) and Flooz (*155#)
-  - Beautiful modal interface showing payment steps
-  - WhatsApp contact integration for transaction confirmation
-  - 24h activation promise for manual payments
-  - Backend endpoint `/api/admin/activate-premium` for manual activation
-  - Transaction tracking with transaction_id and payment_method
-
-- **PayGate Integration (PREPARED)**:
-  - Complete integration guide in `PAYGATE_INTEGRATION.md`
-  - Architecture designed for automatic T-Money & Flooz payments
-  - Endpoints planned: `/api/payment/initiate`, `/api/paygate/callback`
-  - Security measures documented (signature verification, HTTPS)
-  - Sandbox testing instructions included
-  - Ready for activation when PayGate account is created
-
-- **User Experience**:
-  - "💎 Passer à Premium maintenant" button in subscription modal
-  - Clear upgrade path from Free to Premium
-  - Professional payment instruction interface
-  - Email reminder shown in payment instructions
-  - Expiry date display for Premium subscribers
-
-- **Backend Improvements**:
-  - Premium activation endpoint with full validation
-  - Automatic 1-month subscription period calculation
-  - Transaction ID tracking in subscriptions table
-  - Payment method field (tmoney/flooz/paygate/manual)
-  - Support for both manual and automatic activation flows
-
-### October 18, 2025 - Production Deployment Ready 🚀
-- **PostgreSQL Migration**:
-  - Migrated from SQLite to PostgreSQL (Neon serverless)
-  - Created db.js module for database connection pooling
-  - Adapted all queries to use async/await with parameterized queries
-  - Successfully migrated all data (users, actors, ratings, subscriptions)
-  - Removed SQLite dependencies for production compatibility
-
-- **Autoscale Deployment**:
-  - Configured for Autoscale deployment (auto-scaling web service)
-  - Production-ready with persistent PostgreSQL database
-  - Optimized for variable traffic with automatic scaling
-  - Cost-effective: scales down when idle, up when busy
-
-- **Technical Improvements**:
-  - Connection pooling for better database performance
-  - Async/await pattern throughout for better error handling
-  - Boolean types properly handled (PostgreSQL vs SQLite)
-  - Environment variables for database configuration
-
-### October 17, 2025 - Freemium Infrastructure ⚙️
+**Technical Implementations & Feature Specifications**:
+- **Actors Management**: Full CRUD operations for various agricultural actors with detailed profiles including location, products, contact info, price, photos, and certifications.
+- **Stock Summary (Public)**: A publicly accessible aggregate view of all available products and quantities, displaying average prices and allowing search/filter by product or region.
+- **Geographic Mapping**: Actors' locations are visualized on a Leaflet map, with user geolocation and distance calculation features.
+- **Logistics**: Functionality to track transport and logistics needs and offers.
+- **Cost Calculation & Budgeting**:
+    - **Budget Module (Prévisionnel)**: Allows creation of forecast budgets for activities, tracking planned expenses, and calculating projected revenue and profit. It provides a side-by-side comparison with real costs.
+    - **Coût de Revient Module (Dépenses Réelles)**: A simplified form to record real expenses chronologically, linked to specific budgets for automatic accumulation and comparison.
+    - **Harvest Product Linkage**: `activities` are linked to specific actors and `harvest_product` for accurate, real-time stock tracking.
+    - **Automatic Availability Display**: Endpoint `/api/actors/:id/harvests` aggregates actual harvest quantities by product, automatically displaying "📦 Disponible: [product]: [quantity] kg" on actor cards.
+- **User Authentication & Authorization**: Register/login system with session management and role-based access control.
 - **Subscription System**:
-  - Added subscriptions table to database
-  - Free plan: Limited to 2 actors per user
-  - Premium plan: Unlimited actors with badge
-  - Auto-creation of free subscription on registration
-  - "💎 Abonnement" button in header (logged users only)
-  - Subscription info dialog showing plan status and limits
-  - Error handling when free users reach 2-actor limit
+    - **Free Plan**: Limited to 2 actors per user.
+    - **Premium Plan**: Offers unlimited actors, a premium badge, and access to future advanced features like analytics, internal messaging, alerts, digital contracts, stock history, and weather forecasts.
+- **Trust & Reputation System**:
+    - **Rating System**: Users can rate actors (1-5 stars) with optional comments, displayed as an average rating with count on actor cards.
+    - **Certification Badges**: Visual badges for Bio (🌿), Qualité (✅), and Commerce Équitable (🤝) certifications on actor cards.
+- **Product Presentation**: Support for product photos and price display (FCFA/kg) on actor cards and in stock summaries.
+- **Enhanced Communication**: WhatsApp integration with pre-filled message templates.
 
-- **Premium Features Prepared**:
-  - Premium badge (💎 PREMIUM) displayed on actor cards
-  - Database ready for payment tracking (T-Money/Flooz)
-  - Infrastructure ready for PayGate integration
-  - Future premium features planned and documented
+**System Design Choices**:
+- Separation of concerns between frontend and backend.
+- Use of environment variables for sensitive configurations.
+- Connection pooling for database performance.
+- Asynchronous programming with `async/await` for better error handling and responsiveness.
+- Database schema supports users, subscriptions, actors, ratings, logistics, activities, activity items, budget entries, regions, and products.
 
-### October 17, 2025 - Pack 1: Trust & Reputation System 🎯
-- **⭐ Rating System**:
-  - Users can rate actors from 1 to 5 stars
-  - Optional comment/review with each rating
-  - Average rating displayed on actor cards with yellow badge
-  - Rating count shown (e.g., "⭐⭐⭐⭐ 4.0 (3)")
-  - "Noter" button available on all actor cards (login required)
-  - One rating per user per actor (can be updated)
-
-- **🏆 Certification Badges**:
-  - Three certification types: Bio (🌿), Qualité (✅), Commerce Équitable (🤝)
-  - Certifications displayed as green badges on actor cards
-  - Selectable via checkboxes in actor creation/edit form
-  - Multiple certifications can be assigned to one actor
-  - Visual trust indicators for buyers
-
-### October 17, 2025 - Core Features Added
-- **💰 Price System**:
-  - Price field added to actors (FCFA/kg)
-  - Average price calculation and display in stock summary
-  - Price badges shown with green background in public stock view
-  - Individual prices displayed on each actor card
-  
-- **📸 Product Photos**:
-  - Photo URL field added to actors
-  - Photos displayed as thumbnails on actor cards
-  - Sample photos from Unsplash for demo data
-  - Visual quality improvement for product presentation
-  
-- **📍 Distance Calculation**:
-  - Automatic distance calculation using Haversine formula
-  - Shows distance from user location to each actor
-  - Blue distance badges displayed on actor cards (e.g., "📍 45.2 km")
-  - Requires user to click "Me localiser" button first
-  
-- **📱 Enhanced WhatsApp Integration**:
-  - WhatsApp links now include pre-filled message template
-  - Message: "Bonjour, je suis intéressé par vos produits"
-  - Direct communication between actors and buyers
-
-### October 16, 2025
-- Imported from GitHub and configured for Replit environment
-- Updated port from 3000 to 5000 for Replit compatibility
-- Added cache control headers to prevent caching issues
-- Configured server to bind to 0.0.0.0 for proper proxy access
-- Set up workflow for automatic server startup
-- **Added Geolocation Features**:
-  - Browser-based geolocation to detect user's current position
-  - "Use My Location" button in actor creation/edit dialog to auto-fill coordinates
-  - "Locate Me" button on map to show user's current position
-  - User location marker displayed on map with blue icon
-  - Map automatically centers on user location when obtained
-- **Improved Frontend Design**:
-  - Modern green gradient header with professional styling
-  - Smooth animations and transitions throughout
-  - Enhanced card shadows with hover effects
-  - Better typography and spacing
-  - Mobile-responsive layout
-  - Focus states with green highlights
-- **Added Public Stock Summary Page**:
-  - New "Stock disponible" section visible WITHOUT login
-  - Aggregates all products from all actors on the platform
-  - Shows total quantities (kg) available for each product
-  - Displays average prices per product with green badges
-  - Search and filter by product name or region
-  - Automatically updates when actors are added/modified
-  - Public access - no authentication required
+## External Dependencies
+- **PostgreSQL (Neon serverless)**: Primary database for all application data.
+- **Leaflet.js**: JavaScript library for interactive maps.
+- **bcryptjs**: Library for password hashing and security.
+- **PayGate**: Payment gateway integration planned for T-Money and Flooz mobile money services (awaiting API credentials for full activation).

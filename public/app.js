@@ -66,7 +66,8 @@ if(btnLocateMe) {
   };
 }
 
-document.getElementById('btnSeed').onclick=async()=>{ if(!confirm('Réinitialiser et charger des données de démo ?')) return; const r=await fetch('/api/seed',{method:'POST'}); if(r.ok){ await loadActors(); await loadLogistics(); renderMap(); renderStockSummary(); } };
+const btnSeed = document.getElementById('btnSeed');
+if(btnSeed) btnSeed.onclick=async()=>{ if(!confirm('Réinitialiser et charger des données de démo ?')) return; const r=await fetch('/api/seed',{method:'POST'}); if(r.ok){ await loadActors(); await loadLogistics(); renderMap(); renderStockSummary(); } };
 
 let REFS={regions:[],products:[]}, LOGS=[], USER_LOCATION=null;
 
@@ -98,13 +99,24 @@ async function getUserLocation() {
 }
 
 const aRole=document.getElementById('aRole'), aRegion=document.getElementById('aRegion'), aQ=document.getElementById('aQ');
-[aRole,aRegion,aQ].forEach(el=> el.addEventListener('input', renderActors));
-document.getElementById('btnAddActor').onclick=()=> openActorDialog();
-async function loadRefs(){ const r=await fetch('/api/refs'); REFS=await r.json(); document.getElementById('aRegion').innerHTML='<option value=\"\">Toutes régions</option>'+REFS.regions.map(r=>`<option>${r}</option>`).join(''); }
+[aRole,aRegion,aQ].forEach(el=> { if(el) el.addEventListener('input', renderActors); });
+const btnAddActor = document.getElementById('btnAddActor');
+if(btnAddActor) btnAddActor.onclick=()=> openActorDialog();
+async function loadRefs(){ 
+  const r=await fetch('/api/refs'); 
+  REFS=await r.json(); 
+  const aRegionEl = document.getElementById('aRegion');
+  if(aRegionEl) aRegionEl.innerHTML='<option value=\"\">Toutes régions</option>'+REFS.regions.map(r=>`<option>${r}</option>`).join(''); 
+}
 async function loadActors(){ const r=await fetch('/api/actors'); ACTORS=await r.json(); renderActors(); renderStockSummary(); }
-function renderActors(){ const list=document.getElementById('actorList'); list.innerHTML=''; const role=aRole.value.toLowerCase(), reg=aRegion.value.toLowerCase(), q=aQ.value.toLowerCase();
+function renderActors(){ 
+  const list=document.getElementById('actorList'); 
+  if(!list) return;
+  list.innerHTML=''; 
+  const role=aRole?.value?.toLowerCase() || '', reg=aRegion?.value?.toLowerCase() || '', q=aQ?.value?.toLowerCase() || '';
   ACTORS.filter(a=>{ const okRole=role? (a.role||'').toLowerCase()===role:true; const okReg=reg? (a.region||'').toLowerCase()===reg:true; const txt=(a.name+' '+(a.products||[]).join(';')+' '+(a.need||'')+' '+(a.localite||'')).toLowerCase(); const okQ=q? txt.includes(q):true; return okRole&&okReg&&okQ; })
-  .forEach(a=> list.appendChild(actorCard(a))); }
+  .forEach(a=> list.appendChild(actorCard(a))); 
+}
 function actorCard(a){ 
   const el=document.createElement('div'); 
   el.className='card'; 
@@ -308,7 +320,8 @@ function renderStockSummary(){
   summaryEl.innerHTML = stockText;
 }
 
-document.getElementById('btnAddLog').onclick=()=> openLogDialog();
+const btnAddLog = document.getElementById('btnAddLog');
+if(btnAddLog) btnAddLog.onclick=()=> openLogDialog();
 async function loadLogistics(){ const r=await fetch('/api/logistics'); LOGS=await r.json(); renderLogistics(); }
 function renderLogistics(){ const list=document.getElementById('logList'); list.innerHTML=''; LOGS.forEach(l=>{ const el=document.createElement('div'); el.className='card'; const digits=s=>(s||'').replace(/\D/g,'');
   el.innerHTML=`<div><strong>${l.title}</strong> <span class="badge">${l.type==='need'?'BESOIN':'OFFRE'}</span> <span class="badge">${l.region}</span></div>
@@ -458,7 +471,8 @@ const CROP_TEMPLATES = {
   }
 };
 
-document.getElementById('btnAddBudget').onclick=()=> openBudgetDialog();
+const btnAddBudget = document.getElementById('btnAddBudget');
+if(btnAddBudget) btnAddBudget.onclick=()=> openBudgetDialog();
 async function loadBudgets(){ 
   const r=await fetch('/api/activities'); 
   if(r.status===401){ BUDGETS=[]; renderBudgets(); return; } 
@@ -478,6 +492,7 @@ async function loadBudgets(){
 }
 function renderBudgets(){ 
   const list=document.getElementById('budgetList'); 
+  if(!list) return;
   list.innerHTML=''; 
   BUDGETS.forEach(b=>{
     const prevuDep = (b.transport||0) + (b.autres||0) + (b.overhead_pct||0);
@@ -530,7 +545,8 @@ function renderBudgets(){
       if(!confirm('Supprimer ce budget et tous ses coûts réels ?')) return; 
       await fetch('/api/activities/'+b.id,{method:'DELETE'}); 
       await loadBudgets(); 
-      document.getElementById('budgetEditor').innerHTML='<p class="muted">Sélectionnez un budget…</p>'; 
+      const editorEl = document.getElementById('budgetEditor');
+      if(editorEl) editorEl.innerHTML='<p class="muted">Sélectionnez un budget…</p>'; 
     };
   }); 
 }
@@ -659,9 +675,26 @@ function editActivityStatus(a){
 
 let BUDGET={rows:[], totals:{income:0,expense:0,balance:0}};
 async function loadBudget(){ const r=await fetch('/api/budget'); if(r.status===401){ BUDGET={rows:[], totals:{income:0,expense:0,balance:0}}; renderBudget(); return; } BUDGET=await r.json(); renderBudget(); }
-function renderBudget(){ const list=document.getElementById('bList'); const sum=document.getElementById('bSum'); list.innerHTML=''; BUDGET.rows.forEach(x=>{ const el=document.createElement('div'); el.className='card'; el.innerHTML=`<div><strong>${x.kind==='income'?'Recette':'Dépense'}</strong> · ${x.category||'-'} · ${Number(x.amount).toFixed(0)} FCFA <span class="muted right">${x.occurred_on}</span></div><div class="muted">${x.note||''}</div>`; list.appendChild(el); }); sum.innerHTML=`<p>Recettes: <strong>${Math.round(BUDGET.totals.income)}</strong> FCFA</p><p>Dépenses: <strong>${Math.round(BUDGET.totals.expense)}</strong> FCFA</p><p><strong>Solde</strong>: <strong>${Math.round(BUDGET.totals.balance)}</strong> FCFA</p>`; }
-async function refreshBudgetActs(){ const sel=document.getElementById('bAct'); sel.innerHTML='<option value="">(sans activité)</option>'+ACTS.map(a=>`<option value="${a.id}">${a.label}</option>`).join(''); }
-document.getElementById('bAdd').onclick=async()=>{ if(!ME) return alert('Connecte-toi d’abord.'); const payload={ kind:document.getElementById('bKind').value, occurred_on:document.getElementById('bDate').value || new Date().toISOString().slice(0,10), amount:Number(document.getElementById('bAmount').value||0), category:document.getElementById('bCat').value, activity_id: document.getElementById('bAct').value || null, note: document.getElementById('bNote').value }; const r=await fetch('/api/budget',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) return alert('Erreur'); await loadBudget(); };
+function renderBudget(){ 
+  const list=document.getElementById('bList'); 
+  const sum=document.getElementById('bSum'); 
+  if(!list || !sum) return; 
+  list.innerHTML=''; 
+  BUDGET.rows.forEach(x=>{ 
+    const el=document.createElement('div'); 
+    el.className='card'; 
+    el.innerHTML=`<div><strong>${x.kind==='income'?'Recette':'Dépense'}</strong> · ${x.category||'-'} · ${Number(x.amount).toFixed(0)} FCFA <span class="muted right">${x.occurred_on}</span></div><div class="muted">${x.note||''}</div>`; 
+    list.appendChild(el); 
+  }); 
+  sum.innerHTML=`<p>Recettes: <strong>${Math.round(BUDGET.totals.income)}</strong> FCFA</p><p>Dépenses: <strong>${Math.round(BUDGET.totals.expense)}</strong> FCFA</p><p><strong>Solde</strong>: <strong>${Math.round(BUDGET.totals.balance)}</strong> FCFA</p>`; 
+}
+async function refreshBudgetActs(){ 
+  const sel=document.getElementById('bAct'); 
+  if(!sel) return; 
+  sel.innerHTML='<option value="">(sans activité)</option>'+ACTS.map(a=>`<option value="${a.id}">${a.label}</option>`).join(''); 
+}
+const bAdd = document.getElementById('bAdd');
+if(bAdd) bAdd.onclick=async()=>{ if(!ME) return alert('Connecte-toi d’abord.'); const payload={ kind:document.getElementById('bKind').value, occurred_on:document.getElementById('bDate').value || new Date().toISOString().slice(0,10), amount:Number(document.getElementById('bAmount').value||0), category:document.getElementById('bCat').value, activity_id: document.getElementById('bAct').value || null, note: document.getElementById('bNote').value }; const r=await fetch('/api/budget',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) return alert('Erreur'); await loadBudget(); };
 
 window.showSubscriptionInfo = async function(){
   if(!ME) return alert('Connectez-vous d\'abord');
@@ -910,8 +943,11 @@ function renderCosts(){
   });
 }
 async function showCostSummary(budgetId){
+  const root=document.getElementById('costSummary');
+  if(!root) return;
+  
   if(!budgetId) {
-    document.getElementById('costSummary').innerHTML='<p class="muted">Sélectionnez un budget pour voir le calcul du coût de revient</p>';
+    root.innerHTML='<p class="muted">Sélectionnez un budget pour voir le calcul du coût de revient</p>';
     return;
   }
   CURRENT_COST_BUDGET=budgetId;
@@ -925,8 +961,6 @@ async function showCostSummary(budgetId){
   const targetMargin = budget.target_margin || 0;
   const unitCost = actualHarvest > 0 ? totalCost / actualHarvest : 0;
   const suggestedPrice = unitCost * (1 + targetMargin / 100);
-  
-  const root=document.getElementById('costSummary');
   root.innerHTML=`
     <div style="background:#f0fdf4;padding:15px;border-radius:8px;margin-bottom:15px;">
       <h4 style="margin:0 0 10px 0;color:#059669;">${budget.label}</h4>
