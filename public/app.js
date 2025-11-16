@@ -8,6 +8,7 @@ tabs.forEach(b=> b.addEventListener('click',()=>{
   if(b.dataset.tab==='budget'){ loadBudgets(); refreshCostBudgets(); }
   if(b.dataset.tab==='costing'){ loadCosts(); refreshCostBudgets(); }
   if(b.dataset.tab==='admin'){ loadAdminUsers(); }
+  if(b.dataset.tab==='settings'){ loadUserSettings(); }
 }));
 
 const btnLogin=document.getElementById('btnLogin'), btnLogout=document.getElementById('btnLogout'), meEl=document.getElementById('me');
@@ -31,6 +32,7 @@ async function openLogin(){
     <label>Longitude <input name="lng" type="number" step="0.0001" placeholder="Ex: 1.2123"></label>
   </div>
   <div style="margin:10px 0;"><button type="button" id="btnUseLocationReg" style="width:100%;">📍 Utiliser ma position actuelle</button></div>
+  <div style="text-align:center;margin:10px 0;"><a href="#" id="forgotPasswordLink" style="color:#0a7c2f;font-size:14px;">🔑 Mot de passe oublié ?</a></div>
   <div class="dialog-actions"><button type="button" id="btnDoLogin">Se connecter</button><button type="button" id="btnDoRegister">Créer un compte</button><button type="button" id="cancelL">Annuler</button></div></form>`;
   document.body.appendChild(dlg); dlg.showModal(); 
   dlg.querySelector('#cancelL').onclick=()=> dlg.close();
@@ -74,6 +76,12 @@ async function openLogin(){
     if(data.lng) data.lng = Number(data.lng);
     const r = await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),credentials:'include'});
     if(r.ok){ dlg.close(); await boot(); } else { const err = await r.json(); alert(err.error || 'Erreur lors de l\'inscription'); }
+  };
+  
+  dlg.querySelector('#forgotPasswordLink').onclick=(e)=>{
+    e.preventDefault();
+    dlg.close();
+    showForgotPasswordDialog();
   };
 }
 
@@ -1265,10 +1273,247 @@ window.openEditUserDialog = openEditUserDialog;
 window.toggleBlockUser = toggleBlockUser;
 window.deleteAdminUser = deleteAdminUser;
 
+function showForgotPasswordDialog(){
+  const dlg=document.createElement('dialog');
+  dlg.innerHTML=`<form id="frmForgotPassword" class="dialog-body"><h3>🔑 Mot de passe oublié</h3>
+  <p class="muted" style="margin-bottom:15px;">Entrez votre email OU numéro de téléphone pour recevoir un lien de réinitialisation</p>
+  <div class="grid2">
+    <label>Email <input name="email" type="email" placeholder="exemple@email.com"></label>
+    <label>Téléphone <input name="phone" type="tel" placeholder="+228 XX XX XX XX"></label>
+  </div>
+  <div id="resetLinkDisplay" style="display:none;margin-top:15px;padding:15px;background:#f0fdf4;border:1px solid #10b981;border-radius:8px;">
+    <p style="margin-bottom:10px;font-weight:500;color:#059669;">✅ Lien de réinitialisation généré :</p>
+    <input id="resetLinkInput" type="text" readonly style="width:100%;padding:8px;margin-bottom:10px;font-size:12px;border:1px solid #d1d5db;border-radius:4px;">
+    <div style="display:flex;gap:10px;">
+      <button type="button" id="btnCopyResetLink" style="flex:1;background:#10b981;color:#fff;">📋 Copier le lien</button>
+      <button type="button" id="btnWhatsAppReset" style="flex:1;background:#25D366;color:#fff;display:none;">📱 Envoyer via WhatsApp</button>
+    </div>
+  </div>
+  <div class="dialog-actions"><button type="submit">🔗 Générer le lien</button><button type="button" id="cancelForgot">Annuler</button></div></form>`;
+  document.body.appendChild(dlg);
+  dlg.showModal();
+  dlg.querySelector('#cancelForgot').onclick=()=>dlg.close();
+  
+  dlg.querySelector('#frmForgotPassword').onsubmit=async(e)=>{
+    e.preventDefault();
+    const form = e.target;
+    const email = form.querySelector('[name="email"]').value.trim();
+    const phone = form.querySelector('[name="phone"]').value.trim();
+    
+    if(!email && !phone){
+      return alert('Veuillez entrer votre email OU numéro de téléphone');
+    }
+    
+    await requestPasswordReset(email, phone, dlg);
+  };
+}
+
+async function requestPasswordReset(email, phone, dlg){
+  const r = await fetch('/api/auth/forgot-password',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({email: email||null, phone: phone||null})
+  });
+  
+  if(r.ok){
+    const data = await r.json();
+    const resetLinkDisplay = dlg.querySelector('#resetLinkDisplay');
+    const resetLinkInput = dlg.querySelector('#resetLinkInput');
+    const btnWhatsAppReset = dlg.querySelector('#btnWhatsAppReset');
+    
+    resetLinkInput.value = data.resetLink;
+    resetLinkDisplay.style.display = 'block';
+    
+    dlg.querySelector('#btnCopyResetLink').onclick=()=>{
+      resetLinkInput.select();
+      document.execCommand('copy');
+      alert('Lien copié dans le presse-papiers !');
+    };
+    
+    if(data.whatsapp){
+      btnWhatsAppReset.style.display = 'block';
+      const digits = data.whatsapp.replace(/\D/g,'');
+      const message = encodeURIComponent(`Voici votre lien de réinitialisation de mot de passe : ${data.resetLink}`);
+      btnWhatsAppReset.onclick=()=>{
+        window.open(`https://wa.me/${digits}?text=${message}`, '_blank');
+      };
+    }
+  } else {
+    const err = await r.json();
+    alert(err.error || 'Utilisateur non trouvé');
+  }
+}
+
+async function loadUserSettings(){
+  if(!ME) return;
+  
+  const frmProfile = document.getElementById('frmProfile');
+  if(!frmProfile) return;
+  
+  frmProfile.querySelector('[name="name"]').value = ME.name || '';
+  frmProfile.querySelector('[name="email"]').value = ME.email || '';
+  frmProfile.querySelector('[name="phone"]').value = ME.phone || '';
+  frmProfile.querySelector('[name="whatsapp"]').value = ME.whatsapp || '';
+  frmProfile.querySelector('[name="region"]').value = ME.region || '';
+  frmProfile.querySelector('[name="role"]').value = ME.role || '';
+}
+
+const frmProfile = document.getElementById('frmProfile');
+if(frmProfile){
+  frmProfile.onsubmit = async (e) => {
+    e.preventDefault();
+    
+    if(!ME) return alert('Vous devez être connecté');
+    
+    const data = Object.fromEntries(new FormData(e.target).entries());
+    const payload = {
+      name: data.name.trim(),
+      email: data.email ? data.email.trim() : null,
+      phone: data.phone ? data.phone.trim() : null,
+      whatsapp: data.whatsapp ? data.whatsapp.trim() : null,
+      region: data.region ? data.region.trim() : null,
+      role: data.role || null
+    };
+    
+    const r = await fetch('/api/user/profile', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    
+    const msgEl = document.getElementById('profileMessage');
+    if(r.ok){
+      await boot();
+      msgEl.textContent = '✅ Profil mis à jour avec succès !';
+      msgEl.style.background = '#f0fdf4';
+      msgEl.style.color = '#059669';
+      msgEl.style.border = '1px solid #10b981';
+      msgEl.style.display = 'block';
+      setTimeout(() => { msgEl.style.display = 'none'; }, 3000);
+    } else {
+      const err = await r.json();
+      msgEl.textContent = '❌ ' + (err.error || 'Erreur lors de la mise à jour');
+      msgEl.style.background = '#fef2f2';
+      msgEl.style.color = '#dc2626';
+      msgEl.style.border = '1px solid #ef4444';
+      msgEl.style.display = 'block';
+    }
+  };
+}
+
+const frmPassword = document.getElementById('frmPassword');
+if(frmPassword){
+  frmPassword.onsubmit = async (e) => {
+    e.preventDefault();
+    
+    if(!ME) return alert('Vous devez être connecté');
+    
+    const data = Object.fromEntries(new FormData(e.target).entries());
+    
+    if(data.newPassword !== data.confirmPassword){
+      return alert('Les mots de passe ne correspondent pas');
+    }
+    
+    if(data.newPassword.length < 6){
+      return alert('Le mot de passe doit contenir au moins 6 caractères');
+    }
+    
+    const r = await fetch('/api/user/change-password', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword
+      })
+    });
+    
+    const msgEl = document.getElementById('passwordMessage');
+    if(r.ok){
+      e.target.reset();
+      msgEl.textContent = '✅ Mot de passe modifié avec succès !';
+      msgEl.style.background = '#f0fdf4';
+      msgEl.style.color = '#059669';
+      msgEl.style.border = '1px solid #10b981';
+      msgEl.style.display = 'block';
+      setTimeout(() => { msgEl.style.display = 'none'; }, 3000);
+    } else {
+      const err = await r.json();
+      msgEl.textContent = '❌ ' + (err.error || 'Erreur lors du changement de mot de passe');
+      msgEl.style.background = '#fef2f2';
+      msgEl.style.color = '#dc2626';
+      msgEl.style.border = '1px solid #ef4444';
+      msgEl.style.display = 'block';
+    }
+  };
+}
+
+function showResetPasswordForm(token){
+  const dlg=document.createElement('dialog');
+  dlg.innerHTML=`<form id="frmResetPassword" class="dialog-body"><h3>🔐 Réinitialiser le mot de passe</h3>
+  <p class="muted" style="margin-bottom:15px;">Entrez votre nouveau mot de passe</p>
+  <div class="grid2">
+    <label>Nouveau mot de passe <input name="newPassword" type="password" required minlength="6"></label>
+    <label>Confirmer le mot de passe <input name="confirmPassword" type="password" required minlength="6"></label>
+  </div>
+  <div class="dialog-actions"><button type="submit">🔒 Réinitialiser le mot de passe</button><button type="button" id="cancelReset">Annuler</button></div></form>`;
+  document.body.appendChild(dlg);
+  dlg.showModal();
+  dlg.querySelector('#cancelReset').onclick=()=>{
+    dlg.close();
+    window.location.hash = '';
+  };
+  
+  dlg.querySelector('#frmResetPassword').onsubmit=async(e)=>{
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target).entries());
+    
+    if(data.newPassword !== data.confirmPassword){
+      return alert('Les mots de passe ne correspondent pas');
+    }
+    
+    if(data.newPassword.length < 6){
+      return alert('Le mot de passe doit contenir au moins 6 caractères');
+    }
+    
+    await resetPassword(token, data.newPassword, dlg);
+  };
+}
+
+async function resetPassword(token, newPassword, dlg){
+  const r = await fetch('/api/auth/reset-password',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({token, newPassword})
+  });
+  
+  if(r.ok){
+    dlg.close();
+    window.location.hash = '';
+    alert('✅ Mot de passe réinitialisé avec succès ! Vous pouvez maintenant vous connecter.');
+    openLogin();
+  } else {
+    const err = await r.json();
+    alert(err.error || 'Erreur lors de la réinitialisation');
+  }
+}
+
+function checkResetPasswordUrl(){
+  const hash = window.location.hash;
+  if(hash.startsWith('#reset-password')){
+    const params = new URLSearchParams(hash.split('?')[1]);
+    const token = params.get('token');
+    if(token){
+      showResetPasswordForm(token);
+    }
+  }
+}
+
+window.addEventListener('hashchange', checkResetPasswordUrl);
+
 async function boot(){ 
   const me = await fetch('/api/auth/me'); 
   ME = await me.json(); 
-  meEl.textContent = ME? `Connecté: ${ME.email}`:''; 
+  meEl.textContent = ME? `Connecté: ${ME.email || ME.phone || ME.name}`:''; 
   btnLogin.style.display = ME? 'none':'inline-block'; 
   btnLogout.style.display = ME? 'inline-block':'none'; 
   const btnSub=document.getElementById('btnSubscription'); 
@@ -1277,11 +1522,17 @@ async function boot(){
   const adminTab = document.getElementById('adminTab');
   if(adminTab) adminTab.style.display = ME && ME.is_admin ? 'inline-block' : 'none';
   
+  const settingsTab = document.getElementById('settingsTab');
+  if(settingsTab) settingsTab.style.display = ME ? 'inline-block' : 'none';
+  
   await loadRefs(); 
   await loadActors(); 
   await loadLogistics(); 
   await loadBudgets(); 
   await loadCosts(); 
+  
+  checkResetPasswordUrl();
+  
   if(window._booted) return; 
   window._booted=true; 
 }

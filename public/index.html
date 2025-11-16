@@ -22,6 +22,7 @@
   <button data-tab="logistics">Logistique</button>
   <button data-tab="costing">Coût de revient</button>
   <button data-tab="budget">Budget</button>
+  <button data-tab="settings" id="settingsTab" style="display:none">⚙️ Paramètres</button>
   <button data-tab="admin" id="adminTab" style="display:none">Administration</button>
 </nav>
 <section id="actors" class="tab active">
@@ -115,6 +116,51 @@
           <p class="muted">Sélectionnez un budget pour voir le calcul du coût de revient</p>
         </div>
       </div>
+    </div>
+  </div>
+</section>
+<section id="settings" class="tab">
+  <div class="grid2">
+    <div class="card">
+      <h3>👤 Mon Profil</h3>
+      <p class="muted" style="margin-bottom:15px;">Modifiez vos informations personnelles</p>
+      <form id="frmProfile">
+        <div class="grid2">
+          <label>Nom complet <input name="name" type="text" required></label>
+          <label>Email <input name="email" type="email"></label>
+          <label>Téléphone <input name="phone" type="tel" placeholder="+228 XX XX XX XX"></label>
+          <label>WhatsApp <input name="whatsapp" type="tel" placeholder="+228 XX XX XX XX"></label>
+          <label>Région <input name="region" placeholder="ex: Plateaux"></label>
+          <label>Rôle <select name="role">
+            <option value="">Sélectionner...</option>
+            <option value="producteur">Producteur</option>
+            <option value="transporteur">Transporteur</option>
+            <option value="transformateur">Transformateur</option>
+            <option value="grossiste">Grossiste</option>
+            <option value="detaillant">Détaillant</option>
+            <option value="institution">Institution</option>
+          </select></label>
+        </div>
+        <div class="dialog-actions" style="border:none;padding:0;margin-top:15px;">
+          <button type="submit">💾 Enregistrer les modifications</button>
+        </div>
+      </form>
+      <div id="profileMessage" style="margin-top:10px;padding:10px;border-radius:8px;display:none;"></div>
+    </div>
+    <div class="card">
+      <h3>🔐 Changer le mot de passe</h3>
+      <p class="muted" style="margin-bottom:15px;">Modifiez votre mot de passe pour sécuriser votre compte</p>
+      <form id="frmPassword">
+        <div class="grid2">
+          <label>Mot de passe actuel <input name="currentPassword" type="password" required></label>
+          <label>Nouveau mot de passe <input name="newPassword" type="password" required minlength="6"></label>
+          <label style="grid-column:1/-1">Confirmer le nouveau mot de passe <input name="confirmPassword" type="password" required minlength="6"></label>
+        </div>
+        <div class="dialog-actions" style="border:none;padding:0;margin-top:15px;">
+          <button type="submit">🔒 Changer le mot de passe</button>
+        </div>
+      </form>
+      <div id="passwordMessage" style="margin-top:10px;padding:10px;border-radius:8px;display:none;"></div>
     </div>
   </div>
 </section>
