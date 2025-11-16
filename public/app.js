@@ -459,6 +459,7 @@ function openActorDialog(a){
     if(r.status===403){ const err=await r.json(); alert(err.message||'Limite atteinte'); dlg.close(); return; }
     dlg.close(); 
     await loadActors(); 
+    await loadMyActors();
     renderMap(); 
   }; 
 }
@@ -2452,6 +2453,7 @@ async function boot(){
   await loadLogistics(); 
   await loadBudgets(); 
   await loadCosts(); 
+  await loadMyActors();
   
   checkResetPasswordUrl();
   

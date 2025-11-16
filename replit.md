@@ -47,6 +47,7 @@ AgriRéseau Pro utilizes a modern web stack:
         - Profile modification: Update name, email, phone, WhatsApp, region, and role
         - Password change: Secure password update with current password verification
         - Role preservation: Backend ensures role is never accidentally cleared during updates
+        - **My Actors Management** (Added November 2025): Self-service actors management section in Settings tab allowing users to view all their actors with count and subscription limits, edit actors (modify details, update photos, change prices, adjust units), delete actors with confirmation, add new actors via prominent "✚ Nouvel acteur" button, and see visual summary with thumbnails, badges, and key metrics
     - **Password Recovery System** (Added November 2025):
         - "Mot de passe oublié" link in login dialog for easy access
         - Token-based password reset with 1-hour expiration
