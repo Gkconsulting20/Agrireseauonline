@@ -4,6 +4,7 @@ import session from 'express-session';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import db from './db.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -72,6 +73,90 @@ app.post('/api/auth/login', async (req,res)=>{
 
 app.post('/api/auth/logout',(req,res)=> req.session.destroy(()=>res.json({ok:true})));
 app.get('/api/auth/me',(req,res)=> res.json(req.session.user||null));
+
+app.put('/api/user/profile', requireAuth, async (req,res)=>{
+  const {name, email, phone, whatsapp, region, currentPassword, newPassword} = req.body;
+  const userId = req.session.user.id;
+  
+  try {
+    if(newPassword) {
+      if(!currentPassword) return res.status(400).json({error:'current_password_required'});
+      const u = await db.getOne('SELECT password_hash FROM users WHERE id=$1', [userId]);
+      if(!bcrypt.compareSync(currentPassword, u.password_hash)) {
+        return res.status(400).json({error:'invalid_current_password', message:'Mot de passe actuel incorrect'});
+      }
+      const newHash = bcrypt.hashSync(newPassword, 10);
+      await db.query('UPDATE users SET password_hash=$1 WHERE id=$2', [newHash, userId]);
+    }
+    
+    const normalizedPhone = phone ? phone.replace(/\s+/g, '') : null;
+    const normalizedWhatsapp = whatsapp ? whatsapp.replace(/\s+/g, '') : null;
+    
+    await db.query(
+      'UPDATE users SET name=$1, email=$2, phone=$3, whatsapp=$4, region=$5 WHERE id=$6',
+      [name, email?(email.trim().toLowerCase()):null, normalizedPhone, normalizedWhatsapp, region, userId]
+    );
+    
+    const updated = await db.getOne('SELECT id, email, name, phone, whatsapp, region, role, lat, lng, is_admin, status FROM users WHERE id=$1', [userId]);
+    req.session.user = updated;
+    res.json(updated);
+  } catch(e) {
+    res.status(400).json({error:'update_failed', message: e.message});
+  }
+});
+
+app.post('/api/auth/forgot-password', async (req,res)=>{
+  const {email, phone} = req.body;
+  if(!email && !phone) return res.status(400).json({error:'email_or_phone_required'});
+  
+  let user = null;
+  if(email) {
+    user = await db.getOne('SELECT id, email, phone, whatsapp FROM users WHERE email=$1', [(email||'').trim().toLowerCase()]);
+  } else if(phone) {
+    user = await db.getOne('SELECT id, email, phone, whatsapp FROM users WHERE phone=$1', [phone.trim()]);
+  }
+  
+  if(!user) return res.status(404).json({error:'user_not_found', message:'Utilisateur non trouvé'});
+  
+  await db.query('DELETE FROM password_reset_tokens WHERE user_id=$1', [user.id]);
+  
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date();
+  expiresAt.setHours(expiresAt.getHours() + 1);
+  
+  await db.query(
+    'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+    [user.id, token, expiresAt]
+  );
+  
+  const resetLink = `${req.protocol}://${req.get('host')}/#reset-password?token=${token}`;
+  
+  res.json({
+    success: true,
+    resetLink,
+    message: user.whatsapp ? 'Lien de réinitialisation généré. Envoyez-le via WhatsApp.' : 'Lien de réinitialisation généré.',
+    whatsapp: user.whatsapp,
+    phone: user.phone
+  });
+});
+
+app.post('/api/auth/reset-password', async (req,res)=>{
+  const {token, newPassword} = req.body;
+  if(!token || !newPassword) return res.status(400).json({error:'token_and_password_required'});
+  
+  const resetToken = await db.getOne(
+    'SELECT * FROM password_reset_tokens WHERE token=$1 AND expires_at > NOW()',
+    [token]
+  );
+  
+  if(!resetToken) return res.status(400).json({error:'invalid_or_expired_token', message:'Token invalide ou expiré'});
+  
+  const newHash = bcrypt.hashSync(newPassword, 10);
+  await db.query('UPDATE users SET password_hash=$1 WHERE id=$2', [newHash, resetToken.user_id]);
+  await db.query('DELETE FROM password_reset_tokens WHERE user_id=$1', [resetToken.user_id]);
+  
+  res.json({success: true, message: 'Mot de passe réinitialisé avec succès'});
+});
 
 app.get('/api/refs', async (req,res)=>{ 
   const regions = await db.getAll('SELECT name FROM regions', []); 
