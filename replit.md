@@ -86,6 +86,43 @@ The server runs on port 5000 and is configured for the Replit environment:
 
 ## Recent Changes
 
+### November 16, 2025 - Advanced Cost Tracking & Budget Analysis 📊
+- **Cost Accumulation System**:
+  - Activities now track status: 📋 Planifié, 🚜 En cours, ✅ Terminé
+  - Farmers can record expenses chronologically with dates throughout the growing season
+  - Budget entries automatically accumulate to calculate real costs vs planned costs
+  - Added `status`, `started_at`, `ended_at`, `actual_harvest` columns to activities table
+  - Real-time cost tracking as farmers add expenses during the production cycle
+
+- **Planned vs Actual Comparison Dashboard**:
+  - Split-screen view comparing BUDGET PRÉVISIONNEL and COÛTS RÉELS side by side
+  - Planned budget shows: intrants, main d'œuvre, transport, frais généraux with unit costs
+  - Real costs section displays: total expenses, total revenues, profit, actual harvest quantity
+  - Calculates cost variance and profitability metrics automatically
+  - Visual indicators (green for planned, red for actual) for easy comparison
+
+- **Crop Templates for Togolese Agriculture**:
+  - Pre-configured templates for 5 major Togolese crops: Maïs, Soja, Manioc, Riz, Maraîchage
+  - Each template includes realistic inputs (seeds, fertilizer, pesticides) with local pricing
+  - Labor costs configured for Togolese agricultural practices
+  - Expected yields and pricing based on market data
+  - Farmers can start with templates and adjust based on their specific conditions
+
+- **Enhanced Budget Module**:
+  - Budget entries can now be linked to specific activities for automatic cost accumulation
+  - Agricultural-specific expense categories (Semences, Engrais, Main d'œuvre, Récolte, etc.)
+  - Chronological expense tracking with dates for accurate cost flow analysis
+  - Separate tracking of income and expenses with automatic profit calculation
+  - Budget-to-activity integration enables real vs planned performance analysis
+
+- **Backend Improvements**:
+  - Enhanced `/api/activities/:id/summary` endpoint to include both planned and actual metrics
+  - Automatic aggregation of budget expenses and incomes linked to each activity
+  - Unit cost calculation: total expenses ÷ actual harvest quantity (or planned if not harvested)
+  - Profit margin calculation: (revenues - expenses) / revenues × 100
+  - PUT `/api/activities/:id` endpoint supports updating status, dates, and actual harvest
+  - Budget entries can be linked to activities via `activity_id` field
+
 ### October 20, 2025 - Payment System Implementation 💳
 - **Manual Payment Flow (ACTIVE)**:
   - Complete payment instructions for T-Money (*145#) and Flooz (*155#)
