@@ -143,7 +143,10 @@ function actorCard(a){
   
   // Load and display harvests (real quantities available)
   fetch('/api/actors/'+a.id+'/harvests')
-    .then(r=>r.json())
+    .then(r=>{
+      if(!r.ok) return [];
+      return r.json();
+    })
     .then(harvests=>{
       const harvestDiv = el.querySelector('#harvests-'+a.id);
       if(harvests && harvests.length > 0){
@@ -814,10 +817,13 @@ function openBudgetDialog(){
   if(!ME) return alert("Connecte-toi d'abord.");
   const dlg=document.createElement('dialog');
   const productsOptions = PRODUCTS.map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
+  const myActors = ACTORS.filter(a=>a.owner_id===ME.id);
+  const actorsOptions = myActors.length > 0 ? myActors.map(a=>`<option value="${a.id}">${a.name}</option>`).join('') : '<option value="">Aucun acteur</option>';
   dlg.innerHTML=`<form id="frmBudget" class="dialog-body"><h3>📋 Créer un Budget Prévisionnel</h3>
     <p class="muted">Créez une activité et définissez vos prévisions</p>
     <div class="grid2">
       <label>Activité <input name="label" required placeholder="Ex: Production de maïs 2025"></label>
+      <label>Acteur concerné <select name="actor_id">${actorsOptions}</select></label>
       <label>Filière <select name="filiere"><option>Maïs</option><option>Manioc</option><option>Riz</option><option>Maraîchage</option><option>Soja</option><option>Volailles</option></select></label>
       <label>Produit récolté <select name="harvest_product">${productsOptions}</select></label>
       <label>Période <select name="periode"><option>Annuel</option><option>Trimestriel</option><option>Mensuel</option></select></label>
@@ -830,7 +836,7 @@ function openBudgetDialog(){
   document.body.appendChild(dlg); dlg.showModal(); dlg.querySelector('#cancelB').onclick=()=> dlg.close();
   const f=dlg.querySelector('#frmBudget'); const up=()=>{const qty=Number(f.output_qty.value||0),price=Number(f.price_expected.value||0),dep=Number(f.transport.value||0);dlg.querySelector('#previewCA').textContent=(qty*price).toLocaleString();dlg.querySelector('#previewProfit').textContent=(qty*price-dep).toLocaleString();};
   f.output_qty.oninput=up;f.price_expected.oninput=up;f.transport.oninput=up;up();
-  f.onsubmit=async(e)=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target).entries());d.output_qty=Number(d.output_qty||0);d.price_expected=Number(d.price_expected||0);d.transport=Number(d.transport||0);d.target_margin=0;d.autres=0;d.overhead_pct=0;
+  f.onsubmit=async(e)=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target).entries());d.output_qty=Number(d.output_qty||0);d.price_expected=Number(d.price_expected||0);d.transport=Number(d.transport||0);d.target_margin=0;d.autres=0;d.overhead_pct=0;d.actor_id=d.actor_id?Number(d.actor_id):null;
     const r=await fetch('/api/activities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});if(!r.ok){alert('Erreur');return;}dlg.close();await loadBudgets();};
 }
 async function openBudget(b){
