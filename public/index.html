@@ -14,7 +14,6 @@
   <button id="btnSubscription" onclick="showPaymentDialog()" style="display:none;background:#fbbf24;color:#000">💎 Abonnement</button>
   <button id="btnLogin">Se connecter</button>
   <button id="btnLogout" style="display:none">Se déconnecter</button>
-  <button id="btnSeed">Réinitialiser (seed)</button>
 </div></header>
 <nav class="tabs">
   <button data-tab="actors" class="active">Acteurs</button>
@@ -263,6 +262,14 @@
           <tr><td colspan="9" class="muted" style="text-align:center;padding:20px;">Chargement...</td></tr>
         </tbody>
       </table>
+    </div>
+  </div>
+  
+  <div class="card" style="margin-top:20px;">
+    <h3>🗑️ Gestion des Données de Démo</h3>
+    <p class="muted" style="margin:10px 0;">Attention : Cette action supprimera toutes les données de démonstration et les remplacera par de nouvelles données de test</p>
+    <div style="margin-top:15px;">
+      <button id="btnSeed" style="background:#ef4444;color:white;padding:10px 20px;">🔄 Réinitialiser les données (seed)</button>
     </div>
   </div>
 </section>
