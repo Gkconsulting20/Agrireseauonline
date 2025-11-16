@@ -60,7 +60,7 @@ AgriRéseau Pro utilizes a modern web stack:
     - **Free Plan**: Limited to 2 actors per user.
     - **Premium Plan**: Offers unlimited actors, a premium badge, and access to advanced features:
         - **Statistics & Analytics Dashboard** (Added November 2025): Comprehensive dashboard with KPIs (actors count, budgets, views, expenses, harvests, ratings), actor performance metrics (ratings, views, products, available harvests), budget variance analysis (planned vs real, variance %, profit, status), visual evolution charts, and CSV/PDF export functionality.
-        - **Mobile Money Payment Integration** (Added November 2025): PayGate integration for T-Money and Flooz payments, payment initiation UI with provider selection and phone number input, transaction history display with status badges (completed, pending, failed), automatic premium activation upon successful payment.
+        - **Mobile Money & Card Payment Integration** (Added November 2025): FedaPay integration for T-Money, Flooz, and Visa/MasterCard payments with unified payment flow, hosted payment page redirection, webhook-based transaction processing, transaction history display with status badges (completed, pending, failed), automatic premium activation upon successful payment. Supports regional expansion to 8+ West African countries.
         - **Notification System - Premium Only** (Added November 2025): Twilio-based SMS and WhatsApp notifications exclusively for Premium users. Endpoints protected by requirePremium middleware. Notification history, test functionality, and sending capabilities accessible only in Statistics tab for Premium subscribers. Non-Premium users see upgrade prompt when accessing notification features.
 - **Admin System** (Added November 2025):
     - **Role-Based Authorization**: `is_admin` flag in users table enables admin privileges.
@@ -82,8 +82,8 @@ AgriRéseau Pro utilizes a modern web stack:
 - **Product Presentation**: Support for product photos. Harvest quantities are visible on actor cards ("📦 Disponible: [product]: [quantity] kg"), but prices are hidden to encourage direct negotiation between buyers and sellers.
 - **Enhanced Communication**: WhatsApp integration with pre-filled message templates.
 - **Monetization Infrastructure** (Added November 2025):
-    - **Payment Processing**: Complete PayGate API integration for T-Money (60% market share) and Flooz (40% market share) mobile money payments.
-    - **Payment Endpoints**: `/api/payments/initiate` (requireAuth) for payment initiation with transaction tracking, `/api/payments/callback` for PayGate webhook processing and auto-premium activation, `/api/payments/history` (requireAuth) for transaction history.
+    - **Payment Processing**: Complete FedaPay API integration for T-Money (61% market share), Flooz (39% market share) mobile money, and international Visa/MasterCard payments. Transparent 2.9% fees for mobile money, 3.6% for cards. 3-day settlement for T-Money, support for 8+ West African countries.
+    - **Payment Endpoints**: `/api/payments/initiate` (requireAuth) for payment initiation with FedaPay transaction creation and hosted payment page URL generation, `/api/payments/webhook` for FedaPay webhook processing and auto-premium activation, `/api/payments/history` (requireAuth) for transaction history.
     - **Notification Endpoints**: `/api/notifications/send` (requireAuth) for SMS/WhatsApp sending via Twilio, `/api/notifications/history` (requireAuth) for notification tracking.
     - **Database Tables**: `payments` table for transaction tracking (user_id, amount, payment_method, provider, transaction_id, status, metadata), `notifications` table for notification logging (user_id, type, channel, recipient, message, status, sent_at, error_message).
     - **Security**: All payment and notification endpoints protected by requireAuth middleware, environment variables for API keys (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, PAYGATE_API_KEY), transaction ID generation with unique identifiers.
@@ -100,17 +100,17 @@ AgriRéseau Pro utilizes a modern web stack:
 - **PostgreSQL (Neon serverless)**: Primary database for all application data.
 - **Leaflet.js**: JavaScript library for interactive maps.
 - **bcryptjs**: Library for password hashing and security.
-- **PayGate**: Payment gateway integration for T-Money and Flooz mobile money services. Infrastructure ready, awaiting API credentials for live activation. See GUIDE_API_KEYS.md for account creation and setup instructions.
+- **FedaPay**: Pan-African payment gateway for T-Money, Flooz mobile money, and Visa/MasterCard payments. Supports 8+ West African countries with 2.9% transparent fees. Infrastructure ready, awaiting API credentials for live activation. See GUIDE_API_KEYS.md for account creation and setup instructions.
 - **Twilio**: SMS and WhatsApp notification service (Premium only). Framework ready, awaiting API credentials for live activation. Manual configuration required (Replit integration dismissed by user). See GUIDE_API_KEYS.md for account creation and setup instructions.
 
 ## Production Deployment Checklist
 Before deploying to production, configure the following environment variables:
 - [ ] `SESSION_SECRET` - Secure random string for session encryption
+- [ ] `FEDAPAY_SECRET_KEY` - FedaPay Secret Key (format: sk_live_XXXXX or sk_sandbox_XXXXX for testing)
+- [ ] `FEDAPAY_PUBLIC_KEY` - FedaPay Public Key (format: pk_live_XXXXX or pk_sandbox_XXXXX for testing)
+- [ ] `FEDAPAY_ENVIRONMENT` - FedaPay environment ('sandbox' for testing, 'live' for production)
 - [ ] `TWILIO_ACCOUNT_SID` - Twilio Account SID (for SMS/WhatsApp notifications)
 - [ ] `TWILIO_AUTH_TOKEN` - Twilio Auth Token
 - [ ] `TWILIO_PHONE_NUMBER` - Twilio phone number (format: +1234567890)
-- [ ] `PAYGATE_API_KEY` - PayGate API Key (UUID format)
-- [ ] `PAYGATE_MERCHANT_ID` - PayGate Merchant ID
-- [ ] `PAYGATE_CALLBACK_URL` - PayGate callback URL (https://your-app.replit.app/api/payments/callback)
 
-Refer to INTEGRATION_GUIDE.md for detailed configuration instructions and testing procedures.
+Refer to GUIDE_API_KEYS.md for detailed instructions on obtaining these credentials.

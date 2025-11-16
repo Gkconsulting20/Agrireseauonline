@@ -973,34 +973,28 @@ window.showPaymentDialog = async function(){
         </ul>
       </div>
       
-      <div class="grid2" style="margin-bottom:20px;">
-        <label style="grid-column:1/-1">
-          <strong>📱 Fournisseur de paiement :</strong>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
-            <label style="display:flex;align-items:center;padding:15px;border:2px solid #e5e7eb;border-radius:8px;cursor:pointer;transition:all 0.2s;" class="provider-option">
-              <input type="radio" name="provider" value="tmoney" required style="margin-right:10px;">
-              <div>
-                <div style="font-size:20px;">📱</div>
-                <div style="font-weight:bold;color:#fbbf24;">T-Money</div>
-                <div style="font-size:11px;color:#6b7280;">Togocom</div>
-              </div>
-            </label>
-            <label style="display:flex;align-items:center;padding:15px;border:2px solid #e5e7eb;border-radius:8px;cursor:pointer;transition:all 0.2s;" class="provider-option">
-              <input type="radio" name="provider" value="flooz" required style="margin-right:10px;">
-              <div>
-                <div style="font-size:20px;">💰</div>
-                <div style="font-weight:bold;color:#10b981;">Flooz</div>
-                <div style="font-size:11px;color:#6b7280;">Moov Africa</div>
-              </div>
-            </label>
+      <div style="background:#eff6ff;padding:20px;border-radius:12px;margin-bottom:20px;">
+        <p style="font-weight:bold;margin:0 0 15px 0;color:#1e40af;">💳 Méthodes de paiement acceptées :</p>
+        <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px;">
+          <div style="padding:12px;background:white;border-radius:8px;border:2px solid #dbeafe;text-align:center;">
+            <div style="font-size:28px;margin-bottom:5px;">📱</div>
+            <div style="font-weight:bold;color:#fbbf24;">T-Money</div>
+            <div style="font-size:11px;color:#6b7280;">Togocom</div>
           </div>
-        </label>
-        
-        <label style="grid-column:1/-1">
-          <strong>📞 Numéro de téléphone pour le paiement :</strong>
-          <input name="phone" type="tel" required placeholder="+228 XX XX XX XX XX" style="margin-top:5px;">
-          <small style="color:#6b7280;font-size:12px;">Le numéro de votre compte Mobile Money</small>
-        </label>
+          <div style="padding:12px;background:white;border-radius:8px;border:2px solid #dbeafe;text-align:center;">
+            <div style="font-size:28px;margin-bottom:5px;">💰</div>
+            <div style="font-weight:bold;color:#10b981;">Flooz</div>
+            <div style="font-size:11px;color:#6b7280;">Moov Africa</div>
+          </div>
+          <div style="padding:12px;background:white;border-radius:8px;border:2px solid #dbeafe;text-align:center;grid-column:1/-1;">
+            <div style="font-size:28px;margin-bottom:5px;">💳</div>
+            <div style="font-weight:bold;color:#3b82f6;">Visa / MasterCard</div>
+            <div style="font-size:11px;color:#6b7280;">Paiement international</div>
+          </div>
+        </div>
+        <p style="margin:15px 0 0 0;font-size:13px;color:#6b7280;text-align:center;">
+          ✅ Paiement sécurisé par <strong>FedaPay</strong>
+        </p>
       </div>
       
       <div class="dialog-actions">
@@ -1013,129 +1007,48 @@ window.showPaymentDialog = async function(){
   document.body.appendChild(dlg);
   dlg.showModal();
   
-  const providerOptions = dlg.querySelectorAll('.provider-option');
-  providerOptions.forEach(opt => {
-    opt.onclick = () => {
-      providerOptions.forEach(o => o.style.borderColor = '#e5e7eb');
-      opt.style.borderColor = '#fbbf24';
-      opt.style.background = '#fffbeb';
-    };
-  });
-  
   dlg.querySelector('#cancelPayment').onclick = () => dlg.close();
   
   dlg.querySelector('#frmPayment').onsubmit = async (e) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
-    const provider = formData.get('provider');
-    const phone = formData.get('phone');
-    
     dlg.close();
-    await initiatePayment(provider, phone);
+    await initiatePayment();
   };
 }
 
-async function initiatePayment(provider, phone){
+async function initiatePayment(){
   try {
     const r = await fetch('/api/payments/initiate', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        provider,
-        phone,
         amount: 1000,
-        plan: 'premium'
+        description: 'Abonnement Premium AgriRéseau Pro - 1 mois'
       })
     });
     
     if(!r.ok){
       const err = await r.json();
-      alert(err.error || 'Erreur lors de l\'initiation du paiement');
+      alert(err.message || err.error || 'Erreur lors de l\'initiation du paiement');
       return;
     }
     
     const data = await r.json();
-    showPaymentInstructions(provider, phone, data);
+    
+    if(data.paymentUrl){
+      const confirmed = confirm('Vous allez être redirigé vers la page de paiement sécurisée FedaPay.\n\nVous pourrez payer avec T-Money, Flooz ou Carte bancaire.\n\nContinuer ?');
+      if(confirmed){
+        window.location.href = data.paymentUrl;
+      }
+    } else {
+      alert('Erreur: URL de paiement non reçue');
+    }
   } catch(e) {
     console.error('Erreur:', e);
     alert('Erreur lors de l\'initiation du paiement');
   }
 }
 
-function showPaymentInstructions(provider, phone, data){
-  const providerName = provider === 'tmoney' ? 'T-Money (Togocom)' : 'Flooz (Moov Africa)';
-  const providerCode = provider === 'tmoney' ? '*145#' : '*155#';
-  const providerColor = provider === 'tmoney' ? '#fbbf24' : '#10b981';
-  const transactionId = data.transaction_id || 'En attente...';
-  
-  const dlg = document.createElement('dialog');
-  dlg.innerHTML = `
-    <div class="dialog-body" style="max-width:600px;">
-      <h3 style="color:${providerColor};">📱 Instructions de paiement</h3>
-      
-      <div style="background:${provider === 'tmoney' ? '#fffbeb' : '#f0fdf4'};padding:20px;border-radius:12px;margin-bottom:20px;border:3px solid ${providerColor};">
-        <p style="font-size:20px;font-weight:bold;margin:0 0 10px 0;color:${providerColor};">
-          ${provider === 'tmoney' ? '📱' : '💰'} ${providerName}
-        </p>
-        <p style="font-size:18px;margin:0;color:#000;">Montant: <strong>1 000 FCFA</strong></p>
-      </div>
-      
-      <div style="background:#f0fdf4;padding:20px;border-radius:8px;margin-bottom:20px;border-left:4px solid ${providerColor};">
-        <p style="font-weight:bold;margin:0 0 15px 0;font-size:16px;">🔹 Étapes à suivre :</p>
-        <ol style="margin:0;padding-left:20px;line-height:2;">
-          <li>Sur votre téléphone <strong>${phone}</strong>, composez : <strong style="font-size:20px;color:${providerColor};">${providerCode}</strong></li>
-          <li>Choisissez l'option <strong>"Transfert d'argent"</strong> ou <strong>"Payer un marchand"</strong></li>
-          <li>Entrez le montant : <strong style="font-size:18px;">1 000 FCFA</strong></li>
-          <li>Confirmez le paiement avec votre code PIN</li>
-        </ol>
-      </div>
-      
-      <div style="background:#fee2e2;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #ef4444;">
-        <p style="font-weight:bold;margin:0 0 10px 0;color:#dc2626;">⚠️ Important :</p>
-        <p style="margin:5px 0;font-size:14px;">• Votre paiement sera automatiquement vérifié</p>
-        <p style="margin:5px 0;font-size:14px;">• Votre compte Premium sera activé sous 5-10 minutes</p>
-        <p style="margin:5px 0;font-size:14px;">• Transaction ID: <strong>${transactionId}</strong></p>
-        <p style="margin:10px 0 0 0;font-size:12px;color:#6b7280;">
-          💡 Gardez votre code de transaction pour toute réclamation
-        </p>
-      </div>
-      
-      <div style="background:#eff6ff;padding:15px;border-radius:8px;margin-bottom:20px;">
-        <p style="font-weight:bold;margin:0 0 10px 0;color:#1e40af;">📊 Suivi du paiement :</p>
-        <p style="margin:0;font-size:14px;color:#374151;">
-          Consultez l'onglet <strong>Paramètres > Historique des Paiements</strong> pour suivre le statut de votre paiement.
-        </p>
-      </div>
-      
-      <div style="display:flex;gap:10px;">
-        <button id="btnViewHistory" style="flex:1;padding:12px;background:#3b82f6;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:500;">
-          📋 Voir l'historique
-        </button>
-        <button id="btnCloseInstructions" style="flex:1;padding:12px;background:#059669;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:500;">
-          ✓ J'ai compris
-        </button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(dlg);
-  dlg.showModal();
-  
-  dlg.querySelector('#btnCloseInstructions').onclick = () => {
-    dlg.close();
-    loadPaymentHistory();
-  };
-  
-  dlg.querySelector('#btnViewHistory').onclick = () => {
-    dlg.close();
-    const settingsTab = document.querySelector('[data-tab="settings"]');
-    if(settingsTab) settingsTab.click();
-    setTimeout(() => {
-      const historySection = document.getElementById('paymentHistoryContainer');
-      if(historySection) historySection.scrollIntoView({behavior: 'smooth'});
-    }, 300);
-  };
-}
 
 // Nouvelles fonctions pour Budget (module prévisionnel)
 function openBudgetDialog(){ 

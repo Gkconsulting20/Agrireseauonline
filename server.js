@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import fedapay from 'fedapay';
 import db from './db.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -14,6 +15,12 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Configure FedaPay
+if (process.env.FEDAPAY_SECRET_KEY) {
+  fedapay.setApiKey(process.env.FEDAPAY_SECRET_KEY);
+  fedapay.setEnvironment(process.env.FEDAPAY_ENVIRONMENT || 'sandbox');
+}
 
 app.use((req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -533,61 +540,105 @@ app.delete('/api/admin/users/:id', requireAdmin, async (req,res)=>{
   res.status(204).end();
 });
 
-// Payment endpoints - PayGate integration for T-Money and Flooz
+// Payment endpoints - FedaPay integration for T-Money, Flooz, and Credit Cards
 app.post('/api/payments/initiate', requireAuth, async (req,res)=>{
-  const {amount, provider, phoneNumber, description} = req.body;
+  const {amount, description} = req.body;
   const userId = req.session.user.id;
+  const user = await db.getOne('SELECT * FROM users WHERE id=$1', [userId]);
   
-  if(!amount || amount < 150) return res.status(400).json({error:'Amount must be at least 150 FCFA'});
-  if(!provider || !['tmoney', 'flooz'].includes(provider)) return res.status(400).json({error:'Invalid provider'});
-  if(!phoneNumber) return res.status(400).json({error:'Phone number required'});
+  if(!amount || amount < 1000) return res.status(400).json({error:'Amount must be at least 1,000 FCFA'});
+  
+  if(!process.env.FEDAPAY_SECRET_KEY) {
+    return res.status(503).json({
+      error: 'Payment system not configured',
+      message: 'FedaPay API keys not set. Please contact administrator.'
+    });
+  }
   
   const transactionId = `AGR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const callbackUrl = `${req.protocol}://${req.get('host')}/api/payments/webhook`;
   
   try {
+    const transaction = await fedapay.Transaction.create({
+      description: description || 'Abonnement Premium AgriRéseau Pro - 1 mois',
+      amount: amount,
+      currency: { iso: 'XOF' },
+      callback_url: callbackUrl,
+      customer: {
+        firstname: user.name || 'Client',
+        lastname: 'AgriRéseau',
+        email: user.email || `user${userId}@agrireseau.tg`,
+        phone_number: user.phone ? {
+          number: user.phone,
+          country: 'tg'
+        } : undefined
+      },
+      custom_metadata: {
+        user_id: userId.toString(),
+        transaction_id: transactionId,
+        purpose: 'premium_subscription'
+      }
+    });
+    
     await db.query(
-      'INSERT INTO payments (user_id, amount, payment_method, provider, transaction_id, status, description) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-      [userId, amount, 'mobile_money', provider, transactionId, 'pending', description || 'Activation Premium AgriRéseau Pro']
+      'INSERT INTO payments (user_id, amount, payment_method, provider, transaction_id, status, description, metadata) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+      [userId, amount, 'fedapay', 'fedapay', transaction.id, 'pending', description || 'Activation Premium AgriRéseau Pro', JSON.stringify({fedapay_id: transaction.id})]
     );
+    
+    const token = await transaction.generateToken();
     
     res.json({
       success: true,
-      transactionId,
-      message: 'Transaction initiée. En attente de paiement.',
-      instructions: `Composez *155*${provider === 'tmoney' ? '3' : '1'}*# sur votre téléphone ${phoneNumber} pour valider le paiement de ${amount} FCFA.`
+      transactionId: transaction.id,
+      paymentUrl: token.url,
+      message: 'Transaction créée avec succès. Vous allez être redirigé vers la page de paiement.'
     });
   } catch(e) {
-    console.error('Payment initiation error:', e);
-    res.status(500).json({error: 'Payment initiation failed'});
+    console.error('FedaPay payment initiation error:', e);
+    res.status(500).json({
+      error: 'Payment initiation failed',
+      message: e.message || 'Unable to create payment. Please try again.'
+    });
   }
 });
 
-app.post('/api/payments/callback', async (req,res)=>{
-  const {transaction_id, status, amount, provider} = req.body;
-  
+// FedaPay Webhook endpoint
+app.post('/api/payments/webhook', express.raw({type: 'application/json'}), async (req,res)=>{
   try {
-    const payment = await db.getOne('SELECT * FROM payments WHERE transaction_id=$1', [transaction_id]);
-    if(!payment) return res.status(404).json({error: 'Payment not found'});
+    const event = req.body.entity || req.body;
+    const eventName = req.body.name || 'transaction.unknown';
     
-    await db.query(
-      'UPDATE payments SET status=$1, completed_at=$2 WHERE transaction_id=$3',
-      [status, new Date(), transaction_id]
-    );
+    console.log('FedaPay webhook received:', eventName, event);
     
-    if(status === 'completed' || status === 'success'){
+    if(eventName === 'transaction.approved') {
+      const transactionId = event.id;
+      const payment = await db.getOne('SELECT * FROM payments WHERE transaction_id=$1', [transactionId]);
+      
+      if(!payment) {
+        console.error('Payment not found for transaction:', transactionId);
+        return res.status(404).json({error: 'Payment not found'});
+      }
+      
+      await db.query(
+        'UPDATE payments SET status=$1, completed_at=$2 WHERE transaction_id=$3',
+        ['completed', new Date(), transactionId]
+      );
+      
       const expiresAt = new Date();
       expiresAt.setMonth(expiresAt.getMonth() + 1);
       
       await db.query(
         'UPDATE subscriptions SET plan=$1, status=$2, payment_method=$3, amount=$4, transaction_id=$5, started_at=$6, expires_at=$7 WHERE user_id=$8',
-        ['premium', 'active', provider, amount, transaction_id, new Date(), expiresAt, payment.user_id]
+        ['premium', 'active', 'fedapay', event.amount, transactionId, new Date(), expiresAt, payment.user_id]
       );
+      
+      console.log('Premium activated for user:', payment.user_id);
     }
     
-    res.json({success: true});
+    res.status(200).json({received: true});
   } catch(e) {
-    console.error('Payment callback error:', e);
-    res.status(500).json({error: 'Callback processing failed'});
+    console.error('FedaPay webhook error:', e);
+    res.status(500).json({error: 'Webhook processing failed'});
   }
 });
 
