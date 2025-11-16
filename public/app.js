@@ -455,14 +455,73 @@ function openActDialog(){ if(!ME) return alert('Connecte-toi d’abord.'); const
   dlg.querySelector('#frmAct').onsubmit=async(e)=>{ e.preventDefault(); const data=Object.fromEntries(new FormData(e.target).entries()); data.output_qty=Number(data.output_qty||0); data.price_expected=Number(data.price_expected||0); data.target_margin=Number(data.target_margin||0); data.transport=Number(data.transport||0); data.autres=Number(data.autres||0); data.overhead_pct=Number(data.overhead_pct||0);
     const r=await fetch('/api/activities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}); if(!r.ok){ alert('Erreur'); return; } dlg.close(); await loadActs(); };
 }
-async function openAct(a){ CURRENT_ACT=a; const r=await fetch(`/api/activities/${a.id}/items`); ACT_ITEMS = await r.json(); const sumR=await fetch(`/api/activities/${a.id}/summary`); const S=await sumR.json();
-  const root=document.getElementById('actEditor'); const tableRows = ACT_ITEMS.map(it=>`<tr><td><select data-k="kind"><option value="input" ${it.kind==='input'?'selected':''}>Intrant</option><option value="labor" ${it.kind==='labor'?'selected':''}>Main d'œuvre</option></select></td><td><input data-k="label" value="${it.label||''}"></td><td><input type="number" step="0.01" data-k="qty" value="${it.qty||0}"></td><td><input data-k="unit" value="${it.unit||''}"></td><td><input type="number" step="0.01" data-k="unit_price" value="${it.unit_price||0}"></td><td class="sum">${((it.qty||0)*(it.unit_price||0)).toFixed(2)}</td><td><button class="save" data-id="${it.id}">💾</button> <button class="rm" data-id="${it.id}">🗑</button></td></tr>`).join('');
-  root.innerHTML=`<h4>Éditer: ${a.label} <span class="badge">${a.filiere}</span></h4>
-  <table class="tbl"><thead><tr><th>Type</th><th>Libellé</th><th>Qté</th><th>Unité</th><th>Prix unitaire</th><th>Total</th><th></th></tr></thead><tbody>${tableRows}</tbody></table>
-  <div class="dialog-actions"><button id="addItem">+ Ajouter ligne</button> <button id="recalc">Recalculer</button></div>
-  <div class="card"><p>Total intrants: <strong>${Math.round(S.intrants)}</strong> FCFA · Total MO: <strong>${Math.round(S.mo)}</strong> FCFA · Transport & autres: <strong>${Math.round((a.transport||0)+(a.autres||0))}</strong> FCFA · Frais généraux: <strong>${Math.round(S.overhead)}</strong> FCFA</p>
-  <p><strong>Coût total</strong>: <strong>${Math.round(S.total)}</strong> FCFA · <strong>Unitaire</strong>: <strong>${S.unit.toFixed(2)}</strong> FCFA</p>
-  <p>PV envisagé: <strong>${S.pv.toFixed(2)}</strong> FCFA · Marge: <strong>${S.marge.toFixed(1)}%</strong> · PV pour marge cible: <strong>${S.pvCible.toFixed(2)}</strong> FCFA · Seuil de rentabilité: <strong>${S.seuil}</strong> unités</p></div>`;
+async function openAct(a){ 
+  CURRENT_ACT=a; 
+  const r=await fetch(`/api/activities/${a.id}/items`); 
+  ACT_ITEMS = await r.json(); 
+  const sumR=await fetch(`/api/activities/${a.id}/summary`); 
+  const S=await sumR.json();
+  
+  const statusBadge = {
+    'planned': '<span class="badge" style="background:#fbbf24;color:#000;">📋 Planifié</span>',
+    'in_progress': '<span class="badge" style="background:#3b82f6;color:#fff;">🚜 En cours</span>',
+    'completed': '<span class="badge" style="background:#10b981;color:#fff;">✅ Terminé</span>'
+  }[S.status||'planned'] || '<span class="badge">📋 Planifié</span>';
+  
+  const expensesList = (S.budgetExpenses||[]).map(e=>`<tr><td>${e.occurred_on}</td><td>${e.category||'-'}</td><td style="text-align:right;">${Number(e.amount).toLocaleString()} FCFA</td><td>${e.note||'-'}</td></tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:#9ca3af;">Aucune dépense enregistrée</td></tr>';
+  
+  const root=document.getElementById('actEditor');
+  root.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+      <h4 style="margin:0;">${a.label} <span class="badge">${a.filiere}</span> ${statusBadge}</h4>
+      <button id="btnEditStatus" style="padding:6px 12px;font-size:13px;">✏️ Modifier statut/récolte</button>
+    </div>
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:20px;">
+      <div class="card" style="background:#f0fdf4;">
+        <h5 style="margin:0 0 10px 0;color:#059669;">📊 BUDGET PRÉVISIONNEL</h5>
+        <div style="font-size:14px;line-height:1.8;">
+          <p style="margin:5px 0;">Intrants: <strong>${Math.round(S.intrants).toLocaleString()} FCFA</strong></p>
+          <p style="margin:5px 0;">Main d'œuvre: <strong>${Math.round(S.mo).toLocaleString()} FCFA</strong></p>
+          <p style="margin:5px 0;">Transport & autres: <strong>${Math.round((a.transport||0)+(a.autres||0)).toLocaleString()} FCFA</strong></p>
+          <p style="margin:5px 0;">Frais généraux (${a.overhead_pct||0}%): <strong>${Math.round(S.overhead).toLocaleString()} FCFA</strong></p>
+          <hr style="margin:10px 0;border:0;border-top:2px solid #059669;">
+          <p style="margin:5px 0;font-size:16px;"><strong>Total prévisionnel: ${Math.round(S.total).toLocaleString()} FCFA</strong></p>
+          <p style="margin:5px 0;">Quantité prévue: <strong>${(a.output_qty||0).toLocaleString()} kg</strong></p>
+          <p style="margin:5px 0;">Coût unitaire prévu: <strong>${S.unit.toFixed(2)} FCFA/kg</strong></p>
+          <p style="margin:5px 0;">PV envisagé: <strong>${(a.price_expected||0).toFixed(2)} FCFA/kg</strong></p>
+          <p style="margin:5px 0;color:#059669;">Marge prévue: <strong>${S.marge.toFixed(1)}%</strong></p>
+        </div>
+      </div>
+      
+      <div class="card" style="background:#fee2e2;">
+        <h5 style="margin:0 0 10px 0;color:#dc2626;">💰 COÛTS RÉELS (Accumulés)</h5>
+        <div style="font-size:14px;line-height:1.8;">
+          <p style="margin:5px 0;">Total dépenses: <strong>${(S.totalRealExpenses||0).toLocaleString()} FCFA</strong></p>
+          <p style="margin:5px 0;">Total recettes: <strong>${(S.totalRealIncomes||0).toLocaleString()} FCFA</strong></p>
+          <hr style="margin:10px 0;border:0;border-top:2px solid #dc2626;">
+          <p style="margin:5px 0;font-size:16px;"><strong>Profit réel: ${(S.profit||0).toLocaleString()} FCFA</strong></p>
+          <p style="margin:5px 0;">Quantité récoltée: <strong>${(S.actual_harvest||0).toLocaleString()} kg</strong></p>
+          <p style="margin:5px 0;">Coût unitaire réel: <strong>${(S.unitReal||0).toFixed(2)} FCFA/kg</strong></p>
+          ${S.actual_harvest>0 ? `<p style="margin:5px 0;color:#dc2626;">Marge réelle: <strong>${S.margeReal.toFixed(1)}%</strong></p>` : '<p style="margin:5px 0;color:#9ca3af;font-style:italic;">Renseignez la récolte réelle</p>'}
+        </div>
+      </div>
+    </div>
+    
+    <div class="card" style="margin-bottom:15px;">
+      <h5 style="margin:0 0 10px 0;">📈 Accumulation chronologique des dépenses</h5>
+      <table class="tbl" style="width:100%;"><thead><tr><th>Date</th><th>Catégorie</th><th>Montant</th><th>Note</th></tr></thead><tbody>${expensesList}</tbody></table>
+      <p style="margin:10px 0 0 0;font-size:13px;color:#6b7280;">💡 Ajoutez vos dépenses réelles dans l'onglet <strong>Budget</strong> en sélectionnant cette activité</p>
+    </div>
+    
+    <div class="card">
+      <h5 style="margin:0 0 10px 0;">⚙️ Détail des postes prévisionnels</h5>
+      <table class="tbl"><thead><tr><th>Type</th><th>Libellé</th><th>Qté</th><th>Unité</th><th>Prix unitaire</th><th>Total</th><th></th></tr></thead><tbody>${ACT_ITEMS.map(it=>`<tr><td><select data-k="kind"><option value="input" ${it.kind==='input'?'selected':''}>Intrant</option><option value="labor" ${it.kind==='labor'?'selected':''}>Main d'œuvre</option></select></td><td><input data-k="label" value="${it.label||''}"></td><td><input type="number" step="0.01" data-k="qty" value="${it.qty||0}"></td><td><input data-k="unit" value="${it.unit||''}"></td><td><input type="number" step="0.01" data-k="unit_price" value="${it.unit_price||0}"></td><td class="sum">${((it.qty||0)*(it.unit_price||0)).toFixed(2)}</td><td><button class="save" data-id="${it.id}">💾</button> <button class="rm" data-id="${it.id}">🗑</button></td></tr>`).join('')}</tbody></table>
+      <div class="dialog-actions"><button id="addItem">+ Ajouter ligne</button> <button id="recalc">🔄 Recalculer</button></div>
+    </div>
+  `;
+  
+  root.querySelector('#btnEditStatus').onclick = ()=> editActivityStatus(a);
   root.querySelectorAll('button.save').forEach(btn=> btn.onclick=async()=>{
     const tr=btn.closest('tr'); const payload={}; tr.querySelectorAll('input,select').forEach(inp=> payload[inp.dataset.k]= inp.type==='number'? Number(inp.value||0): inp.value);
     const r=await fetch('/api/items/'+btn.dataset.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) return alert('Erreur'); openAct(a);
@@ -470,6 +529,38 @@ async function openAct(a){ CURRENT_ACT=a; const r=await fetch(`/api/activities/$
   root.querySelectorAll('button.rm').forEach(btn=> btn.onclick=async()=>{ if(!confirm('Supprimer cette ligne ?')) return; await fetch('/api/items/'+btn.dataset.id,{method:'DELETE'}); openAct(a); });
   root.querySelector('#addItem').onclick=async()=>{ await fetch('/api/activities/'+a.id+'/items',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'input',label:'',qty:0,unit:'',unit_price:0})}); openAct(a); };
   root.querySelector('#recalc').onclick=()=> openAct(a);
+}
+
+function editActivityStatus(a){
+  const dlg=document.createElement('dialog');
+  dlg.innerHTML=`<form id="frmStatus" class="dialog-body" style="max-width:500px;"><h3>✏️ Modifier l'activité</h3>
+    <div class="grid2">
+      <label>Statut <select name="status">
+        <option value="planned" ${a.status==='planned'?'selected':''}>📋 Planifié</option>
+        <option value="in_progress" ${a.status==='in_progress'?'selected':''}>🚜 En cours</option>
+        <option value="completed" ${a.status==='completed'?'selected':''}>✅ Terminé</option>
+      </select></label>
+      <label>Date de début <input name="started_at" type="date" value="${a.started_at?new Date(a.started_at).toISOString().slice(0,10):''}"></label>
+      <label>Date de fin <input name="ended_at" type="date" value="${a.ended_at?new Date(a.ended_at).toISOString().slice(0,10):''}"></label>
+      <label>Récolte réelle (kg) <input name="actual_harvest" type="number" step="0.01" value="${a.actual_harvest||''}"></label>
+    </div>
+    <div class="dialog-actions"><button type="submit">💾 Enregistrer</button><button type="button" id="cancelStatus">Annuler</button></div>
+  </form>`;
+  document.body.appendChild(dlg);
+  dlg.showModal();
+  dlg.querySelector('#cancelStatus').onclick=()=> dlg.close();
+  dlg.querySelector('#frmStatus').onsubmit=async(e)=>{
+    e.preventDefault();
+    const data=Object.fromEntries(new FormData(e.target).entries());
+    data.actual_harvest = data.actual_harvest ? Number(data.actual_harvest) : null;
+    const payload = {...a, ...data};
+    const r=await fetch(`/api/activities/${a.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!r.ok){ alert('Erreur'); return; }
+    const updated = await r.json();
+    dlg.close();
+    await loadActs();
+    openAct(updated);
+  };
 }
 
 let BUDGET={rows:[], totals:{income:0,expense:0,balance:0}};
