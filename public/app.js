@@ -573,9 +573,13 @@ const btnAddLog = document.getElementById('btnAddLog');
 if(btnAddLog) btnAddLog.onclick=()=> openLogDialog();
 async function loadLogistics(){ const r=await fetch('/api/logistics'); LOGS=await r.json(); renderLogistics(); }
 function renderLogistics(){ const list=document.getElementById('logList'); list.innerHTML=''; LOGS.forEach(l=>{ const el=document.createElement('div'); el.className='card'; const digits=s=>(s||'').replace(/\D/g,'');
+  const isMine = ME && l.owner_id === ME.id;
   el.innerHTML=`<div><strong>${l.title}</strong> <span class="badge">${l.type==='need'?'BESOIN':'OFFRE'}</span> <span class="badge">${l.region}</span></div>
-  <div>${l.details||''}</div><div class="links">${l.whatsapp? `<a target="_blank" href="https://wa.me/${digits(l.whatsapp)}">WhatsApp</a>`:''}${l.contact? `<a href="tel:${digits(l.contact)}">Appeler</a>`:''}${ME? ` <a href="#" data-id="${l.id}" class="del">Supprimer</a>`:''}</div>`;
-  if(ME){ el.querySelector('.del').onclick=async(e)=>{e.preventDefault(); if(!confirm('Supprimer ?')) return; await fetch('/api/logistics/'+l.id,{method:'DELETE'}); await loadLogistics(); }; }
+  <div>${l.details||''}</div><div class="links">${l.whatsapp? `<a target="_blank" href="https://wa.me/${digits(l.whatsapp)}">WhatsApp</a>`:''}${l.contact? `<a href="tel:${digits(l.contact)}">Appeler</a>`:''}${isMine? ` <a href="#" data-id="${l.id}" class="edit">✏️ Modifier</a> <a href="#" data-id="${l.id}" class="del">🗑️ Supprimer</a>`:''}</div>`;
+  if(isMine){
+    el.querySelector('.edit').onclick=async(e)=>{e.preventDefault(); openLogDialog(l); };
+    el.querySelector('.del').onclick=async(e)=>{e.preventDefault(); if(!confirm('Supprimer cette publication ?')) return; await fetch('/api/logistics/'+l.id,{method:'DELETE'}); await loadLogistics(); await loadMyLogistics(); }; 
+  }
   list.appendChild(el);
 }); }
 function openLogDialog(item){ if(!ME) return alert('Connecte-toi d’abord.'); const dlg=document.createElement('dialog'); dlg.innerHTML=`<form id="frmLog" class="dialog-body"><h3>${item?'Modifier':'Nouvelle'} demande/offre logistique</h3><div class="grid2">
@@ -591,7 +595,7 @@ function openLogDialog(item){ if(!ME) return alert('Connecte-toi d’abord.'); c
     const payload={title:data.title.trim(), type:data.type, region:data.region, details:(data.details||'').trim(), contact:(data.contact||'').trim(), whatsapp:(data.whatsapp||'').trim()};
     if(item&&item.id) await fetch('/api/logistics/'+item.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     else await fetch('/api/logistics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    dlg.close(); await loadLogistics(); }; }
+    dlg.close(); await loadLogistics(); await loadMyLogistics(); }; }
 
 let MAP, USER_MARKER; 
 async function renderMap(){ 
@@ -2458,6 +2462,71 @@ async function deleteMyActor(id){
   }
 }
 
+async function loadMyLogistics(){
+  if(!ME) return;
+  
+  const container = document.getElementById('myLogisticsList');
+  const countEl = document.getElementById('myLogisticsCount');
+  
+  if(!container) return;
+  
+  await loadLogistics();
+  const myLogs = LOGS.filter(l => l.owner_id === ME.id);
+  const count = myLogs.length;
+  
+  if(countEl) countEl.textContent = `${count} publication${count > 1 ? 's' : ''}`;
+  
+  if(myLogs.length === 0){
+    container.innerHTML = '<p class="muted" style="text-align:center;padding:40px;">Vous n\'avez pas encore créé de publication logistique. Cliquez sur "✚ Nouvelle publication" ci-dessus.</p>';
+    return;
+  }
+  
+  container.innerHTML = myLogs.map(l => {
+    const typeColor = l.type === 'need' ? '#dc2626' : '#059669';
+    const typeLabel = l.type === 'need' ? 'BESOIN' : 'OFFRE';
+    
+    return `
+      <div class="card" style="padding:15px;">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
+          <div style="flex:1;">
+            <h4 style="margin:0 0 8px 0;">${l.title}</h4>
+            <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+              <span class="badge" style="background:${typeColor};color:white;">${typeLabel}</span>
+              <span class="badge" style="background:#e0f2fe;color:#0369a1;">${l.region || 'Non spécifié'}</span>
+            </div>
+            ${l.details ? `<p style="margin:5px 0;color:#6b7280;font-size:14px;">${l.details}</p>` : ''}
+            ${l.contact ? `<p style="margin:5px 0;color:#6b7280;font-size:14px;">📞 ${l.contact}</p>` : ''}
+            ${l.whatsapp ? `<p style="margin:5px 0;color:#6b7280;font-size:14px;">💬 WhatsApp: ${l.whatsapp}</p>` : ''}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-left:15px;">
+            <button onclick='openLogDialog(${JSON.stringify(l).replace(/'/g, "\\'")})'  style="background:#3b82f6;color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:14px;white-space:nowrap;">✏️ Modifier</button>
+            <button onclick="deleteMyLogistic(${l.id})" style="background:#dc2626;color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:14px;white-space:nowrap;">🗑️ Supprimer</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function deleteMyLogistic(id){
+  if(!confirm('Êtes-vous sûr de vouloir supprimer cette publication ?')) return;
+  
+  try {
+    const r = await fetch(`/api/logistics/${id}`, {method: 'DELETE'});
+    if(r.ok){
+      await loadLogistics();
+      await loadMyLogistics();
+      alert('✓ Publication supprimée avec succès');
+    } else {
+      const err = await r.json();
+      alert('Erreur: ' + (err.error || 'Impossible de supprimer'));
+    }
+  } catch(e){
+    console.error('Erreur:', e);
+    alert('Erreur lors de la suppression');
+  }
+}
+
 async function boot(){ 
   const me = await fetch('/api/auth/me'); 
   ME = await me.json(); 
@@ -2488,6 +2557,7 @@ async function boot(){
   await loadBudgets(); 
   await loadCosts(); 
   await loadMyActors();
+  await loadMyLogistics();
   
   checkResetPasswordUrl();
   

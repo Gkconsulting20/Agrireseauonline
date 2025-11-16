@@ -345,14 +345,21 @@ app.post('/api/logistics', requireAuth, async (req,res)=>{
 });
 
 app.put('/api/logistics/:id', requireAuth, async (req,res)=>{ 
-  const id=Number(req.params.id), b=req.body; 
+  const id=Number(req.params.id), b=req.body;
+  const existing = await db.getOne('SELECT owner_id FROM logistics WHERE id=$1', [id]);
+  if(!existing) return res.status(404).json({error: 'Publication non trouvée'});
+  if(existing.owner_id !== req.session.user.id) return res.status(403).json({error: 'Non autorisé'});
   await db.query('UPDATE logistics SET type=$1,title=$2,region=$3,details=$4,contact=$5,whatsapp=$6 WHERE id=$7', [b.type,b.title,b.region,b.details||'',b.contact||'',b.whatsapp||'',id]); 
   const row = await db.getOne('SELECT * FROM logistics WHERE id=$1', [id]); 
   res.json(row); 
 });
 
-app.delete('/api/logistics/:id', requireAuth, async (req,res)=>{ 
-  await db.query('DELETE FROM logistics WHERE id=$1', [Number(req.params.id)]); 
+app.delete('/api/logistics/:id', requireAuth, async (req,res)=>{
+  const id = Number(req.params.id);
+  const existing = await db.getOne('SELECT owner_id FROM logistics WHERE id=$1', [id]);
+  if(!existing) return res.status(404).json({error: 'Publication non trouvée'});
+  if(existing.owner_id !== req.session.user.id) return res.status(403).json({error: 'Non autorisé'});
+  await db.query('DELETE FROM logistics WHERE id=$1', [id]); 
   res.status(204).end(); 
 });
 
