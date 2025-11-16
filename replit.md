@@ -90,7 +90,7 @@ AgriRéseau Pro utilizes a modern web stack:
 - Connection pooling for database performance.
 - Asynchronous programming with `async/await` for better error handling and responsiveness.
 - Database schema supports users, subscriptions, actors, ratings, logistics, activities, activity items, budget entries, regions, products, payments, and notifications.
-- Progressive monetization model: Freemium (2 actors) → Premium subscription (5,000 FCFA/month, unlimited actors + analytics) → Future: Transaction fees, Featured actors, Financial services.
+- Progressive monetization model: Freemium (2 actors) → Premium subscription (1,000 FCFA/month, unlimited actors + analytics) → Future: Transaction fees, Featured actors, Financial services.
 
 ## External Dependencies
 - **PostgreSQL (Neon serverless)**: Primary database for all application data.

@@ -407,7 +407,7 @@ app.post('/api/admin/activate-premium', requireAdmin, async (req,res)=>{
   try{
     await db.query(
       `UPDATE subscriptions SET plan=$1, status=$2, payment_method=$3, amount=$4, transaction_id=$5, started_at=$6, expires_at=$7 WHERE user_id=$8`,
-      ['premium', 'active', paymentMethod || 'manual', 5000, transactionId, new Date(), expiresAt, targetUser.id]
+      ['premium', 'active', paymentMethod || 'manual', 1000, transactionId, new Date(), expiresAt, targetUser.id]
     );
     res.json({success:true, message:`Premium activated for ${userEmail} until ${expiresAt.toISOString().split('T')[0]}`});
   } catch(e){

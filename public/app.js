@@ -740,7 +740,7 @@ window.showPaymentDialog = async function(){
       <h3 style="color:#fbbf24;">💎 Passer à Premium</h3>
       
       <div style="background:linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);padding:20px;border-radius:12px;margin-bottom:20px;color:#000;">
-        <p style="font-size:24px;font-weight:bold;margin:0 0 10px 0;text-align:center;">5 000 FCFA / mois</p>
+        <p style="font-size:24px;font-weight:bold;margin:0 0 10px 0;text-align:center;">1 000 FCFA / mois</p>
       </div>
       
       <div style="background:#f0fdf4;padding:15px;border-radius:8px;margin-bottom:20px;border:2px solid #10b981;">
@@ -786,7 +786,7 @@ window.showPaymentDialog = async function(){
       </div>
       
       <div class="dialog-actions">
-        <button type="submit" style="background:#fbbf24;color:#000;font-weight:bold;flex:1;">💎 Payer 5 000 FCFA</button>
+        <button type="submit" style="background:#fbbf24;color:#000;font-weight:bold;flex:1;">💎 Payer 1 000 FCFA</button>
         <button type="button" id="cancelPayment">Annuler</button>
       </div>
     </form>
@@ -825,7 +825,7 @@ async function initiatePayment(provider, phone){
       body: JSON.stringify({
         provider,
         phone,
-        amount: 5000,
+        amount: 1000,
         plan: 'premium'
       })
     });
@@ -859,7 +859,7 @@ function showPaymentInstructions(provider, phone, data){
         <p style="font-size:20px;font-weight:bold;margin:0 0 10px 0;color:${providerColor};">
           ${provider === 'tmoney' ? '📱' : '💰'} ${providerName}
         </p>
-        <p style="font-size:18px;margin:0;color:#000;">Montant: <strong>5 000 FCFA</strong></p>
+        <p style="font-size:18px;margin:0;color:#000;">Montant: <strong>1 000 FCFA</strong></p>
       </div>
       
       <div style="background:#f0fdf4;padding:20px;border-radius:8px;margin-bottom:20px;border-left:4px solid ${providerColor};">
@@ -867,7 +867,7 @@ function showPaymentInstructions(provider, phone, data){
         <ol style="margin:0;padding-left:20px;line-height:2;">
           <li>Sur votre téléphone <strong>${phone}</strong>, composez : <strong style="font-size:20px;color:${providerColor};">${providerCode}</strong></li>
           <li>Choisissez l'option <strong>"Transfert d'argent"</strong> ou <strong>"Payer un marchand"</strong></li>
-          <li>Entrez le montant : <strong style="font-size:18px;">5 000 FCFA</strong></li>
+          <li>Entrez le montant : <strong style="font-size:18px;">1 000 FCFA</strong></li>
           <li>Confirmez le paiement avec votre code PIN</li>
         </ol>
       </div>
