@@ -47,13 +47,27 @@ AgriRéseau Pro uses a modern web stack:
     - **Admin Panel**: Dedicated "Administration" tab for user and logistics management.
     - **User Management**: CRUD operations for user accounts (view, edit, block/unblock, delete).
     - **Logistics Management**: Admins can manage all logistics publications (view, edit, delete).
-- **Commercial Sales Team System**:
-    - **Role-Based Account System**: `is_commercial` flag for specialized read-only permissions.
-    - **Referral Code System**: Unique codes for recruit tracking and performance metrics.
-    - **Recruitment Tracking**: Links users joining with a commercial code to the commercial user.
-    - **Commercial Restrictions**: Middleware (`blockCommercial`) prevents commercial accounts from modifying platform content; UI hides non-relevant tabs.
-    - **Performance Dashboard**: Real-time KPIs for commercial users (recruits, actors, premium conversions).
-    - **CSV Report Generation**: Individual and consolidated commercial reports with CSV injection protection.
+- **Commercial Sales Team System** (Added November 2025):
+    - **Role-Based Account System**: `is_commercial` flag in users table enables commercial team accounts with specialized read-only permissions.
+    - **Referral Code System**: Each commercial user receives a unique code (format: COM-[NAME]-[4-digit random]) for recruit tracking.
+    - **Recruitment Tracking**: Users joining with a commercial code are automatically linked as recruits, enabling performance metrics and commission calculation.
+    - **Commercial Restrictions**: `blockCommercial` middleware enforces API-level restrictions preventing commercial accounts from creating/modifying actors, budgets, logistics, or activities. UI-level restrictions hide all tabs except Performance dashboard.
+    - **Performance Dashboard**: Real-time KPIs for commercial users showing total recruits, total actors created by recruits, premium conversions, and conversion rates. Displays referral code with copy function and detailed recruits list.
+    - **CSV Report Generation**: Individual commercial reports, admin reports for specific commercials, and consolidated reports for all commercials with UTF-8 BOM for Excel compatibility. CSV injection protection via `escapeCSV` function that neutralizes dangerous characters (=, +, -, @, \t, \r).
+    - **Admin Management of Commercials** (Added November 2025):
+        - Dedicated section in admin panel for commercial account management
+        - View all commercials with performance metrics (recruits, actors, premium conversions)
+        - Block/unblock commercial accounts to control access (blocked commercials cannot login)
+        - Delete commercial accounts with confirmation (protects against self-deletion)
+        - Modify commercial details with email/phone uniqueness validation
+        - Download individual and consolidated performance reports
+    - **Security Implementation**:
+        - `requireCommercial` middleware protects commercial-only endpoints
+        - `blockCommercial` middleware prevents commercial users from modifying platform content
+        - `requireAdmin` middleware protects all admin commercial management endpoints
+        - Profile update endpoint preserves `is_commercial` flag across all session refresh paths
+        - Email/phone uniqueness validation prevents duplicate accounts
+    - **Test Commercial Credentials**: koffi.commercial@agrireseau.tg / Commercial2025!
 - **Trust & Reputation System**:
     - **Rating System**: 1-5 star ratings with optional comments for actors.
     - **Certification Badges**: Visual badges for Bio, Qualité, and Commerce Équitable certifications.
