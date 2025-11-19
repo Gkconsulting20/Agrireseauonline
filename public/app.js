@@ -1382,12 +1382,86 @@ async function renderEvaluationTable(){
   `;
 }
 
+// Catégories de dépenses adaptées par rôle
+const EXPENSE_CATEGORIES = {
+  producteur: [
+    { group: '🌾 Intrants agricoles', items: ['Semences', 'Engrais (NPK, Urée)', 'Pesticides/Herbicides', 'Fumure organique', 'Matériel agricole'] },
+    { group: '👷 Main d\'œuvre', items: ['Labour/Préparation sol', 'Semis/Plantation', 'Entretien/Sarclage', 'Récolte'] },
+    { group: '🚚 Logistique', items: ['Transport', 'Stockage', 'Emballage'] },
+    { group: '📋 Autres', items: ['Eau/Irrigation', 'Électricité', 'Location terrain', 'Assurance', 'Autre'] }
+  ],
+  eleveur: [
+    { group: '🐔 Aliments animaux', items: ['Provende poulets', 'Provende porcs', 'Provende bovins', 'Tourteau', 'Son de maïs', 'Fourrage'] },
+    { group: '💉 Santé animale', items: ['Vaccins', 'Antibiotiques', 'Antiparasitaires', 'Vitamines', 'Désinfectants', 'Vétérinaire'] },
+    { group: '🏗️ Équipements', items: ['Abreuvoirs', 'Mangeoires', 'Cages', 'Poulaillers', 'Porcheries'] },
+    { group: '👷 Main d\'œuvre', items: ['Soins animaux', 'Nettoyage', 'Gardiennage'] },
+    { group: '📋 Autres', items: ['Eau', 'Électricité', 'Transport', 'Assurance', 'Autre'] }
+  ],
+  transporteur: [
+    { group: '🚚 Véhicule', items: ['Carburant', 'Entretien/Réparation', 'Pneus', 'Pièces détachées'] },
+    { group: '💼 Exploitation', items: ['Péages', 'Parking', 'Chargement/Déchargement'] },
+    { group: '📋 Administratif', items: ['Assurance véhicule', 'Visite technique', 'Permis/Licences', 'Taxes'] },
+    { group: '👷 Personnel', items: ['Salaires chauffeurs', 'Convoyeurs', 'Gardiennage'] },
+    { group: '📋 Autres', items: ['Communication', 'Bureau', 'Autre'] }
+  ],
+  transformateur: [
+    { group: '🏭 Matières premières', items: ['Achats produits agricoles', 'Achats produits d\'élevage', 'Ingrédients'] },
+    { group: '⚡ Énergie', items: ['Électricité', 'Gaz', 'Bois de chauffe', 'Charbon'] },
+    { group: '📦 Emballage', items: ['Sachets', 'Boîtes', 'Bouteilles', 'Étiquettes'] },
+    { group: '🏗️ Équipements', items: ['Machines', 'Entretien équipements', 'Pièces détachées'] },
+    { group: '👷 Personnel', items: ['Salaires ouvriers', 'Contrôleurs qualité'] },
+    { group: '📋 Autres', items: ['Eau', 'Loyer atelier', 'Assurance', 'Transport', 'Autre'] }
+  ],
+  grossiste: [
+    { group: '📦 Marchandises', items: ['Achat stock', 'Achat produits agricoles', 'Achat produits transformés'] },
+    { group: '🏢 Infrastructure', items: ['Loyer entrepôt', 'Électricité', 'Eau', 'Sécurité/Gardiennage'] },
+    { group: '🚚 Logistique', items: ['Transport', 'Chargement/Déchargement', 'Emballage'] },
+    { group: '👷 Personnel', items: ['Salaires magasiniers', 'Comptable', 'Vendeurs'] },
+    { group: '📋 Autres', items: ['Communication', 'Assurance', 'Taxes', 'Autre'] }
+  ],
+  detaillant: [
+    { group: '📦 Stock', items: ['Achat marchandises', 'Réapprovisionnement'] },
+    { group: '🏪 Boutique', items: ['Loyer boutique', 'Électricité', 'Eau', 'Décoration'] },
+    { group: '👷 Personnel', items: ['Salaires vendeurs', 'Caissiers', 'Gardiens'] },
+    { group: '🚚 Logistique', items: ['Transport', 'Livraisons', 'Emballages'] },
+    { group: '📋 Autres', items: ['Communication', 'Assurance', 'Taxes', 'Publicité', 'Autre'] }
+  ],
+  institution: [
+    { group: '📋 Fournitures', items: ['Papeterie', 'Matériel bureau', 'Informatique'] },
+    { group: '👷 Personnel', items: ['Salaires employés', 'Consultants', 'Formateurs'] },
+    { group: '🏢 Infrastructure', items: ['Loyer bureaux', 'Électricité', 'Eau', 'Internet', 'Téléphone'] },
+    { group: '🚗 Déplacements', items: ['Carburant', 'Missions', 'Transport'] },
+    { group: '📋 Autres', items: ['Formation', 'Événements', 'Assurance', 'Autre'] }
+  ]
+};
+
+function updateExpenseCategoriesByRole(role) {
+  const select = document.getElementById('costCat');
+  if (!select) return;
+  
+  const categories = EXPENSE_CATEGORIES[role] || EXPENSE_CATEGORIES['producteur'];
+  
+  select.innerHTML = '<option value="">Choisir une catégorie...</option>' + 
+    categories.map(group => 
+      `<optgroup label="${group.group}">` +
+      group.items.map(item => `<option value="${item}">${item}</option>`).join('') +
+      '</optgroup>'
+    ).join('');
+}
+
 async function refreshCostBudgets(){
   const sel=document.getElementById('costBudget');
   if(!sel)return;
-  sel.innerHTML='<option value="">Sélectionner un budget...</option>'+BUDGETS.map(b=>`<option value="${b.id}">${b.label}</option>`).join('');
+  sel.innerHTML='<option value="">Sélectionner un budget...</option>'+BUDGETS.map(b=>`<option value="${b.id}">${b.label} - ${b.actor_name || ''}</option>`).join('');
   sel.onchange=async()=>{
-    await showCostSummary(sel.value);
+    const budgetId = sel.value;
+    if(budgetId) {
+      const budget = BUDGETS.find(b => b.id == budgetId);
+      if(budget && budget.actor_role) {
+        updateExpenseCategoriesByRole(budget.actor_role);
+      }
+    }
+    await showCostSummary(budgetId);
     renderCosts();
   };
 }

@@ -389,7 +389,15 @@ app.delete('/api/logistics/:id', requireAuth, async (req,res)=>{
 });
 
 app.get('/api/activities', requireAuth, async (req,res)=>{ 
-  const acts = await db.getAll('SELECT * FROM activities WHERE user_id=$1 ORDER BY id DESC', [req.session.user.id]); 
+  const acts = await db.getAll(`
+    SELECT a.*, 
+           ac.name as actor_name, 
+           ac.role as actor_role 
+    FROM activities a 
+    LEFT JOIN actors ac ON a.actor_id = ac.id 
+    WHERE a.user_id=$1 
+    ORDER BY a.id DESC
+  `, [req.session.user.id]); 
   res.json(acts); 
 });
 
