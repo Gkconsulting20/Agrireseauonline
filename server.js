@@ -592,6 +592,156 @@ app.get('/api/commercial/stats', requireAuth, async (req,res)=>{
   });
 });
 
+// Fonction pour échapper les valeurs CSV et prévenir l'injection de formules
+function escapeCSV(value) {
+  if (value === null || value === undefined) return '""';
+  let str = String(value);
+  // Neutraliser les formules CSV (=, +, -, @, tab, carriage return)
+  const dangerousChars = ['=', '+', '-', '@', '\t', '\r'];
+  if (dangerousChars.some(char => str.startsWith(char))) {
+    str = "'" + str; // Préfixer avec une apostrophe pour neutraliser
+  }
+  // Échapper les guillemets doubles
+  str = str.replace(/"/g, '""');
+  // Encadrer avec des guillemets
+  return `"${str}"`;
+}
+
+// Endpoint pour générer un rapport CSV de performance commercial
+app.get('/api/commercial/report', requireAuth, async (req,res)=>{
+  const userId = req.session.user.id;
+  const user = await db.getOne('SELECT is_commercial, name, commercial_code FROM users WHERE id=$1', [userId]);
+  
+  if(!user || !user.is_commercial){
+    return res.status(403).json({error: 'Accès réservé aux commerciaux'});
+  }
+  
+  // Récupérer toutes les données de performance
+  const recruits = await db.getAll(`
+    SELECT u.id, u.name, u.email, u.phone, u.role, u.region, u.created_at,
+           s.plan, s.status as subscription_status,
+           COUNT(a.id) as actors_count
+    FROM users u
+    LEFT JOIN subscriptions s ON u.id = s.user_id
+    LEFT JOIN actors a ON a.owner_id = u.id
+    WHERE u.recruited_by = $1
+    GROUP BY u.id, u.name, u.email, u.phone, u.role, u.region, u.created_at, s.plan, s.status
+    ORDER BY u.created_at DESC
+  `, [userId]);
+  
+  // Générer le CSV avec échappement sécurisé
+  const csvHeader = 'ID,Nom,Email,Téléphone,Rôle,Région,Date inscription,Plan,Statut,Nombre acteurs\n';
+  const csvRows = recruits.map(r => {
+    const date = r.created_at ? new Date(r.created_at).toLocaleDateString('fr-FR') : '';
+    return [
+      r.id,
+      escapeCSV(r.name),
+      escapeCSV(r.email),
+      escapeCSV(r.phone),
+      escapeCSV(r.role),
+      escapeCSV(r.region),
+      escapeCSV(date),
+      escapeCSV(r.plan || 'free'),
+      escapeCSV(r.subscription_status || 'active'),
+      r.actors_count || 0
+    ].join(',');
+  }).join('\n');
+  
+  const csv = csvHeader + csvRows;
+  const filename = `rapport_commercial_${user.commercial_code}_${new Date().toISOString().split('T')[0]}.csv`;
+  
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send('\uFEFF' + csv); // BOM pour Excel
+});
+
+// Endpoint admin pour rapport d'un commercial spécifique
+app.get('/api/admin/commercials/:id/report', requireAdmin, async (req,res)=>{
+  const commercialId = parseInt(req.params.id);
+  const commercial = await db.getOne('SELECT name, commercial_code FROM users WHERE id=$1 AND is_commercial=true', [commercialId]);
+  
+  if(!commercial){
+    return res.status(404).json({error: 'Commercial non trouvé'});
+  }
+  
+  const recruits = await db.getAll(`
+    SELECT u.id, u.name, u.email, u.phone, u.role, u.region, u.created_at,
+           s.plan, s.status as subscription_status,
+           COUNT(a.id) as actors_count
+    FROM users u
+    LEFT JOIN subscriptions s ON u.id = s.user_id
+    LEFT JOIN actors a ON a.owner_id = u.id
+    WHERE u.recruited_by = $1
+    GROUP BY u.id, u.name, u.email, u.phone, u.role, u.region, u.created_at, s.plan, s.status
+    ORDER BY u.created_at DESC
+  `, [commercialId]);
+  
+  const csvHeader = 'ID,Nom,Email,Téléphone,Rôle,Région,Date inscription,Plan,Statut,Nombre acteurs\n';
+  const csvRows = recruits.map(r => {
+    const date = r.created_at ? new Date(r.created_at).toLocaleDateString('fr-FR') : '';
+    return [
+      r.id,
+      escapeCSV(r.name),
+      escapeCSV(r.email),
+      escapeCSV(r.phone),
+      escapeCSV(r.role),
+      escapeCSV(r.region),
+      escapeCSV(date),
+      escapeCSV(r.plan || 'free'),
+      escapeCSV(r.subscription_status || 'active'),
+      r.actors_count || 0
+    ].join(',');
+  }).join('\n');
+  
+  const csv = csvHeader + csvRows;
+  const filename = `rapport_commercial_${commercial.commercial_code}_${new Date().toISOString().split('T')[0]}.csv`;
+  
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send('\uFEFF' + csv);
+});
+
+// Endpoint admin pour rapport consolidé de tous les commerciaux
+app.get('/api/admin/commercials/reports/consolidated', requireAdmin, async (req,res)=>{
+  const commercials = await db.getAll(`
+    SELECT u.id, u.name, u.commercial_code, u.region, u.created_at,
+           COUNT(DISTINCT ur.id) as total_recruits,
+           COUNT(DISTINCT a.id) as total_actors,
+           COUNT(DISTINCT CASE WHEN s.plan='premium' AND s.status='active' THEN ur.id END) as premium_recruits
+    FROM users u
+    LEFT JOIN users ur ON ur.recruited_by = u.id
+    LEFT JOIN actors a ON a.recruited_by = u.id
+    LEFT JOIN subscriptions s ON ur.id = s.user_id
+    WHERE u.is_commercial = true
+    GROUP BY u.id, u.name, u.commercial_code, u.region, u.created_at
+    ORDER BY total_recruits DESC
+  `);
+  
+  const csvHeader = 'ID,Nom Commercial,Code,Région,Date création,Total recrutés,Total acteurs,Clients Premium,Taux conversion Premium (%)\n';
+  const csvRows = commercials.map(c => {
+    const date = c.created_at ? new Date(c.created_at).toLocaleDateString('fr-FR') : '';
+    const conversionRate = c.total_recruits > 0 ? ((c.premium_recruits / c.total_recruits) * 100).toFixed(2) : '0.00';
+    return [
+      c.id,
+      escapeCSV(c.name),
+      escapeCSV(c.commercial_code),
+      escapeCSV(c.region),
+      escapeCSV(date),
+      c.total_recruits || 0,
+      c.total_actors || 0,
+      c.premium_recruits || 0,
+      conversionRate
+    ].join(',');
+  }).join('\n');
+  
+  const csv = csvHeader + csvRows;
+  const filename = `rapport_consolidé_commerciaux_${new Date().toISOString().split('T')[0]}.csv`;
+  
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send('\uFEFF' + csv);
+});
+
 app.get('/api/commercial/recruits', requireAuth, async (req,res)=>{
   const userId = req.session.user.id;
   const user = await db.getOne('SELECT is_commercial FROM users WHERE id=$1', [userId]);

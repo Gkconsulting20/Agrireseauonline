@@ -322,8 +322,9 @@
   <div class="card" style="margin-top:20px;">
     <h3>💼 Gestion des Commerciaux</h3>
     <p class="muted" style="margin:10px 0;">Créez et gérez les comptes commerciaux</p>
-    <div style="margin-bottom:15px;">
+    <div style="margin-bottom:15px;display:flex;gap:10px;">
       <button id="btnCreateCommercial" style="background:#10b981;color:white;padding:10px 20px;">➕ Créer un commercial</button>
+      <button id="btnDownloadConsolidatedReport" style="background:#6366f1;color:white;padding:10px 20px;">📥 Rapport consolidé (CSV)</button>
     </div>
     <div style="overflow-x:auto;">
       <table class="tbl">
@@ -385,6 +386,12 @@
       <p class="muted" style="margin:10px 0 0 0;font-size:13px;">
         Les utilisateurs doivent entrer ce code lors de leur inscription pour être liés à vous
       </p>
+    </div>
+    
+    <div style="margin-bottom:20px;">
+      <button id="btnDownloadCommercialReport" style="background:#6366f1;color:white;padding:12px 24px;font-size:16px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+        📥 Télécharger mon rapport de performance (CSV)
+      </button>
     </div>
   </div>
   

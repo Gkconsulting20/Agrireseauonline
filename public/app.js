@@ -2671,8 +2671,9 @@ function renderAdminCommercials(){
       <td>${c.total_actors || 0}</td>
       <td><strong style="color:#fbbf24;">💎 ${c.premium_recruits || 0}</strong></td>
       <td>${statusBadge}</td>
-      <td>
+      <td style="display:flex;gap:5px;">
         <button onclick="viewCommercialDetails(${c.id})" style="background:#3b82f6;color:white;padding:4px 8px;font-size:12px;">📊 Détails</button>
+        <button onclick="downloadCommercialReport(${c.id})" style="background:#6366f1;color:white;padding:4px 8px;font-size:12px;">📥 Rapport</button>
       </td>
     </tr>`;
   }).join('');
@@ -2742,6 +2743,21 @@ async function viewCommercialDetails(commercialId){
 }
 
 window.viewCommercialDetails = viewCommercialDetails;
+
+// Fonctions pour télécharger les rapports
+function downloadCommercialReport(commercialId){
+  window.location.href = `/api/admin/commercials/${commercialId}/report`;
+}
+
+window.downloadCommercialReport = downloadCommercialReport;
+
+document.getElementById('btnDownloadCommercialReport')?.addEventListener('click', () => {
+  window.location.href = '/api/commercial/report';
+});
+
+document.getElementById('btnDownloadConsolidatedReport')?.addEventListener('click', () => {
+  window.location.href = '/api/admin/commercials/reports/consolidated';
+});
 
 async function boot(){ 
   const me = await fetch('/api/auth/me'); 
