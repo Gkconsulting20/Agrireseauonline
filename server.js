@@ -50,18 +50,27 @@ async function requirePremium(req,res,next){
 }
 
 app.post('/api/auth/register', async (req,res)=>{ 
-  const {email,password,name,region,role,phone,whatsapp,lat,lng}=req.body; 
+  const {email,password,name,region,role,phone,whatsapp,lat,lng,commercial_code}=req.body; 
   if(!password) return res.status(400).json({error:'password_required'}); 
   if(!email && !phone) return res.status(400).json({error:'email_or_phone_required'}); 
   if(!name) return res.status(400).json({error:'name_required'}); 
   const hash=bcrypt.hashSync(password,10); 
   const normalizedPhone = phone ? phone.replace(/\s+/g, '') : null;
   const normalizedWhatsapp = whatsapp ? whatsapp.replace(/\s+/g, '') : null;
+  
+  let recruitedBy = null;
+  if(commercial_code){
+    const commercial = await db.getOne('SELECT id FROM users WHERE commercial_code=$1 AND is_commercial=true', [commercial_code.trim()]);
+    if(commercial){
+      recruitedBy = commercial.id;
+    }
+  }
+  
   try{ 
-    const user = await db.insertOne('INSERT INTO users (email,name,password_hash,region,role,phone,whatsapp,lat,lng) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)', [email?(email.trim().toLowerCase()):null,name||'',hash,region||'',role||'',normalizedPhone,normalizedWhatsapp,lat||null,lng||null]); 
+    const user = await db.insertOne('INSERT INTO users (email,name,password_hash,region,role,phone,whatsapp,lat,lng,recruited_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)', [email?(email.trim().toLowerCase()):null,name||'',hash,region||'',role||'',normalizedPhone,normalizedWhatsapp,lat||null,lng||null,recruitedBy]); 
     const userId=user.id; 
     await db.query('INSERT INTO subscriptions (user_id,plan,status) VALUES ($1,$2,$3)', [userId,'free','active']); 
-    req.session.user={id:userId,email,name,region,role,phone:normalizedPhone,whatsapp:normalizedWhatsapp,lat,lng,is_admin:user.is_admin||false,status:user.status||'active'}; 
+    req.session.user={id:userId,email,name,region,role,phone:normalizedPhone,whatsapp:normalizedWhatsapp,lat,lng,is_admin:user.is_admin||false,is_commercial:user.is_commercial||false,status:user.status||'active',recruited_by:recruitedBy}; 
     res.status(201).json(req.session.user); 
   } catch(e){ 
     res.status(400).json({error:'registration_failed',message:e.message}); 
@@ -271,8 +280,12 @@ app.post('/api/actors', requireAuth, async (req,res)=>{
   const actorCountRow = await db.getOne('SELECT COUNT(*) as c FROM actors WHERE owner_id=$1', [req.session.user.id]);
   const actorCount = actorCountRow.c;
   if(sub && sub.plan==='free' && actorCount>=2) return res.status(403).json({error:'limit_reached',message:'Version gratuite limitée à 2 acteurs. Passez à Premium pour plus !'});
+  
+  const currentUser = await db.getOne('SELECT recruited_by FROM users WHERE id=$1', [req.session.user.id]);
+  const recruitedBy = currentUser?.recruited_by || null;
+  
   const b=req.body; 
-  const row = await db.insertOne(`INSERT INTO actors (name,role,region,localite,products,need,volume,unit,price,photo_url,certifications,lat,lng,phone,whatsapp,email,verified,owner_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`, [b.name,b.role,b.region,b.localite||'',JSON.stringify(b.products||[]),b.need||'',b.volume||null,b.unit||'kg',b.price||null,b.photo_url||'',JSON.stringify(b.certifications||[]),b.lat||null,b.lng||null,b.phone||'',b.whatsapp||'',b.email||'',b.verified||false,req.session.user.id]); 
+  const row = await db.insertOne(`INSERT INTO actors (name,role,region,localite,products,need,volume,unit,price,photo_url,certifications,lat,lng,phone,whatsapp,email,verified,owner_id,recruited_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`, [b.name,b.role,b.region,b.localite||'',JSON.stringify(b.products||[]),b.need||'',b.volume||null,b.unit||'kg',b.price||null,b.photo_url||'',JSON.stringify(b.certifications||[]),b.lat||null,b.lng||null,b.phone||'',b.whatsapp||'',b.email||'',b.verified||false,req.session.user.id,recruitedBy]); 
   row.products=normalizeProducts(JSON.parse(row.products||'[]')); 
   row.certifications=JSON.parse(row.certifications||'[]'); 
   res.status(201).json(row); 
@@ -552,6 +565,118 @@ app.get('/api/admin/logistics', requireAdmin, async (req,res)=>{
     ORDER BY l.created_at DESC
   `, []);
   res.json(logistics);
+});
+
+// Commercial endpoints - Performance tracking and management
+app.get('/api/commercial/stats', requireAuth, async (req,res)=>{
+  const userId = req.session.user.id;
+  const user = await db.getOne('SELECT is_commercial FROM users WHERE id=$1', [userId]);
+  
+  if(!user || !user.is_commercial){
+    return res.status(403).json({error: 'Accès réservé aux commerciaux'});
+  }
+  
+  const totalUsers = await db.getOne('SELECT COUNT(*) as count FROM users WHERE recruited_by=$1', [userId]);
+  const totalActors = await db.getOne('SELECT COUNT(*) as count FROM actors WHERE recruited_by=$1', [userId]);
+  const premiumUsers = await db.getOne('SELECT COUNT(*) as count FROM users u JOIN subscriptions s ON u.id=s.user_id WHERE u.recruited_by=$1 AND s.plan=$2 AND s.status=$3', [userId, 'premium', 'active']);
+  const recentUsers = await db.getAll('SELECT id, name, email, phone, role, created_at FROM users WHERE recruited_by=$1 ORDER BY created_at DESC LIMIT 10', [userId]);
+  const recentActors = await db.getAll('SELECT a.*, u.name as owner_name FROM actors a LEFT JOIN users u ON a.owner_id=u.id WHERE a.recruited_by=$1 ORDER BY a.created_at DESC LIMIT 10', [userId]);
+  
+  res.json({
+    totalUsers: parseInt(totalUsers.count),
+    totalActors: parseInt(totalActors.count),
+    premiumUsers: parseInt(premiumUsers.count),
+    recentUsers,
+    recentActors
+  });
+});
+
+app.get('/api/commercial/recruits', requireAuth, async (req,res)=>{
+  const userId = req.session.user.id;
+  const user = await db.getOne('SELECT is_commercial FROM users WHERE id=$1', [userId]);
+  
+  if(!user || !user.is_commercial){
+    return res.status(403).json({error: 'Accès réservé aux commerciaux'});
+  }
+  
+  const users = await db.getAll(`
+    SELECT u.id, u.name, u.email, u.phone, u.role, u.region, u.created_at,
+           s.plan, s.status as subscription_status,
+           (SELECT COUNT(*) FROM actors WHERE owner_id=u.id) as actors_count
+    FROM users u
+    LEFT JOIN subscriptions s ON u.id = s.user_id
+    WHERE u.recruited_by = $1
+    ORDER BY u.created_at DESC
+  `, [userId]);
+  
+  res.json(users);
+});
+
+app.get('/api/admin/commercials', requireAdmin, async (req,res)=>{
+  const commercials = await db.getAll(`
+    SELECT u.id, u.name, u.email, u.phone, u.whatsapp, u.region, u.commercial_code, 
+           u.is_commercial, u.status, u.created_at,
+           (SELECT COUNT(*) FROM users WHERE recruited_by=u.id) as total_recruits,
+           (SELECT COUNT(*) FROM actors WHERE recruited_by=u.id) as total_actors,
+           (SELECT COUNT(*) FROM users ur 
+            JOIN subscriptions s ON ur.id=s.user_id 
+            WHERE ur.recruited_by=u.id AND s.plan='premium' AND s.status='active') as premium_recruits
+    FROM users u
+    WHERE u.is_commercial = true
+    ORDER BY u.created_at DESC
+  `, []);
+  res.json(commercials);
+});
+
+app.post('/api/admin/commercials/create', requireAdmin, async (req,res)=>{
+  const {name, email, phone, whatsapp, region, password} = req.body;
+  
+  if(!name || !password || (!email && !phone)){
+    return res.status(400).json({error: 'Nom, mot de passe et email OU téléphone requis'});
+  }
+  
+  const existingUser = email 
+    ? await db.getOne('SELECT id FROM users WHERE email=$1', [email])
+    : await db.getOne('SELECT id FROM users WHERE phone=$1', [phone?.replace(/\s/g,'')]);
+  
+  if(existingUser){
+    return res.status(400).json({error: 'Un utilisateur avec cet email/téléphone existe déjà'});
+  }
+  
+  const commercialCode = `COM-${name.toUpperCase().replace(/\s/g,'').substring(0,6)}-${Date.now().toString().slice(-4)}`;
+  const hashedPassword = await bcrypt.hash(password, 10);
+  
+  const newCommercial = await db.insertOne(
+    'INSERT INTO users (name, email, phone, whatsapp, region, password_hash, is_commercial, commercial_code, role, status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
+    [name, email||null, phone?.replace(/\s/g,'')||null, whatsapp||null, region||null, hashedPassword, true, commercialCode, 'commercial', 'active']
+  );
+  
+  await db.query(
+    'INSERT INTO subscriptions (user_id, plan, status) VALUES ($1,$2,$3)',
+    [newCommercial.id, 'free', 'active']
+  );
+  
+  res.status(201).json({
+    id: newCommercial.id,
+    name: newCommercial.name,
+    email: newCommercial.email,
+    phone: newCommercial.phone,
+    commercial_code: commercialCode,
+    message: 'Compte commercial créé avec succès'
+  });
+});
+
+app.put('/api/admin/commercials/:id', requireAdmin, async (req,res)=>{
+  const commercialId = Number(req.params.id);
+  const {name, email, phone, whatsapp, region, status, is_commercial} = req.body;
+  
+  await db.query(
+    'UPDATE users SET name=$1, email=$2, phone=$3, whatsapp=$4, region=$5, status=$6, is_commercial=$7 WHERE id=$8',
+    [name, email, phone, whatsapp, region, status, is_commercial, commercialId]
+  );
+  
+  const updated = await db.getOne('SELECT id, name, email, phone, whatsapp, region, commercial_code, is_commercial, status FROM users WHERE id=$1', [commercialId]);
+  res.json(updated);
 });
 
 // Payment endpoints - FedaPay integration for T-Money, Flooz, and Credit Cards

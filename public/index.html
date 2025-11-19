@@ -24,6 +24,7 @@
   <button data-tab="stats" id="statsTab" style="display:none">📊 Statistiques</button>
   <button data-tab="settings" id="settingsTab" style="display:none">⚙️ Paramètres</button>
   <button data-tab="admin" id="adminTab" style="display:none">Administration</button>
+  <button data-tab="commercial" id="commercialTab" style="display:none">📊 Performance</button>
 </nav>
 <section id="actors" class="tab active">
   <div class="card" style="margin-bottom: 20px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);">
@@ -319,10 +320,94 @@
   </div>
   
   <div class="card" style="margin-top:20px;">
+    <h3>💼 Gestion des Commerciaux</h3>
+    <p class="muted" style="margin:10px 0;">Créez et gérez les comptes commerciaux</p>
+    <div style="margin-bottom:15px;">
+      <button id="btnCreateCommercial" style="background:#10b981;color:white;padding:10px 20px;">➕ Créer un commercial</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nom</th>
+            <th>Email/Téléphone</th>
+            <th>Code</th>
+            <th>Région</th>
+            <th>Recrutés</th>
+            <th>Acteurs</th>
+            <th>Premium</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="adminCommercialsList">
+          <tr><td colspan="10" class="muted" style="text-align:center;padding:20px;">Chargement...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  <div class="card" style="margin-top:20px;">
     <h3>🗑️ Gestion des Données de Démo</h3>
     <p class="muted" style="margin:10px 0;">Attention : Cette action supprimera toutes les données de démonstration et les remplacera par de nouvelles données de test</p>
     <div style="margin-top:15px;">
       <button id="btnSeed" style="background:#ef4444;color:white;padding:10px 20px;">🔄 Réinitialiser les données (seed)</button>
+    </div>
+  </div>
+</section>
+<section id="commercial" class="tab">
+  <div class="card">
+    <h3>📊 Tableau de Bord Commercial</h3>
+    <p class="muted" style="margin:10px 0;">Suivez vos performances et vos recrutements</p>
+    
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin:20px 0;">
+      <div style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+        <div style="font-size:32px;font-weight:bold;" id="commercialTotalUsers">0</div>
+        <div style="font-size:14px;opacity:0.9;">Utilisateurs recrutés</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+        <div style="font-size:32px;font-weight:bold;" id="commercialTotalActors">0</div>
+        <div style="font-size:14px;opacity:0.9;">Acteurs créés</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#fbbf24,#f59e0b);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+        <div style="font-size:32px;font-weight:bold;" id="commercialPremiumUsers">0</div>
+        <div style="font-size:14px;opacity:0.9;">💎 Clients Premium</div>
+      </div>
+    </div>
+    
+    <div style="background:#f0fdf4;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #10b981;">
+      <p style="font-weight:bold;margin:0 0 5px 0;">🔗 Votre code de parrainage :</p>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <input id="commercialCodeDisplay" type="text" readonly style="flex:1;padding:10px;font-size:16px;font-weight:bold;border:2px solid #10b981;border-radius:8px;background:white;">
+        <button id="btnCopyCommercialCode" style="background:#10b981;color:white;padding:10px 20px;">📋 Copier</button>
+      </div>
+      <p class="muted" style="margin:10px 0 0 0;font-size:13px;">
+        Les utilisateurs doivent entrer ce code lors de leur inscription pour être liés à vous
+      </p>
+    </div>
+  </div>
+  
+  <div class="card" style="margin-top:20px;">
+    <h3>👥 Utilisateurs recrutés</h3>
+    <div style="overflow-x:auto;">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nom</th>
+            <th>Email/Téléphone</th>
+            <th>Rôle</th>
+            <th>Région</th>
+            <th>Plan</th>
+            <th>Acteurs</th>
+            <th>Date inscription</th>
+          </tr>
+        </thead>
+        <tbody id="commercialRecruitsList">
+          <tr><td colspan="8" class="muted" style="text-align:center;padding:20px;">Chargement...</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </section>
