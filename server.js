@@ -830,6 +830,26 @@ app.put('/api/admin/commercials/:id', requireAdmin, async (req,res)=>{
   res.json(updated);
 });
 
+app.delete('/api/admin/commercials/:id', requireAdmin, async (req,res)=>{
+  const commercialId = Number(req.params.id);
+  const adminId = req.session.user.id;
+  
+  // Empêcher l'admin de supprimer son propre compte
+  if(commercialId === adminId){
+    return res.status(400).json({error: 'Vous ne pouvez pas supprimer votre propre compte'});
+  }
+  
+  // Vérifier que c'est bien un commercial
+  const commercial = await db.getOne('SELECT is_commercial FROM users WHERE id=$1', [commercialId]);
+  if(!commercial){
+    return res.status(404).json({error: 'Commercial introuvable'});
+  }
+  
+  // Supprimer le commercial et ses données associées
+  await db.query('DELETE FROM users WHERE id=$1', [commercialId]);
+  res.json({message: 'Commercial supprimé avec succès'});
+});
+
 // Payment endpoints - FedaPay integration for T-Money, Flooz, and Credit Cards
 app.post('/api/payments/initiate', requireAuth, async (req,res)=>{
   const {amount, description} = req.body;

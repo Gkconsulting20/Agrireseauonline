@@ -2661,6 +2661,15 @@ function renderAdminCommercials(){
   }
   tbody.innerHTML = ADMIN_COMMERCIALS.map(c => {
     const statusBadge = c.status === 'active' ? '<span class="badge" style="background:#10b981;color:white">✓ Actif</span>' : '<span class="badge" style="background:#ef4444;color:white">Bloqué</span>';
+    
+    const blockBtn = c.status === 'blocked' 
+      ? `<button onclick="toggleBlockCommercial(${c.id}, '${c.status}')" style="background:#10b981;color:white;padding:4px 8px;font-size:12px;">Débloquer</button>`
+      : `<button onclick="toggleBlockCommercial(${c.id}, '${c.status}')" style="background:#ef4444;color:white;padding:4px 8px;font-size:12px;">Bloquer</button>`;
+    
+    const deleteBtn = c.id === ME.id 
+      ? '<button disabled style="opacity:0.5;padding:4px 8px;font-size:12px;">Supprimer</button>'
+      : `<button onclick="deleteCommercial(${c.id})" style="background:#dc2626;color:white;padding:4px 8px;font-size:12px;">Supprimer</button>`;
+    
     return `<tr>
       <td>${c.id}</td>
       <td><strong>${c.name || '-'}</strong></td>
@@ -2671,9 +2680,11 @@ function renderAdminCommercials(){
       <td>${c.total_actors || 0}</td>
       <td><strong style="color:#fbbf24;">💎 ${c.premium_recruits || 0}</strong></td>
       <td>${statusBadge}</td>
-      <td style="display:flex;gap:5px;">
+      <td style="display:flex;gap:5px;flex-wrap:wrap;">
         <button onclick="viewCommercialDetails(${c.id})" style="background:#3b82f6;color:white;padding:4px 8px;font-size:12px;">📊 Détails</button>
         <button onclick="downloadCommercialReport(${c.id})" style="background:#6366f1;color:white;padding:4px 8px;font-size:12px;">📥 Rapport</button>
+        ${blockBtn}
+        ${deleteBtn}
       </td>
     </tr>`;
   }).join('');
@@ -2750,6 +2761,74 @@ function downloadCommercialReport(commercialId){
 }
 
 window.downloadCommercialReport = downloadCommercialReport;
+
+async function toggleBlockCommercial(commercialId, currentStatus){
+  if(!ME || !ME.is_admin) return alert('Accès refusé');
+  
+  const newStatus = currentStatus === 'blocked' ? 'active' : 'blocked';
+  const action = newStatus === 'blocked' ? 'bloquer' : 'débloquer';
+  
+  if(!confirm(`Voulez-vous vraiment ${action} ce commercial ?`)) return;
+  
+  try {
+    const commercial = ADMIN_COMMERCIALS.find(c => c.id === commercialId);
+    if(!commercial) return alert('Commercial introuvable');
+    
+    const r = await fetch(`/api/admin/commercials/${commercialId}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        name: commercial.name,
+        email: commercial.email,
+        phone: commercial.phone,
+        whatsapp: commercial.whatsapp,
+        region: commercial.region,
+        status: newStatus,
+        is_commercial: true
+      })
+    });
+    
+    if(r.ok){
+      await loadAdminCommercials();
+      alert(`Commercial ${newStatus === 'blocked' ? 'bloqué' : 'débloqué'} avec succès`);
+    } else {
+      const err = await r.json();
+      alert(err.error || 'Erreur lors de la modification');
+    }
+  } catch(e) {
+    console.error('Error:', e);
+    alert('Erreur réseau');
+  }
+}
+
+async function deleteCommercial(commercialId){
+  if(!ME || !ME.is_admin) return alert('Accès refusé');
+  
+  const commercial = ADMIN_COMMERCIALS.find(c => c.id === commercialId);
+  if(!commercial) return alert('Commercial introuvable');
+  
+  if(!confirm(`⚠️ ATTENTION ⚠️\n\nVoulez-vous vraiment supprimer le commercial "${commercial.name}" ?\n\nCette action est irréversible et supprimera :\n- Le compte commercial\n- Tous les liens avec ses recrues\n\nContinuer ?`)) return;
+  
+  try {
+    const r = await fetch(`/api/admin/commercials/${commercialId}`, {
+      method: 'DELETE'
+    });
+    
+    if(r.ok){
+      await loadAdminCommercials();
+      alert('Commercial supprimé avec succès');
+    } else {
+      const err = await r.json();
+      alert(err.error || 'Erreur lors de la suppression');
+    }
+  } catch(e) {
+    console.error('Error:', e);
+    alert('Erreur réseau');
+  }
+}
+
+window.toggleBlockCommercial = toggleBlockCommercial;
+window.deleteCommercial = deleteCommercial;
 
 document.getElementById('btnDownloadCommercialReport')?.addEventListener('click', () => {
   window.location.href = '/api/commercial/report';
