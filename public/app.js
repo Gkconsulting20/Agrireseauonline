@@ -862,6 +862,7 @@ function renderBudgets(){
         </div>
         <div>
           <a href="#" data-id="${b.id}" class="open" style="margin-right:10px;">📊 Voir détails</a>
+          <a href="#" data-id="${b.id}" class="edit" style="margin-right:10px;">✏️ Modifier</a>
           <a href="#" data-id="${b.id}" class="del">🗑 Supprimer</a>
         </div>
       </div>
