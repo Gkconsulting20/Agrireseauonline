@@ -888,6 +888,7 @@ function renderBudgets(){
     `;
     list.appendChild(el);
     el.querySelector('.open').onclick=(e)=>{ e.preventDefault(); openBudget(b); };
+    el.querySelector('.edit').onclick=(e)=>{ e.preventDefault(); openEditBudgetDialog(b); };
     el.querySelector('.del').onclick=async(e)=>{ 
       e.preventDefault(); 
       if(!confirm('Supprimer ce budget et tous ses coûts réels ?')) return; 
@@ -1324,9 +1325,24 @@ function renderCosts(){
   filtered.forEach(c=>{
     const el=document.createElement('div');
     el.className='card';
-    el.innerHTML=`<div><strong>${c.kind==='income'?'💰 Recette':'💸 Dépense'}</strong> · ${c.category||'-'} · <strong>${Number(c.amount).toLocaleString()} FCFA</strong> <span class="muted right">${c.occurred_on}</span></div>
-      <div class="muted">${c.note||''}</div>`;
+    el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:start;">
+      <div style="flex:1;">
+        <div><strong>${c.kind==='income'?'💰 Recette':'💸 Dépense'}</strong> · ${c.category||'-'} · <strong>${Number(c.amount).toLocaleString()} FCFA</strong> <span class="muted">${c.occurred_on}</span></div>
+        <div class="muted">${c.note||''}</div>
+      </div>
+      <div style="white-space:nowrap;">
+        <a href="#" data-id="${c.id}" class="edit-cost" style="margin-right:8px;">✏️</a>
+        <a href="#" data-id="${c.id}" class="del-cost">🗑</a>
+      </div>
+    </div>`;
     list.appendChild(el);
+    el.querySelector('.edit-cost').onclick=(e)=>{ e.preventDefault(); openEditCostDialog(c); };
+    el.querySelector('.del-cost').onclick=async(e)=>{ 
+      e.preventDefault(); 
+      if(!confirm('Supprimer cette dépense ?')) return; 
+      await fetch('/api/budget/'+c.id,{method:'DELETE'}); 
+      await loadCosts(); 
+    };
   });
 }
 async function showCostSummary(budgetId){
@@ -1588,6 +1604,134 @@ document.getElementById('costAdd')?.addEventListener('click',async()=>{
   document.getElementById('costAmount').value='';document.getElementById('costNote').value='';
   await loadCosts();await loadBudgets();
 });
+
+function openEditCostDialog(cost){
+  if(!ME) return alert("Connecte-toi d'abord.");
+  const dlg = document.createElement('dialog');
+  dlg.innerHTML = `<form id="frmEditCost" class="dialog-body">
+    <h3>✏️ Modifier la dépense</h3>
+    <div class="grid2">
+      <label>Date <input name="occurred_on" type="date" value="${cost.occurred_on}" required></label>
+      <label>Catégorie <input name="category" value="${cost.category || ''}" required></label>
+      <label>Montant (FCFA) <input name="amount" type="number" value="${cost.amount}" required></label>
+      <label>Description <input name="note" value="${cost.note || ''}"></label>
+    </div>
+    <div class="dialog-actions">
+      <button type="submit">💾 Enregistrer</button>
+      <button type="button" id="cancelEditCost">Annuler</button>
+    </div>
+  </form>`;
+  document.body.appendChild(dlg);
+  dlg.showModal();
+  dlg.querySelector('#cancelEditCost').onclick = () => dlg.close();
+  dlg.querySelector('#frmEditCost').onsubmit = async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target).entries());
+    const payload = {
+      kind: cost.kind,
+      activity_id: cost.activity_id,
+      category: data.category,
+      amount: Number(data.amount),
+      occurred_on: data.occurred_on,
+      note: data.note
+    };
+    const r = await fetch(`/api/budget/${cost.id}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if(!r.ok){
+      alert('Erreur lors de la modification');
+      return;
+    }
+    dlg.close();
+    await loadCosts();
+    await loadBudgets();
+  };
+}
+
+function openEditBudgetDialog(budget){
+  if(!ME) return alert("Connecte-toi d'abord.");
+  const myActors = ACTORS.filter(a=>a.owner_id===ME.id);
+  if(myActors.length === 0) return alert("Aucun acteur disponible.");
+  
+  const dlg = document.createElement('dialog');
+  const actorsOptions = myActors.map(a=>`<option value="${a.id}" ${budget.actor_id == a.id ? 'selected' : ''}>${a.name}</option>`).join('');
+  const unitsOptions = (REFS.units||['kg','unité','plateau','litre','sac','tonne','tête']).map(u=>`<option value="${u}" ${budget.unit === u ? 'selected' : ''}>${u}</option>`).join('');
+  
+  dlg.innerHTML = `<form id="frmEditBudget" class="dialog-body">
+    <h3>✏️ Modifier le Budget</h3>
+    <p class="muted">Modifiez les informations de votre budget prévisionnel</p>
+    <div class="grid2">
+      <label>Activité <input name="label" value="${budget.label || ''}" required></label>
+      <label>Acteur concerné <select name="actor_id" required>${actorsOptions}</select></label>
+      <label>Filière <input name="filiere" list="editFiliereList" value="${budget.filiere || ''}" required>
+        <datalist id="editFiliereList">
+          <option value="Maïs"><option value="Manioc"><option value="Riz"><option value="Maraîchage">
+          <option value="Soja"><option value="Volailles"><option value="Élevage bovin"><option value="Aviculture">
+        </datalist>
+      </label>
+      <label>Produit récolté <input name="harvest_product" value="${budget.harvest_product || ''}" required></label>
+      <label>Date de début <input name="started_at" type="date" value="${budget.started_at || ''}" required></label>
+      <label>Cycle (jours) <input name="production_cycle_days" type="number" value="${budget.production_cycle_days || 0}" min="1" required></label>
+      <label>Période <select name="periode">
+        <option ${budget.periode==='Annuel'?'selected':''}>Annuel</option>
+        <option ${budget.periode==='Trimestriel'?'selected':''}>Trimestriel</option>
+        <option ${budget.periode==='Mensuel'?'selected':''}>Mensuel</option>
+      </select></label>
+      <label>Unité <select name="unit">${unitsOptions}</select></label>
+      <label>Quantité prévue <input name="output_qty" type="number" value="${budget.output_qty || 0}"></label>
+      <label>Prix de vente prévu (FCFA/unité) <input name="price_expected" type="number" value="${budget.price_expected || 0}"></label>
+      <label>Dépenses prévues (FCFA) <input name="transport" type="number" value="${budget.transport || 0}"></label>
+    </div>
+    <div class="dialog-actions">
+      <button type="submit">💾 Enregistrer</button>
+      <button type="button" id="cancelEditBudget">Annuler</button>
+    </div>
+  </form>`;
+  
+  document.body.appendChild(dlg);
+  dlg.showModal();
+  dlg.querySelector('#cancelEditBudget').onclick = () => dlg.close();
+  
+  dlg.querySelector('#frmEditBudget').onsubmit = async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target).entries());
+    const payload = {
+      label: data.label,
+      filiere: data.filiere,
+      harvest_product: data.harvest_product,
+      started_at: data.started_at,
+      production_cycle_days: Number(data.production_cycle_days),
+      periode: data.periode,
+      unit: data.unit,
+      output_qty: Number(data.output_qty || 0),
+      price_expected: Number(data.price_expected || 0),
+      transport: Number(data.transport || 0),
+      actor_id: Number(data.actor_id),
+      target_margin: budget.target_margin || 0,
+      autres: budget.autres || 0,
+      overhead_pct: budget.overhead_pct || 0,
+      actual_harvest: budget.actual_harvest || null
+    };
+    
+    const r = await fetch(`/api/activities/${budget.id}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    
+    if(!r.ok){
+      alert('Erreur lors de la modification');
+      return;
+    }
+    
+    dlg.close();
+    await loadBudgets();
+    const updated = await r.json();
+    openBudget(updated);
+  };
+}
 
 async function loadAdminUsers(){
   if(!ME || !ME.is_admin) return;
