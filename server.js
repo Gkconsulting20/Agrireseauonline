@@ -42,6 +42,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 function requireAuth(req,res,next){ if(!req.session.user) return res.status(401).json({error:'auth_required'}); next(); }
 function requireAdmin(req,res,next){ if(!req.session.user) return res.status(401).json({error:'auth_required'}); if(!req.session.user.is_admin) return res.status(403).json({error:'admin_required'}); next(); }
+function blockCommercial(req,res,next){ if(req.session.user && req.session.user.is_commercial) return res.status(403).json({error:'commercial_restricted', message:'Les commerciaux ne peuvent pas effectuer cette action. Ce compte est réservé au suivi des performances.'}); next(); }
 async function requirePremium(req,res,next){ 
   if(!req.session.user) return res.status(401).json({error:'auth_required'}); 
   const sub = await db.getOne('SELECT * FROM subscriptions WHERE user_id=$1', [req.session.user.id]);
@@ -89,7 +90,7 @@ app.post('/api/auth/login', async (req,res)=>{
   if(!u) return res.status(400).json({error:'invalid_credentials'}); 
   if(u.status === 'blocked') return res.status(403).json({error:'account_blocked',message:'Votre compte a été bloqué'}); 
   if(!bcrypt.compareSync(password||'',u.password_hash)) return res.status(400).json({error:'invalid_credentials'}); 
-  req.session.user={id:u.id,email:u.email,name:u.name,region:u.region,role:u.role,phone:u.phone,whatsapp:u.whatsapp,lat:u.lat,lng:u.lng,is_admin:u.is_admin,status:u.status}; 
+  req.session.user={id:u.id,email:u.email,name:u.name,region:u.region,role:u.role,phone:u.phone,whatsapp:u.whatsapp,lat:u.lat,lng:u.lng,is_admin:u.is_admin,is_commercial:u.is_commercial,status:u.status}; 
   res.json(req.session.user); 
 });
 
@@ -121,7 +122,7 @@ app.put('/api/user/profile', requireAuth, async (req,res)=>{
       [name, email?(email.trim().toLowerCase()):null, normalizedPhone, normalizedWhatsapp, region, finalRole, userId]
     );
     
-    const updated = await db.getOne('SELECT id, email, name, phone, whatsapp, region, role, lat, lng, is_admin, status FROM users WHERE id=$1', [userId]);
+    const updated = await db.getOne('SELECT id, email, name, phone, whatsapp, region, role, lat, lng, is_admin, is_commercial, status FROM users WHERE id=$1', [userId]);
     req.session.user = updated;
     res.json(updated);
   } catch(e) {
@@ -275,7 +276,7 @@ app.get('/api/actors', async (req,res)=>{
   res.json(result); 
 });
 
-app.post('/api/actors', requireAuth, async (req,res)=>{ 
+app.post('/api/actors', requireAuth, blockCommercial, async (req,res)=>{ 
   const sub = await db.getOne('SELECT * FROM subscriptions WHERE user_id=$1', [req.session.user.id]);
   const actorCountRow = await db.getOne('SELECT COUNT(*) as c FROM actors WHERE owner_id=$1', [req.session.user.id]);
   const actorCount = actorCountRow.c;
@@ -291,7 +292,7 @@ app.post('/api/actors', requireAuth, async (req,res)=>{
   res.status(201).json(row); 
 });
 
-app.put('/api/actors/:id', requireAuth, async (req,res)=>{ 
+app.put('/api/actors/:id', requireAuth, blockCommercial, async (req,res)=>{ 
   const id=Number(req.params.id), b=req.body; 
   await db.query(`UPDATE actors SET name=$1,role=$2,region=$3,localite=$4,products=$5,need=$6,volume=$7,unit=$8,price=$9,photo_url=$10,certifications=$11,lat=$12,lng=$13,phone=$14,whatsapp=$15,email=$16,verified=$17 WHERE id=$18`, [b.name,b.role,b.region,b.localite||'',JSON.stringify(b.products||[]),b.need||'',b.volume||null,b.unit||'kg',b.price||null,b.photo_url||'',JSON.stringify(b.certifications||[]),b.lat||null,b.lng||null,b.phone||'',b.whatsapp||'',b.email||'',b.verified||false,id]); 
   const row = await db.getOne('SELECT * FROM actors WHERE id=$1', [id]); 
@@ -300,7 +301,7 @@ app.put('/api/actors/:id', requireAuth, async (req,res)=>{
   res.json(row); 
 });
 
-app.delete('/api/actors/:id', requireAuth, async (req,res)=>{ 
+app.delete('/api/actors/:id', requireAuth, blockCommercial, async (req,res)=>{ 
   await db.query('DELETE FROM actors WHERE id=$1', [Number(req.params.id)]); 
   res.status(204).end(); 
 });
@@ -358,7 +359,7 @@ app.get('/api/logistics', async (req,res)=>{
   res.json(rows); 
 });
 
-app.post('/api/logistics', requireAuth, async (req,res)=>{ 
+app.post('/api/logistics', requireAuth, blockCommercial, async (req,res)=>{ 
   const b=req.body; 
   const row = await db.insertOne('INSERT INTO logistics (type,title,region,details,contact,whatsapp,owner_id) VALUES ($1,$2,$3,$4,$5,$6,$7)', [b.type,b.title,b.region,b.details||'',b.contact||'',b.whatsapp||'',req.session.user.id]); 
   res.status(201).json(row); 
@@ -392,7 +393,7 @@ app.get('/api/activities', requireAuth, async (req,res)=>{
   res.json(acts); 
 });
 
-app.post('/api/activities', requireAuth, async (req,res)=>{ 
+app.post('/api/activities', requireAuth, blockCommercial, async (req,res)=>{ 
   const b=req.body; 
   const act = await db.insertOne(`INSERT INTO activities (user_id,filiere,label,periode,output_qty,target_margin,price_expected,transport,autres,overhead_pct,status,started_at,harvest_product,actor_id,production_cycle_days,unit) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`, [req.session.user.id,b.filiere,b.label,b.periode,b.output_qty||0,b.target_margin||0,b.price_expected||0,b.transport||0,b.autres||0,b.overhead_pct||10,b.status||'planned',b.started_at||null,b.harvest_product||null,b.actor_id||null,b.production_cycle_days||null,b.unit||'kg']); 
   res.status(201).json(act); 
@@ -417,7 +418,7 @@ app.get('/api/activities/:id/items', requireAuth, async (req,res)=>{
   res.json(rows); 
 });
 
-app.post('/api/activities/:id/items', requireAuth, async (req,res)=>{ 
+app.post('/api/activities/:id/items', requireAuth, blockCommercial, async (req,res)=>{ 
   const id=Number(req.params.id), b=req.body; 
   const row = await db.insertOne('INSERT INTO activity_items (activity_id,kind,label,qty,unit,unit_price) VALUES ($1,$2,$3,$4,$5,$6)', [id,b.kind,b.label,b.qty||0,b.unit||'',b.unit_price||0]); 
   res.status(201).json(row); 

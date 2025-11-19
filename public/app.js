@@ -2758,17 +2758,40 @@ async function boot(){
   const commercialTab = document.getElementById('commercialTab');
   if(commercialTab) commercialTab.style.display = ME && ME.is_commercial ? 'inline-block' : 'none';
   
-  const statsTab = document.getElementById('statsTab');
-  if(statsTab) statsTab.style.display = ME ? 'inline-block' : 'none';
-  
-  const settingsTab = document.getElementById('settingsTab');
-  if(settingsTab) settingsTab.style.display = ME ? 'inline-block' : 'none';
-  
-  const budgetTab = document.getElementById('budgetTab');
-  if(budgetTab) budgetTab.style.display = ME ? 'inline-block' : 'none';
-  
-  const costingTab = document.getElementById('costingTab');
-  if(costingTab) costingTab.style.display = ME ? 'inline-block' : 'none';
+  // Les commerciaux ne peuvent accéder qu'à leur dashboard commercial
+  if(ME && ME.is_commercial){
+    // Masquer tous les onglets sauf Commercial
+    const tabsToHide = ['actorsTab', 'mapTab', 'logisticsTab', 'budgetTab', 'costingTab', 'statsTab', 'settingsTab'];
+    tabsToHide.forEach(tabId => {
+      const tab = document.getElementById(tabId);
+      if(tab) tab.style.display = 'none';
+    });
+    
+    // Masquer le bouton "Ajouter un acteur"
+    const addActorBtn = document.getElementById('btnAddActor');
+    if(addActorBtn) addActorBtn.style.display = 'none';
+    
+    // Activer automatiquement l'onglet Commercial
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+    if(commercialTab){
+      commercialTab.classList.add('active');
+      document.getElementById('commercial').classList.add('active');
+    }
+  } else {
+    // Pour les utilisateurs normaux, afficher les onglets appropriés
+    const statsTab = document.getElementById('statsTab');
+    if(statsTab) statsTab.style.display = ME ? 'inline-block' : 'none';
+    
+    const settingsTab = document.getElementById('settingsTab');
+    if(settingsTab) settingsTab.style.display = ME ? 'inline-block' : 'none';
+    
+    const budgetTab = document.getElementById('budgetTab');
+    if(budgetTab) budgetTab.style.display = ME ? 'inline-block' : 'none';
+    
+    const costingTab = document.getElementById('costingTab');
+    if(costingTab) costingTab.style.display = ME ? 'inline-block' : 'none';
+  }
   
   await loadRefs(); 
   await loadActors(); 
