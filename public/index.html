@@ -76,9 +76,10 @@
             <option value="">Sélectionner un budget...</option>
           </select>
           <input id="costDate" type="date">
-          <select id="costCat">
+          <input id="costCat" list="costCatList" placeholder="Catégorie (choisir ou saisir...)" required>
+          <datalist id="costCatList">
             <option value="">Sélectionnez d'abord un budget...</option>
-          </select>
+          </datalist>
           <input id="costAmount" type="number" placeholder="Montant réel (FCFA)" step="100">
           <input id="costNote" placeholder="Description (facultatif)">
         </div>

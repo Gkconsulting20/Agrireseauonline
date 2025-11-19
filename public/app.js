@@ -1548,17 +1548,17 @@ const EXPENSE_CATEGORIES = {
 };
 
 function updateExpenseCategoriesByRole(role) {
-  const select = document.getElementById('costCat');
-  if (!select) return;
+  const datalist = document.getElementById('costCatList');
+  if (!datalist) return;
   
   const categories = EXPENSE_CATEGORIES[role] || EXPENSE_CATEGORIES['producteur'];
   
-  select.innerHTML = '<option value="">Choisir une catégorie...</option>' + 
-    categories.map(group => 
-      `<optgroup label="${group.group}">` +
-      group.items.map(item => `<option value="${item}">${item}</option>`).join('') +
-      '</optgroup>'
-    ).join('');
+  // Créer toutes les options de catégories pour le datalist
+  const allOptions = categories.flatMap(group => 
+    group.items.map(item => `<option value="${item}">${group.group} - ${item}</option>`)
+  );
+  
+  datalist.innerHTML = allOptions.join('');
 }
 
 async function refreshCostBudgets(){
