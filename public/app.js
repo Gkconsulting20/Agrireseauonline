@@ -1234,6 +1234,7 @@ async function showCostSummary(budgetId){
   const totalCost = S.totalRealExpenses || 0;
   const actualHarvest = S.actual_harvest || 0;
   const targetMargin = budget.target_margin || 0;
+  const unit = budget.unit || 'kg';
   const unitCost = actualHarvest > 0 ? totalCost / actualHarvest : 0;
   const suggestedPrice = unitCost * (1 + targetMargin / 100);
   root.innerHTML=`
@@ -1252,15 +1253,15 @@ async function showCostSummary(budgetId){
       <h5 style="margin:0 0 10px 0;color:#92400e;">🌾 Quantité récoltée</h5>
       <div style="display:flex;gap:10px;align-items:center;">
         <input type="number" id="harvestQty" value="${actualHarvest}" min="0" step="0.01" style="flex:1;padding:8px;border:2px solid #fbbf24;border-radius:4px;font-size:16px;font-weight:bold;">
-        <span>kg</span>
+        <span>${unit}</span>
         <button id="btnUpdateHarvest" style="padding:8px 15px;background:#fbbf24;border:none;border-radius:4px;cursor:pointer;">✏️ Modifier</button>
       </div>
     </div>
     
     <div style="background:#eff6ff;padding:15px;border-radius:8px;margin-bottom:15px;">
       <h5 style="margin:0 0 10px 0;color:#1e40af;">📊 Coût de revient unitaire</h5>
-      <p style="margin:0;font-size:24px;font-weight:bold;color:#1e40af;">${unitCost.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2})} FCFA/kg</p>
-      <p style="margin:5px 0 0 0;font-size:12px;color:#6b7280;">Calcul: ${totalCost.toLocaleString()} FCFA ÷ ${actualHarvest} kg</p>
+      <p style="margin:0;font-size:24px;font-weight:bold;color:#1e40af;">${unitCost.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2})} FCFA/${unit}</p>
+      <p style="margin:5px 0 0 0;font-size:12px;color:#6b7280;">Calcul: ${totalCost.toLocaleString()} FCFA ÷ ${actualHarvest} ${unit}</p>
     </div>
     
     <div style="background:#f3e8ff;padding:15px;border-radius:8px;margin-bottom:15px;">
