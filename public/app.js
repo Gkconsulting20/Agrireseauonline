@@ -1159,8 +1159,28 @@ function openBudgetDialog(){
     <div class="grid2">
       <label>Activité <input name="label" required placeholder="Ex: Production de maïs 2025"></label>
       <label>Acteur concerné <select name="actor_id" id="budgetActorSelect" required>${actorsOptions}</select></label>
-      <label>Filière <select name="filiere"><option>Maïs</option><option>Manioc</option><option>Riz</option><option>Maraîchage</option><option>Soja</option><option>Volailles</option><option>Élevage bovin</option><option>Aviculture</option><option>Porcins</option></select></label>
-      <label>Produit récolté <select name="harvest_product" id="budgetProductSelect" required><option value="">Choisir un produit...</option></select></label>
+      <label>Filière 
+        <input name="filiere" list="filiereList" required placeholder="Choisir ou saisir...">
+        <datalist id="filiereList">
+          <option value="Maïs">
+          <option value="Manioc">
+          <option value="Riz">
+          <option value="Maraîchage">
+          <option value="Soja">
+          <option value="Volailles">
+          <option value="Élevage bovin">
+          <option value="Aviculture">
+          <option value="Porcins">
+          <option value="Oeufs">
+          <option value="Lait">
+          <option value="Tomates">
+          <option value="Arachide">
+        </datalist>
+      </label>
+      <label>Produit récolté 
+        <input name="harvest_product" id="budgetProductInput" list="productList" required placeholder="Choisir ou saisir...">
+        <datalist id="productList"></datalist>
+      </label>
       <label>Date de début <input name="started_at" type="date" value="${today}" required></label>
       <label>Cycle de production (jours) <input name="production_cycle_days" type="number" placeholder="Ex: 90" min="1" required></label>
       <label>Période <select name="periode"><option>Annuel</option><option>Trimestriel</option><option>Mensuel</option></select></label>
@@ -1181,17 +1201,16 @@ function openBudgetDialog(){
   const loadActorProducts = () => {
     const actorId = Number(f.actor_id.value);
     const actor = myActors.find(a => a.id === actorId);
-    const productSelect = dlg.querySelector('#budgetProductSelect');
+    const productDatalist = dlg.querySelector('#productList');
     
     if(actor && actor.products && actor.products.length > 0){
-      productSelect.innerHTML = '<option value="">Choisir un produit...</option>' + 
-        actor.products.map(p => {
-          const productName = typeof p === 'string' ? p : p.name;
-          const productSite = (typeof p === 'object' && p.production_site) ? ` (${p.production_site})` : '';
-          return `<option value="${productName}">${productName}${productSite}</option>`;
-        }).join('');
+      productDatalist.innerHTML = actor.products.map(p => {
+        const productName = typeof p === 'string' ? p : p.name;
+        const productSite = (typeof p === 'object' && p.production_site) ? ` (${p.production_site})` : '';
+        return `<option value="${productName}">${productName}${productSite}</option>`;
+      }).join('');
     } else {
-      productSelect.innerHTML = '<option value="">Aucun produit défini pour cet acteur</option>';
+      productDatalist.innerHTML = '';
     }
   };
   
