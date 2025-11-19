@@ -7,7 +7,8 @@ tabs.forEach(b=> b.addEventListener('click',()=>{
   if(b.dataset.tab==='map') renderMap(); 
   if(b.dataset.tab==='budget'){ loadBudgets(); refreshCostBudgets(); }
   if(b.dataset.tab==='costing'){ loadCosts(); refreshCostBudgets(); }
-  if(b.dataset.tab==='admin'){ loadAdminUsers(); loadAdminLogistics(); }
+  if(b.dataset.tab==='admin'){ loadAdminUsers(); loadAdminLogistics(); loadAdminCommercials(); }
+  if(b.dataset.tab==='commercial'){ loadCommercialStats(); }
   if(b.dataset.tab==='settings'){ loadUserSettings(); loadPaymentHistory(); }
   if(b.dataset.tab==='stats'){ loadStats(); loadNotifications(); }
 }));
@@ -28,7 +29,8 @@ async function openLogin(){
     <label>Téléphone <input name="phone" type="tel" placeholder="+228 XX XX XX XX"></label>
     <label>WhatsApp <input name="whatsapp" type="tel" placeholder="+228 XX XX XX XX"></label>
     <label>Région <input name="region" placeholder="ex: Plateaux"></label>
-    <label>Rôle <select name="role"><option></option>${['producteur','transporteur','transformateur','grossiste','detaillant','institution'].map(r=>`<option>${r}</option>`).join('')}</select></label>
+    <label>Rôle <select name="role"><option></option>${['producteur','éleveur','transporteur','transformateur','grossiste','detaillant','institution'].map(r=>`<option>${r}</option>`).join('')}</select></label>
+    <label>Code commercial <input name="commercial_code" placeholder="Ex: COM-JOHN-1234 (optionnel)"></label>
     <label>Latitude <input name="lat" type="number" step="0.0001" placeholder="Ex: 6.1375"></label>
     <label>Longitude <input name="lng" type="number" step="0.0001" placeholder="Ex: 1.2123"></label>
   </div>
@@ -2582,6 +2584,165 @@ async function deleteMyLogistic(id){
   }
 }
 
+// Commercial functions
+async function loadCommercialStats(){
+  if(!ME || !ME.is_commercial) return;
+  try {
+    const r = await fetch('/api/commercial/stats');
+    if(r.ok){
+      const stats = await r.json();
+      document.getElementById('commercialTotalUsers').textContent = stats.totalUsers;
+      document.getElementById('commercialTotalActors').textContent = stats.totalActors;
+      document.getElementById('commercialPremiumUsers').textContent = stats.premiumUsers;
+      renderCommercialRecruits(stats.recentUsers);
+    }
+    const userR = await fetch('/api/auth/me');
+    const user = await userR.json();
+    if(user.commercial_code){
+      document.getElementById('commercialCodeDisplay').value = user.commercial_code;
+    }
+  } catch(e) {
+    console.error('Error loading commercial stats:', e);
+  }
+}
+
+function renderCommercialRecruits(users){
+  const tbody = document.getElementById('commercialRecruitsList');
+  if(!tbody) return;
+  if(users.length === 0){
+    tbody.innerHTML = '<tr><td colspan="8" class="muted" style="text-align:center;padding:20px;">Aucun utilisateur recruté</td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map(u => {
+    const planBadge = u.plan === 'premium' ? '<span class="badge" style="background:#fbbf24;color:white">💎 Premium</span>' : '<span class="badge" style="background:#d1d5db">Free</span>';
+    const date = u.created_at ? new Date(u.created_at).toLocaleDateString('fr-FR') : '-';
+    return `<tr>
+      <td>${u.id}</td>
+      <td>${u.name || '-'}</td>
+      <td>${u.email || u.phone || '-'}</td>
+      <td>${u.role || '-'}</td>
+      <td>${u.region || '-'}</td>
+      <td>${planBadge}</td>
+      <td>${u.actors_count || 0}</td>
+      <td>${date}</td>
+    </tr>`;
+  }).join('');
+}
+
+document.getElementById('btnCopyCommercialCode')?.addEventListener('click', () => {
+  const input = document.getElementById('commercialCodeDisplay');
+  input.select();
+  navigator.clipboard.writeText(input.value);
+  alert('✓ Code copié !');
+});
+
+// Admin commercial functions
+let ADMIN_COMMERCIALS = [];
+
+async function loadAdminCommercials(){
+  if(!ME || !ME.is_admin) return;
+  try {
+    const r = await fetch('/api/admin/commercials');
+    if(r.ok){
+      ADMIN_COMMERCIALS = await r.json();
+      renderAdminCommercials();
+    }
+  } catch(e) {
+    console.error('Error loading admin commercials:', e);
+  }
+}
+
+function renderAdminCommercials(){
+  const tbody = document.getElementById('adminCommercialsList');
+  if(!tbody) return;
+  if(ADMIN_COMMERCIALS.length === 0){
+    tbody.innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center;padding:20px;">Aucun commercial</td></tr>';
+    return;
+  }
+  tbody.innerHTML = ADMIN_COMMERCIALS.map(c => {
+    const statusBadge = c.status === 'active' ? '<span class="badge" style="background:#10b981;color:white">✓ Actif</span>' : '<span class="badge" style="background:#ef4444;color:white">Bloqué</span>';
+    return `<tr>
+      <td>${c.id}</td>
+      <td><strong>${c.name || '-'}</strong></td>
+      <td>${c.email || c.phone || '-'}</td>
+      <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">${c.commercial_code}</code></td>
+      <td>${c.region || '-'}</td>
+      <td><strong>${c.total_recruits || 0}</strong></td>
+      <td>${c.total_actors || 0}</td>
+      <td><strong style="color:#fbbf24;">💎 ${c.premium_recruits || 0}</strong></td>
+      <td>${statusBadge}</td>
+      <td>
+        <button onclick="viewCommercialDetails(${c.id})" style="background:#3b82f6;color:white;padding:4px 8px;font-size:12px;">📊 Détails</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+document.getElementById('btnCreateCommercial')?.addEventListener('click', () => {
+  const dlg = document.createElement('dialog');
+  dlg.innerHTML = `<form id="frmCreateCommercial" class="dialog-body">
+    <h3>➕ Créer un commercial</h3>
+    <div class="grid2">
+      <label>Nom complet <input name="name" required></label>
+      <label>Mot de passe <input name="password" type="password" required></label>
+    </div>
+    <div class="grid2">
+      <label>Email <input name="email" type="email"></label>
+      <label>Téléphone <input name="phone" type="tel"></label>
+    </div>
+    <div class="grid2">
+      <label>WhatsApp <input name="whatsapp" type="tel"></label>
+      <label>Région <input name="region"></label>
+    </div>
+    <p class="muted" style="margin:10px 0;font-size:13px;">Un code commercial unique sera généré automatiquement</p>
+    <div class="dialog-actions">
+      <button type="submit">✓ Créer</button>
+      <button type="button" id="cancelCreate">Annuler</button>
+    </div>
+  </form>`;
+  document.body.appendChild(dlg);
+  dlg.showModal();
+  dlg.querySelector('#cancelCreate').onclick = () => dlg.close();
+  dlg.querySelector('#frmCreateCommercial').onsubmit = async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target).entries());
+    const r = await fetch('/api/admin/commercials/create', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+    if(r.ok){
+      const result = await r.json();
+      dlg.close();
+      await loadAdminCommercials();
+      alert(`✓ Commercial créé avec succès!\n\nCode commercial: ${result.commercial_code}\n\nDonnez ce code au commercial pour qu'il puisse recruter.`);
+    } else {
+      const err = await r.json();
+      alert(err.error || 'Erreur lors de la création');
+    }
+  };
+});
+
+async function viewCommercialDetails(commercialId){
+  const commercial = ADMIN_COMMERCIALS.find(c => c.id === commercialId);
+  if(!commercial) return;
+  
+  try {
+    const r = await fetch('/api/commercial/recruits');
+    if(!r.ok) return alert('Erreur lors du chargement des détails');
+    
+    alert(`📊 Performance de ${commercial.name}\n\n` +
+          `👥 Utilisateurs recrutés: ${commercial.total_recruits}\n` +
+          `📦 Acteurs créés: ${commercial.total_actors}\n` +
+          `💎 Clients Premium: ${commercial.premium_recruits}\n` +
+          `🔗 Code: ${commercial.commercial_code}`);
+  } catch(e) {
+    console.error('Error:', e);
+  }
+}
+
+window.viewCommercialDetails = viewCommercialDetails;
+
 async function boot(){ 
   const me = await fetch('/api/auth/me'); 
   ME = await me.json(); 
@@ -2593,6 +2754,9 @@ async function boot(){
   
   const adminTab = document.getElementById('adminTab');
   if(adminTab) adminTab.style.display = ME && ME.is_admin ? 'inline-block' : 'none';
+  
+  const commercialTab = document.getElementById('commercialTab');
+  if(commercialTab) commercialTab.style.display = ME && ME.is_commercial ? 'inline-block' : 'none';
   
   const statsTab = document.getElementById('statsTab');
   if(statsTab) statsTab.style.display = ME ? 'inline-block' : 'none';
