@@ -28,6 +28,15 @@ AgriRéseau Pro uses a modern web stack:
 - **Cost Calculation & Budgeting**:
     - **Budget Module (Prévisionnel)**: Forecast budgets for activities with flexible units, tracking planned expenses, and projecting revenue/profit, with comparison to real costs.
     - **Coût de Revient Module (Dépenses Réelles)**: Records real expenses chronologically, linked to budgets for accumulation and comparison.
+    - **Role-Adapted Expense Categories** (Added November 2025): Dynamic expense categories automatically adapt based on actor role. Each role has specific, relevant categories:
+        - **Producteur**: Agricultural inputs (seeds, fertilizers, pesticides), labor, logistics, irrigation
+        - **Éleveur**: Animal feed (poultry, pigs, cattle), veterinary (vaccines, antibiotics), equipment (feeders, drinkers, cages), animal care
+        - **Transporteur**: Vehicle costs (fuel, maintenance, tires), operations (tolls, parking), insurance, driver salaries
+        - **Transformateur**: Raw materials, energy (electricity, gas), packaging, machinery, processing labor
+        - **Grossiste**: Stock purchases, warehouse infrastructure, logistics, warehouse staff
+        - **Détaillant**: Merchandise, shop rent, retail staff, deliveries, advertising
+        - **Institution**: Office supplies, employee salaries, infrastructure (rent, utilities), travel expenses
+    - Category selection automatically updates when user selects a budget linked to an actor, displaying only relevant expense types for that business
     - **Automatic Availability Display**: Endpoint `/api/actors/:id/harvests` aggregates actual harvest quantities by product and unit, displayed on actor cards.
     - **Automatic Evaluation Table**: Dynamic monitoring dashboard comparing planned vs. actual for all budgets, showing variance, profit analysis, and harvest progress.
 - **User Authentication & Authorization**:
