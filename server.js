@@ -588,7 +588,16 @@ app.get('/api/commercial/stats', requireAuth, async (req,res)=>{
   const totalUsers = await db.getOne('SELECT COUNT(*) as count FROM users WHERE recruited_by=$1', [userId]);
   const totalActors = await db.getOne('SELECT COUNT(*) as count FROM actors WHERE recruited_by=$1', [userId]);
   const premiumUsers = await db.getOne('SELECT COUNT(*) as count FROM users u JOIN subscriptions s ON u.id=s.user_id WHERE u.recruited_by=$1 AND s.plan=$2 AND s.status=$3', [userId, 'premium', 'active']);
-  const recentUsers = await db.getAll('SELECT id, name, email, phone, role, created_at FROM users WHERE recruited_by=$1 ORDER BY created_at DESC LIMIT 10', [userId]);
+  const recentUsers = await db.getAll(`
+    SELECT u.id, u.name, u.email, u.phone, u.role, u.created_at,
+           s.plan, s.status as subscription_status,
+           (SELECT COUNT(*) FROM actors WHERE owner_id=u.id) as actors_count
+    FROM users u
+    LEFT JOIN subscriptions s ON u.id=s.user_id
+    WHERE u.recruited_by=$1
+    ORDER BY u.created_at DESC
+    LIMIT 10
+  `, [userId]);
   const recentActors = await db.getAll('SELECT a.*, u.name as owner_name FROM actors a LEFT JOIN users u ON a.owner_id=u.id WHERE a.recruited_by=$1 ORDER BY a.created_at DESC LIMIT 10', [userId]);
   
   res.json({
