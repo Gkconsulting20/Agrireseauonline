@@ -35,6 +35,14 @@ async function openLogin(){
     <label>Longitude <input name="lng" type="number" step="0.0001" placeholder="Ex: 1.2123"></label>
   </div>
   <div style="margin:10px 0;"><button type="button" id="btnUseLocationReg" style="width:100%;">📍 Utiliser ma position actuelle</button></div>
+  <div style="margin:15px 0;padding:10px;background:#f0fdf4;border-radius:6px;border:1px solid #86efac;">
+    <label style="display:flex;align-items:start;gap:8px;cursor:pointer;">
+      <input type="checkbox" name="accept_terms" id="acceptTerms" style="margin-top:3px;">
+      <span style="font-size:13px;line-height:1.5;">
+        J'accepte les <a href="#" id="termsLink" style="color:#0a7c2f;text-decoration:underline;">conditions d'utilisation</a> et la politique de confidentialité d'AgriRéseau Pro
+      </span>
+    </label>
+  </div>
   <div style="text-align:center;margin:10px 0;"><a href="#" id="forgotPasswordLink" style="color:#0a7c2f;font-size:14px;">🔑 Mot de passe oublié ?</a></div>
   <div class="dialog-actions"><button type="button" id="btnDoLogin">Se connecter</button><button type="button" id="btnDoRegister">Créer un compte</button><button type="button" id="cancelL">Annuler</button></div></form>`;
   document.body.appendChild(dlg); dlg.showModal(); 
@@ -74,6 +82,7 @@ async function openLogin(){
     if(!data.password) return alert('Mot de passe requis');
     if(!data.email && !data.phone) return alert('Email OU Téléphone requis');
     if(!data.name) return alert('Nom requis');
+    if(!dlg.querySelector('#acceptTerms').checked) return alert('Vous devez accepter les conditions d\'utilisation pour créer un compte');
     // Convertir lat/lng en nombres
     if(data.lat) data.lat = Number(data.lat);
     if(data.lng) data.lng = Number(data.lng);
@@ -81,10 +90,93 @@ async function openLogin(){
     if(r.ok){ dlg.close(); await boot(); } else { const err = await r.json(); alert(err.error || 'Erreur lors de l\'inscription'); }
   };
   
+  dlg.querySelector('#termsLink').onclick=(e)=>{
+    e.preventDefault();
+    showTermsDialog();
+  };
+  
   dlg.querySelector('#forgotPasswordLink').onclick=(e)=>{
     e.preventDefault();
     dlg.close();
     showForgotPasswordDialog();
+  };
+}
+
+function showTermsDialog(){
+  const termsDlg = document.createElement('dialog');
+  termsDlg.innerHTML = `
+    <div class="dialog-body" style="max-width:700px;max-height:80vh;overflow-y:auto;">
+      <h3>📜 Conditions d'Utilisation - AgriRéseau Pro</h3>
+      
+      <h4>1. Acceptation des conditions</h4>
+      <p>En créant un compte sur AgriRéseau Pro, vous acceptez les présentes conditions d'utilisation. Si vous n'acceptez pas ces conditions, veuillez ne pas utiliser la plateforme.</p>
+      
+      <h4>2. Description du service</h4>
+      <p>AgriRéseau Pro est une plateforme numérique destinée à connecter les acteurs de la chaîne de valeur agricole et d'élevage au Togo : producteurs, éleveurs, transporteurs, transformateurs, grossistes, détaillants et institutions.</p>
+      
+      <h4>3. Création de compte</h4>
+      <p>• Vous devez fournir des informations exactes et à jour lors de votre inscription<br>
+      • Vous êtes responsable de la confidentialité de votre mot de passe<br>
+      • Vous devez avoir au moins 18 ans pour créer un compte<br>
+      • Un compte par personne est autorisé</p>
+      
+      <h4>4. Utilisation de la plateforme</h4>
+      <p>• Vous vous engagez à utiliser la plateforme de manière légale et éthique<br>
+      • Vous ne devez pas publier de contenu illégal, offensant ou trompeur<br>
+      • Les informations sur les produits et prix doivent être exactes<br>
+      • Vous êtes responsable de toutes les activités effectuées depuis votre compte</p>
+      
+      <h4>5. Plans d'abonnement</h4>
+      <p>• <strong>Plan Gratuit</strong> : Limité à 2 acteurs par utilisateur<br>
+      • <strong>Plan Premium</strong> : 1 000 FCFA/mois, acteurs illimités, statistiques avancées et notifications<br>
+      • Les paiements sont traités via FedaPay (Mobile Money et cartes bancaires)<br>
+      • Aucun remboursement n'est possible après activation du service Premium</p>
+      
+      <h4>6. Données personnelles</h4>
+      <p>• Vos données sont collectées et traitées conformément à notre politique de confidentialité<br>
+      • Nous ne vendons pas vos données à des tiers<br>
+      • Vous pouvez demander la suppression de votre compte à tout moment<br>
+      • Les données de géolocalisation sont facultatives</p>
+      
+      <h4>7. Propriété intellectuelle</h4>
+      <p>• Le contenu que vous publiez vous appartient<br>
+      • Vous accordez à AgriRéseau Pro le droit d'afficher votre contenu sur la plateforme<br>
+      • La marque AgriRéseau Pro et le code de la plateforme sont protégés</p>
+      
+      <h4>8. Responsabilité</h4>
+      <p>• AgriRéseau Pro est une plateforme de mise en relation<br>
+      • Nous ne sommes pas responsables des transactions entre utilisateurs<br>
+      • Vérifiez toujours les informations avant toute transaction commerciale<br>
+      • Nous ne garantissons pas la disponibilité continue de la plateforme</p>
+      
+      <h4>9. Suspension et résiliation</h4>
+      <p>• Nous nous réservons le droit de suspendre ou supprimer tout compte en cas de violation des conditions<br>
+      • Vous pouvez supprimer votre compte à tout moment depuis les paramètres<br>
+      • En cas de suspension, aucun remboursement ne sera effectué</p>
+      
+      <h4>10. Modifications</h4>
+      <p>• Nous pouvons modifier ces conditions à tout moment<br>
+      • Les modifications entreront en vigueur dès leur publication<br>
+      • L'utilisation continue de la plateforme vaut acceptation des nouvelles conditions</p>
+      
+      <h4>11. Contact</h4>
+      <p>Pour toute question concernant ces conditions d'utilisation, contactez-nous via la plateforme ou par email.</p>
+      
+      <p style="margin-top:20px;padding:10px;background:#f0fdf4;border-radius:6px;font-size:13px;">
+        <strong>Dernière mise à jour :</strong> ${new Date().toLocaleDateString('fr-FR')}<br>
+        <strong>Version :</strong> 1.0
+      </p>
+      
+      <div class="dialog-actions">
+        <button type="button" id="closeTerms">Fermer</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(termsDlg);
+  termsDlg.showModal();
+  termsDlg.querySelector('#closeTerms').onclick = () => {
+    termsDlg.close();
+    termsDlg.remove();
   };
 }
 

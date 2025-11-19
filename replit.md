@@ -42,6 +42,7 @@ AgriRéseau Pro uses a modern web stack:
 - **User Authentication & Authorization**:
     - Register/login with session management and role-based access.
     - Enhanced registration supports phone OR email, captures user geolocation, and manages account status.
+    - **Terms of Service Acceptance** (Added November 2025): Mandatory checkbox during registration requiring users to accept comprehensive terms and conditions. Includes clickable link to view full terms in modal dialog covering service description, account creation rules, subscription plans, data privacy, intellectual property, liability, suspension/termination policies, and contact information.
     - **User Account Settings**: Dedicated "Paramètres" tab for profile management (name, email, phone, WhatsApp, region, role, password change).
     - **My Actors Management**: Self-service section in Settings to view, edit, delete, and add actors.
     - **Password Recovery System**: Token-based password reset via "Mot de passe oublié" link, with WhatsApp integration and copy-to-clipboard functionality.
