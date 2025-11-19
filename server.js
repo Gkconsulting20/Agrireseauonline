@@ -821,9 +821,26 @@ app.put('/api/admin/commercials/:id', requireAdmin, async (req,res)=>{
   const commercialId = Number(req.params.id);
   const {name, email, phone, whatsapp, region, status, is_commercial} = req.body;
   
+  // Vérifier si l'email existe déjà pour un autre utilisateur
+  if(email){
+    const existingEmail = await db.getOne('SELECT id FROM users WHERE email=$1 AND id!=$2', [email, commercialId]);
+    if(existingEmail){
+      return res.status(400).json({error: 'Cet email est déjà utilisé par un autre utilisateur'});
+    }
+  }
+  
+  // Vérifier si le téléphone existe déjà pour un autre utilisateur
+  if(phone){
+    const normalizedPhone = phone.replace(/\s/g,'');
+    const existingPhone = await db.getOne('SELECT id FROM users WHERE phone=$1 AND id!=$2', [normalizedPhone, commercialId]);
+    if(existingPhone){
+      return res.status(400).json({error: 'Ce téléphone est déjà utilisé par un autre utilisateur'});
+    }
+  }
+  
   await db.query(
     'UPDATE users SET name=$1, email=$2, phone=$3, whatsapp=$4, region=$5, status=$6, is_commercial=$7 WHERE id=$8',
-    [name, email, phone, whatsapp, region, status, is_commercial, commercialId]
+    [name, email||null, phone?.replace(/\s/g,'')||null, whatsapp||null, region||null, status, is_commercial, commercialId]
   );
   
   const updated = await db.getOne('SELECT id, name, email, phone, whatsapp, region, commercial_code, is_commercial, status FROM users WHERE id=$1', [commercialId]);
