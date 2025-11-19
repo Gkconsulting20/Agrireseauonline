@@ -10,6 +10,8 @@ import db from './db.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+const { FedaPay } = fedapay;
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -18,8 +20,8 @@ const PORT = process.env.PORT || 5000;
 
 // Configure FedaPay
 if (process.env.FEDAPAY_SECRET_KEY) {
-  fedapay.setApiKey(process.env.FEDAPAY_SECRET_KEY);
-  fedapay.setEnvironment(process.env.FEDAPAY_ENVIRONMENT || 'sandbox');
+  FedaPay.setApiKey(process.env.FEDAPAY_SECRET_KEY);
+  FedaPay.setEnvironment(process.env.FEDAPAY_ENVIRONMENT || 'sandbox');
 }
 
 app.use((req, res, next) => {
@@ -903,7 +905,7 @@ app.post('/api/payments/initiate', requireAuth, async (req,res)=>{
   const callbackUrl = `${req.protocol}://${req.get('host')}/api/payments/webhook`;
   
   try {
-    const transaction = await fedapay.Transaction.create({
+    const transaction = await FedaPay.Transaction.create({
       description: description || 'Abonnement Premium AgriRéseau Pro - 1 mois',
       amount: amount,
       currency: { iso: 'XOF' },
