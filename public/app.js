@@ -1612,7 +1612,10 @@ function openEditCostDialog(cost){
     <h3>✏️ Modifier la dépense</h3>
     <div class="grid2">
       <label>Date <input name="occurred_on" type="date" value="${cost.occurred_on}" required></label>
-      <label>Catégorie <input name="category" value="${cost.category || ''}" required></label>
+      <label>Catégorie 
+        <input name="category" value="${cost.category || ''}" placeholder="Ex: Engrais, Transport, Vaccination..." required>
+        <small style="color:#6b7280;font-size:11px;">Saisissez la catégorie de votre choix</small>
+      </label>
       <label>Montant (FCFA) <input name="amount" type="number" value="${cost.amount}" required></label>
       <label>Description <input name="note" value="${cost.note || ''}"></label>
     </div>

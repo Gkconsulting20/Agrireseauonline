@@ -76,10 +76,13 @@
             <option value="">Sélectionner un budget...</option>
           </select>
           <input id="costDate" type="date">
-          <input id="costCat" list="costCatList" placeholder="Catégorie (choisir ou saisir...)" required>
-          <datalist id="costCatList">
-            <option value="">Sélectionnez d'abord un budget...</option>
-          </datalist>
+          <div style="position:relative;">
+            <input id="costCat" list="costCatList" placeholder="Ex: Engrais, Transport, Vaccination..." required style="width:100%;">
+            <datalist id="costCatList">
+              <option value="">Sélectionnez d'abord un budget...</option>
+            </datalist>
+            <small style="color:#6b7280;font-size:11px;">Suggestions disponibles ou tapez votre propre catégorie</small>
+          </div>
           <input id="costAmount" type="number" placeholder="Montant réel (FCFA)" step="100">
           <input id="costNote" placeholder="Description (facultatif)">
         </div>
