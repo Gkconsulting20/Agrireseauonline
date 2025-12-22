@@ -363,7 +363,123 @@ function actorCard(a){
     el.querySelector('.del').onclick=async(e)=>{e.preventDefault(); if(!confirm('Supprimer ?')) return; await fetch('/api/actors/'+a.id,{method:'DELETE'}); await loadActors(); renderMap();}; 
   }
   el.querySelector('.rate').onclick=(e)=>{e.preventDefault(); openRatingDialog(a);};
+  
+  // Make entire card clickable for drill-down (except action buttons)
+  el.style.cursor = 'pointer';
+  el.onclick = (e) => {
+    if(e.target.tagName === 'A' || e.target.closest('a')) return;
+    openActorProfile(a);
+  };
+  
   return el; 
+}
+
+// Drill-down: Full actor profile modal
+function openActorProfile(actor){
+  const dlg = document.createElement('dialog');
+  dlg.className = 'drill-dialog';
+  
+  const digits = s => (s||'').replace(/\D/g,'');
+  const stars = actor.rating_avg > 0 ? '⭐'.repeat(Math.round(actor.rating_avg)) + ` ${actor.rating_avg.toFixed(1)} (${actor.rating_count} avis)` : 'Pas encore noté';
+  
+  const certBadges = (actor.certifications||[]).map(c => {
+    const icons = {bio:'🌿 Bio',quality:'✅ Qualité',fair:'🤝 Commerce Équitable'};
+    return `<span class="badge" style="background:#10b981;color:white;margin-right:5px;">${icons[c]||c}</span>`;
+  }).join('') || '<span class="muted">Aucune certification</span>';
+  
+  const productsHtml = (actor.products||[]).map(p => {
+    const productName = typeof p === 'string' ? p : p.name;
+    const productImage = (typeof p === 'object' && p.image_url) ? p.image_url : '';
+    const productSite = (typeof p === 'object' && p.production_site) ? p.production_site : '';
+    
+    if(productImage){
+      return `<div style="display:inline-block;margin:8px;text-align:center;background:#f9fafb;padding:10px;border-radius:8px;">
+        <img src="${productImage}" alt="${productName}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;display:block;">
+        <div style="font-size:14px;margin-top:5px;font-weight:bold;">${productName}</div>
+        ${productSite ? `<div style="font-size:12px;color:#6b7280;">📍 ${productSite}</div>` : ''}
+      </div>`;
+    } else {
+      return `<div style="display:inline-block;margin:5px;padding:8px 12px;background:#f0fdf4;border-radius:6px;">
+        <strong>${productName}</strong>
+        ${productSite ? `<span style="font-size:12px;color:#6b7280;"> (${productSite})</span>` : ''}
+      </div>`;
+    }
+  }).join('') || '<span class="muted">Aucun produit enregistré</span>';
+  
+  const photoHtml = actor.photo_url 
+    ? `<img src="${actor.photo_url}" alt="${actor.name}" style="width:120px;height:120px;object-fit:cover;border-radius:50%;border:3px solid #059669;">` 
+    : `<div style="width:120px;height:120px;border-radius:50%;background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-size:48px;">👤</div>`;
+  
+  dlg.innerHTML = `
+    <div class="dialog-body" style="max-width:700px;max-height:85vh;overflow-y:auto;">
+      <div style="display:flex;gap:20px;align-items:start;margin-bottom:20px;">
+        <div>${photoHtml}</div>
+        <div style="flex:1;">
+          <h2 style="margin:0 0 5px 0;">${actor.name}</h2>
+          <div style="margin-bottom:10px;">
+            <span class="badge" style="font-size:14px;">${actor.role}</span>
+            <span class="badge" style="font-size:14px;">${actor.region}</span>
+            ${actor.verified ? '<span class="badge" style="background:#10b981;color:white;">✔︎ Vérifié</span>' : ''}
+            ${actor.owner_plan === 'premium' ? '<span class="badge" style="background:#fbbf24;color:#000">💎 PREMIUM</span>' : ''}
+          </div>
+          <div style="color:#fbbf24;font-size:16px;">${stars}</div>
+        </div>
+      </div>
+      
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:20px;">
+        <div class="card" style="background:#f0fdf4;">
+          <h4 style="margin:0 0 10px 0;color:#059669;">📍 Localisation</h4>
+          <p style="margin:5px 0;"><strong>Région:</strong> ${actor.region}</p>
+          <p style="margin:5px 0;"><strong>Localité:</strong> ${actor.localite || 'Non renseignée'}</p>
+          ${actor.lat && actor.lng ? `<p style="margin:5px 0;"><strong>Coordonnées:</strong> ${actor.lat.toFixed(4)}, ${actor.lng.toFixed(4)}</p>` : ''}
+        </div>
+        <div class="card" style="background:#fef3c7;">
+          <h4 style="margin:0 0 10px 0;color:#d97706;">📦 Stock disponible</h4>
+          <p style="margin:5px 0;"><strong>Quantité:</strong> ${actor.volume ? actor.volume.toLocaleString() + ' ' + (actor.unit || 'kg') : 'Non renseignée'}</p>
+          <p style="margin:5px 0;"><strong>Prix:</strong> ${actor.price ? actor.price.toLocaleString() + ' FCFA/' + (actor.unit || 'kg') : 'À négocier'}</p>
+        </div>
+      </div>
+      
+      <div class="card" style="margin-bottom:20px;">
+        <h4 style="margin:0 0 10px 0;">🛒 Produits proposés</h4>
+        <div>${productsHtml}</div>
+      </div>
+      
+      <div class="card" style="margin-bottom:20px;">
+        <h4 style="margin:0 0 10px 0;">🏅 Certifications</h4>
+        <div>${certBadges}</div>
+      </div>
+      
+      ${actor.need ? `
+      <div class="card" style="margin-bottom:20px;background:#fee2e2;">
+        <h4 style="margin:0 0 10px 0;color:#dc2626;">📢 Besoin / Recherche</h4>
+        <p style="margin:0;">${actor.need}</p>
+      </div>
+      ` : ''}
+      
+      <div class="card" style="background:#e0f2fe;">
+        <h4 style="margin:0 0 15px 0;color:#0369a1;">📞 Contacter ${actor.name}</h4>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;">
+          ${actor.whatsapp ? `<a href="https://wa.me/${digits(actor.whatsapp)}?text=Bonjour, je vous contacte via AgriRéseau Pro" target="_blank" style="display:inline-flex;align-items:center;gap:5px;background:#25d366;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;">💬 WhatsApp</a>` : ''}
+          ${actor.phone ? `<a href="tel:${digits(actor.phone)}" style="display:inline-flex;align-items:center;gap:5px;background:#3b82f6;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;">📞 Appeler</a>` : ''}
+          ${actor.email ? `<a href="mailto:${actor.email}" style="display:inline-flex;align-items:center;gap:5px;background:#6b7280;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;">📧 Email</a>` : ''}
+        </div>
+      </div>
+      
+      <div class="dialog-actions" style="margin-top:20px;">
+        <button type="button" id="btnRateActor" style="background:#fbbf24;color:#000;">⭐ Noter cet acteur</button>
+        <button type="button" id="closeProfile">Fermer</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(dlg);
+  dlg.showModal();
+  dlg.querySelector('#closeProfile').onclick = () => dlg.close();
+  dlg.querySelector('#btnRateActor').onclick = () => {
+    dlg.close();
+    openRatingDialog(actor);
+  };
 }
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -656,11 +772,96 @@ function renderStockSummary(){
     };
     
     products.sort((a,b) => b.volume - a.volume);
-    const productList = products.map(p => `<strong>${p.name}</strong> ${p.volume.toFixed(0)} kg`).join(', ');
+    const productList = products.map(p => `<a href="#" class="product-drill" data-product="${p.name}" style="color:#059669;text-decoration:underline;cursor:pointer;margin-right:8px;"><strong>${p.name}</strong> ${p.volume.toFixed(0)} kg</a>`).join(' ');
     html += `<div style="margin-bottom:10px;"><strong style="color:#059669;">${categoryEmoji[cat] || '📦'} ${cat}:</strong> ${productList}</div>`;
   });
   
   summaryEl.innerHTML = html;
+  
+  // Add drill-down click handlers for products
+  summaryEl.querySelectorAll('.product-drill').forEach(link => {
+    link.onclick = (e) => {
+      e.preventDefault();
+      const productName = link.dataset.product;
+      openProductDrillDown(productName);
+    };
+  });
+}
+
+// Drill-down: Show actors that offer a specific product
+function openProductDrillDown(productName){
+  const matchingActors = ACTORS.filter(a => {
+    const products = a.products || [];
+    return products.some(p => {
+      const pName = typeof p === 'string' ? p.trim() : (p?.name || '').trim();
+      return pName.toLowerCase() === productName.toLowerCase();
+    });
+  });
+  
+  const dlg = document.createElement('dialog');
+  dlg.className = 'drill-dialog';
+  
+  const actorsList = matchingActors.length > 0 
+    ? matchingActors.map(a => {
+        const digits = s => (s||'').replace(/\D/g,'');
+        const volume = a.volume || 0;
+        const price = a.price || 0;
+        const stars = a.rating_avg > 0 ? '⭐'.repeat(Math.round(a.rating_avg)) + ` (${a.rating_avg.toFixed(1)})` : '';
+        return `
+          <div class="card" style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:start;">
+              <div>
+                <strong style="font-size:16px;">${a.name}</strong> 
+                <span class="badge">${a.role}</span>
+                <span class="badge">${a.region}</span>
+                ${a.verified ? '<span class="badge" style="background:#10b981;color:white;">✔︎ Vérifié</span>' : ''}
+              </div>
+              <div style="text-align:right;">
+                ${stars ? `<div style="color:#fbbf24;">${stars}</div>` : ''}
+              </div>
+            </div>
+            <div style="margin:10px 0;">
+              <p style="margin:5px 0;">📦 <strong>Quantité disponible:</strong> ${volume.toLocaleString()} kg</p>
+              ${price > 0 ? `<p style="margin:5px 0;">💰 <strong>Prix:</strong> ${price.toLocaleString()} FCFA/kg</p>` : ''}
+              ${a.localite ? `<p style="margin:5px 0;">📍 ${a.localite}</p>` : ''}
+            </div>
+            <div class="links" style="margin-top:10px;">
+              ${a.whatsapp ? `<a href="https://wa.me/${digits(a.whatsapp)}?text=Bonjour, je suis intéressé par votre ${productName}" target="_blank" style="background:#25d366;color:white;padding:6px 12px;border-radius:4px;text-decoration:none;">💬 WhatsApp</a>` : ''}
+              ${a.phone ? `<a href="tel:${digits(a.phone)}" style="background:#3b82f6;color:white;padding:6px 12px;border-radius:4px;text-decoration:none;margin-left:8px;">📞 Appeler</a>` : ''}
+              <a href="#" class="view-actor-profile" data-actor-id="${a.id}" style="background:#059669;color:white;padding:6px 12px;border-radius:4px;text-decoration:none;margin-left:8px;">👤 Voir profil</a>
+            </div>
+          </div>
+        `;
+      }).join('')
+    : '<p class="muted">Aucun acteur ne propose ce produit actuellement.</p>';
+  
+  dlg.innerHTML = `
+    <div class="dialog-body" style="max-width:600px;max-height:80vh;overflow-y:auto;">
+      <h3 style="margin:0 0 15px 0;">📦 ${productName}</h3>
+      <p style="color:#6b7280;margin-bottom:20px;">${matchingActors.length} acteur(s) propose(nt) ce produit</p>
+      ${actorsList}
+      <div class="dialog-actions" style="margin-top:20px;">
+        <button type="button" id="closeDrill">Fermer</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(dlg);
+  dlg.showModal();
+  dlg.querySelector('#closeDrill').onclick = () => dlg.close();
+  
+  // Add view profile handlers
+  dlg.querySelectorAll('.view-actor-profile').forEach(btn => {
+    btn.onclick = (e) => {
+      e.preventDefault();
+      const actorId = btn.dataset.actorId;
+      const actor = ACTORS.find(a => a.id == actorId);
+      if(actor) {
+        dlg.close();
+        openActorProfile(actor);
+      }
+    };
+  });
 }
 
 const btnAddLog = document.getElementById('btnAddLog');
@@ -669,13 +870,65 @@ async function loadLogistics(){ const r=await fetch('/api/logistics'); LOGS=awai
 function renderLogistics(){ const list=document.getElementById('logList'); list.innerHTML=''; LOGS.forEach(l=>{ const el=document.createElement('div'); el.className='card'; const digits=s=>(s||'').replace(/\D/g,'');
   const isMine = ME && l.owner_id === ME.id;
   el.innerHTML=`<div><strong>${l.title}</strong> <span class="badge">${l.type==='need'?'BESOIN':'OFFRE'}</span> <span class="badge">${l.region}</span></div>
-  <div>${l.details||''}</div><div class="links">${l.whatsapp? `<a target="_blank" href="https://wa.me/${digits(l.whatsapp)}">WhatsApp</a>`:''}${l.contact? `<a href="tel:${digits(l.contact)}">Appeler</a>`:''}${isMine? ` <a href="#" data-id="${l.id}" class="edit">✏️ Modifier</a> <a href="#" data-id="${l.id}" class="del">🗑️ Supprimer</a>`:''}</div>`;
+  <div>${(l.details||'').substring(0,100)}${(l.details||'').length > 100 ? '...' : ''}</div><div class="links">${l.whatsapp? `<a target="_blank" href="https://wa.me/${digits(l.whatsapp)}">WhatsApp</a>`:''}${l.contact? `<a href="tel:${digits(l.contact)}">Appeler</a>`:''}${isMine? ` <a href="#" data-id="${l.id}" class="edit">✏️ Modifier</a> <a href="#" data-id="${l.id}" class="del">🗑️ Supprimer</a>`:''} <a href="#" class="view-details">📋 Détails</a></div>`;
   if(isMine){
     el.querySelector('.edit').onclick=async(e)=>{e.preventDefault(); openLogDialog(l); };
     el.querySelector('.del').onclick=async(e)=>{e.preventDefault(); if(!confirm('Supprimer cette publication ?')) return; await fetch('/api/logistics/'+l.id,{method:'DELETE'}); await loadLogistics(); await loadMyLogistics(); }; 
   }
+  el.querySelector('.view-details').onclick=(e)=>{e.preventDefault(); openLogisticsDrillDown(l); };
+  el.style.cursor = 'pointer';
+  el.onclick = (e) => {
+    if(e.target.tagName === 'A' || e.target.closest('a')) return;
+    openLogisticsDrillDown(l);
+  };
   list.appendChild(el);
 }); }
+
+// Drill-down: Logistics detail modal
+function openLogisticsDrillDown(log){
+  const dlg = document.createElement('dialog');
+  dlg.className = 'drill-dialog';
+  const digits = s => (s||'').replace(/\D/g,'');
+  const typeBadge = log.type === 'need' 
+    ? '<span class="badge" style="background:#dc2626;color:white;font-size:16px;">🔍 BESOIN</span>' 
+    : '<span class="badge" style="background:#059669;color:white;font-size:16px;">📦 OFFRE</span>';
+  
+  dlg.innerHTML = `
+    <div class="dialog-body" style="max-width:600px;max-height:80vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px;">
+        <h2 style="margin:0;">${log.title}</h2>
+        ${typeBadge}
+      </div>
+      
+      <div class="card" style="background:#f0fdf4;margin-bottom:15px;">
+        <h4 style="margin:0 0 10px 0;color:#059669;">📍 Région</h4>
+        <p style="margin:0;font-size:18px;"><strong>${log.region || 'Non spécifiée'}</strong></p>
+      </div>
+      
+      <div class="card" style="margin-bottom:15px;">
+        <h4 style="margin:0 0 10px 0;">📝 Détails</h4>
+        <p style="margin:0;white-space:pre-wrap;line-height:1.6;">${log.details || 'Aucun détail fourni'}</p>
+      </div>
+      
+      <div class="card" style="background:#e0f2fe;">
+        <h4 style="margin:0 0 15px 0;color:#0369a1;">📞 Contacter</h4>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;">
+          ${log.whatsapp ? `<a href="https://wa.me/${digits(log.whatsapp)}?text=Bonjour, je suis intéressé par votre annonce: ${log.title}" target="_blank" style="display:inline-flex;align-items:center;gap:5px;background:#25d366;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;">💬 WhatsApp</a>` : ''}
+          ${log.contact ? `<a href="tel:${digits(log.contact)}" style="display:inline-flex;align-items:center;gap:5px;background:#3b82f6;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;">📞 Appeler</a>` : ''}
+        </div>
+        ${!log.whatsapp && !log.contact ? '<p class="muted">Aucun contact fourni</p>' : ''}
+      </div>
+      
+      <div class="dialog-actions" style="margin-top:20px;">
+        <button type="button" id="closeLogDrill">Fermer</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(dlg);
+  dlg.showModal();
+  dlg.querySelector('#closeLogDrill').onclick = () => dlg.close();
+}
 function openLogDialog(item){ if(!ME) return alert('Connecte-toi d’abord.'); const dlg=document.createElement('dialog'); dlg.innerHTML=`<form id="frmLog" class="dialog-body"><h3>${item?'Modifier':'Nouvelle'} demande/offre logistique</h3><div class="grid2">
   <label>Titre <input name="title" required value="${item?.title||''}"></label>
   <label>Type <select name="type"><option value="need" ${item?.type==='need'?'selected':''}>Besoin</option><option value="offer" ${item?.type==='offer'?'selected':''}>Offre</option></select></label>
@@ -1470,6 +1723,7 @@ async function renderEvaluationTable(){
   }));
   
   root.innerHTML=`
+    <p style="margin-bottom:10px;color:#6b7280;font-size:13px;">💡 Cliquez sur une ligne pour voir les détails du budget</p>
     <table class="tbl">
       <thead>
         <tr>
@@ -1491,7 +1745,7 @@ async function renderEvaluationTable(){
           const varColor = d.variance < 0 ? '#059669' : (d.variance > 0 ? '#dc2626' : '#6b7280');
           const profitColor = d.realProfit > d.prevuProfit ? '#059669' : '#dc2626';
           return `
-            <tr>
+            <tr class="budget-row-drill" data-budget-id="${d.id}" style="cursor:pointer;">
               <td><strong>${d.label}</strong></td>
               <td><span class="badge">${d.filiere}</span></td>
               <td>${d.prevuDep.toLocaleString()} FCFA</td>
@@ -1509,6 +1763,135 @@ async function renderEvaluationTable(){
       </tbody>
     </table>
   `;
+  
+  // Add drill-down handlers for budget rows
+  root.querySelectorAll('.budget-row-drill').forEach(row => {
+    row.onmouseover = () => row.style.background = '#f0fdf4';
+    row.onmouseout = () => row.style.background = '';
+    row.onclick = () => {
+      const budgetId = row.dataset.budgetId;
+      openBudgetDrillDown(budgetId);
+    };
+  });
+}
+
+// Drill-down: Budget detail modal from evaluation table
+async function openBudgetDrillDown(budgetId){
+  const budget = BUDGETS.find(b => b.id == budgetId);
+  if(!budget) return;
+  
+  const sumR = await fetch(`/api/activities/${budgetId}/summary`);
+  const S = await sumR.json();
+  
+  const prevuDep = budget.transport || 0;
+  const prevuCA = (budget.output_qty || 0) * (budget.price_expected || 0);
+  const prevuProfit = prevuCA - prevuDep;
+  const realDep = S.totalRealExpenses || 0;
+  const realRecettes = S.totalRealIncomes || 0;
+  const realProfit = realRecettes - realDep;
+  const variance = realDep - prevuDep;
+  const variancePct = prevuDep > 0 ? ((variance / prevuDep) * 100).toFixed(1) : 0;
+  const unit = budget.unit || 'kg';
+  const actualHarvest = S.actual_harvest || 0;
+  
+  // Get individual costs
+  const costsR = await fetch('/api/budget');
+  const allCosts = await costsR.json();
+  const budgetCosts = allCosts.filter(c => c.activity_id == budgetId);
+  const expenses = budgetCosts.filter(c => c.kind === 'expense');
+  const incomes = budgetCosts.filter(c => c.kind === 'income');
+  
+  const dlg = document.createElement('dialog');
+  dlg.className = 'drill-dialog';
+  
+  const expensesList = expenses.length > 0 
+    ? expenses.map(e => `
+        <tr>
+          <td>${e.occurred_on}</td>
+          <td>${e.category || '-'}</td>
+          <td style="text-align:right;color:#dc2626;font-weight:bold;">-${Number(e.amount).toLocaleString()} FCFA</td>
+          <td>${e.note || '-'}</td>
+        </tr>
+      `).join('')
+    : '<tr><td colspan="4" style="text-align:center;color:#9ca3af;">Aucune dépense enregistrée</td></tr>';
+    
+  const incomesList = incomes.length > 0 
+    ? incomes.map(i => `
+        <tr>
+          <td>${i.occurred_on}</td>
+          <td>${i.category || 'Vente'}</td>
+          <td style="text-align:right;color:#059669;font-weight:bold;">+${Number(i.amount).toLocaleString()} FCFA</td>
+          <td>${i.note || '-'}</td>
+        </tr>
+      `).join('')
+    : '<tr><td colspan="4" style="text-align:center;color:#9ca3af;">Aucune recette enregistrée</td></tr>';
+  
+  const varColor = variance < 0 ? '#059669' : (variance > 0 ? '#dc2626' : '#6b7280');
+  const profitColor = realProfit >= prevuProfit ? '#059669' : '#dc2626';
+  
+  dlg.innerHTML = `
+    <div class="dialog-body" style="max-width:800px;max-height:85vh;overflow-y:auto;">
+      <h2 style="margin:0 0 5px 0;">${budget.label}</h2>
+      <div style="margin-bottom:20px;">
+        <span class="badge" style="font-size:14px;">${budget.filiere}</span>
+        <span class="badge" style="font-size:14px;">${budget.periode}</span>
+      </div>
+      
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;margin-bottom:20px;">
+        <div class="card" style="background:#f0fdf4;">
+          <h4 style="margin:0 0 10px 0;color:#059669;">📊 PRÉVISIONNEL</h4>
+          <p style="margin:5px 0;">Dépenses: <strong>${prevuDep.toLocaleString()} FCFA</strong></p>
+          <p style="margin:5px 0;">CA prévu: <strong>${prevuCA.toLocaleString()} FCFA</strong></p>
+          <p style="margin:5px 0;">Profit prévu: <strong>${prevuProfit.toLocaleString()} FCFA</strong></p>
+          <p style="margin:5px 0;">Quantité: <strong>${budget.output_qty || 0} ${unit}</strong></p>
+        </div>
+        <div class="card" style="background:#fee2e2;">
+          <h4 style="margin:0 0 10px 0;color:#dc2626;">💰 RÉEL</h4>
+          <p style="margin:5px 0;">Dépenses: <strong>${realDep.toLocaleString()} FCFA</strong></p>
+          <p style="margin:5px 0;">Recettes: <strong>${realRecettes.toLocaleString()} FCFA</strong></p>
+          <p style="margin:5px 0;">Profit réel: <strong style="color:${profitColor};">${realProfit.toLocaleString()} FCFA</strong></p>
+          <p style="margin:5px 0;">Récolte: <strong>${actualHarvest} ${unit}</strong></p>
+        </div>
+        <div class="card" style="background:#fef3c7;">
+          <h4 style="margin:0 0 10px 0;color:#d97706;">📈 ÉCART</h4>
+          <p style="margin:5px 0;color:${varColor};font-size:18px;font-weight:bold;">${variance > 0 ? '+' : ''}${variance.toLocaleString()} FCFA</p>
+          <p style="margin:5px 0;color:${varColor};">(${variance > 0 ? '+' : ''}${variancePct}%)</p>
+          <p style="margin:10px 0 0 0;">${variance < 0 ? '✅ Économie réalisée' : (variance > 0 ? '⚠️ Dépassement' : '⏳ En cours')}</p>
+        </div>
+      </div>
+      
+      <div class="card" style="margin-bottom:15px;">
+        <h4 style="margin:0 0 10px 0;color:#dc2626;">💸 Dépenses (${expenses.length})</h4>
+        <table class="tbl" style="width:100%;">
+          <thead><tr><th>Date</th><th>Catégorie</th><th>Montant</th><th>Note</th></tr></thead>
+          <tbody>${expensesList}</tbody>
+        </table>
+      </div>
+      
+      <div class="card" style="margin-bottom:15px;">
+        <h4 style="margin:0 0 10px 0;color:#059669;">💰 Recettes (${incomes.length})</h4>
+        <table class="tbl" style="width:100%;">
+          <thead><tr><th>Date</th><th>Catégorie</th><th>Montant</th><th>Note</th></tr></thead>
+          <tbody>${incomesList}</tbody>
+        </table>
+      </div>
+      
+      <div class="dialog-actions" style="margin-top:20px;">
+        <button type="button" id="btnGoToBudget" style="background:#059669;">📊 Aller au budget</button>
+        <button type="button" id="closeBudgetDrill">Fermer</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(dlg);
+  dlg.showModal();
+  dlg.querySelector('#closeBudgetDrill').onclick = () => dlg.close();
+  dlg.querySelector('#btnGoToBudget').onclick = () => {
+    dlg.close();
+    // Switch to budget tab and open this budget
+    document.querySelector('[data-tab="budget"]').click();
+    setTimeout(() => openBudget(budget), 300);
+  };
 }
 
 // Catégories de dépenses adaptées par rôle
