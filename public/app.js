@@ -6,7 +6,7 @@ tabs.forEach(b=> b.addEventListener('click',()=>{
   document.getElementById(b.dataset.tab).classList.add('active'); 
   if(b.dataset.tab==='map') renderMap(); 
   if(b.dataset.tab==='budget'){ loadBudgets(); refreshCostBudgets(); }
-  if(b.dataset.tab==='costing'){ loadCosts(); refreshCostBudgets(); }
+  if(b.dataset.tab==='costing'){ loadBudgets().then(()=>{ loadCosts(); refreshCostBudgets(); }); }
   if(b.dataset.tab==='admin'){ loadAdminUsers(); loadAdminLogistics(); loadAdminCommercials(); }
   if(b.dataset.tab==='commercial'){ loadCommercialStats(); }
   if(b.dataset.tab==='settings'){ loadUserSettings(); loadPaymentHistory(); }
