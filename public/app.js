@@ -19,10 +19,13 @@ const btnLogin=document.getElementById('btnLogin'), btnLogout=document.getElemen
 let ME=null, ACTORS=[], LOGISTICS=[], PRODUCTS=[], REGIONS=[], BUDGETS=[], CURRENT_BUDGET=null, COSTS=[], CURRENT_COST_BUDGET=null, ADMIN_USERS=[], ADMIN_LOGISTICS=[], STATS_DATA={}, MARKET_PRICES=[];
 
 // Charger les statistiques de la plateforme (public)
+let PLATFORM_STATS_DETAILS = null;
+
 async function loadPlatformStats(){
   try {
     const r = await fetch('/api/platform/stats');
     const stats = await r.json();
+    PLATFORM_STATS_DETAILS = stats;
     document.getElementById('statActors').textContent = stats.actors || '0';
     document.getElementById('statRegions').textContent = stats.regions || '0';
     document.getElementById('statProducts').textContent = stats.products || '0';
@@ -30,6 +33,327 @@ async function loadPlatformStats(){
   } catch(e) {
     console.log('Stats not available');
   }
+}
+
+// Drill-down pour les statistiques
+async function openStatsDrillDown(type) {
+  const dlg = document.createElement('dialog');
+  dlg.className = 'drill-dialog';
+  
+  let title = '', content = '';
+  
+  if (type === 'actors') {
+    title = '👥 Détail des Acteurs';
+    try {
+      const r = await fetch('/api/actors');
+      const actors = await r.json();
+      const byRole = {};
+      const byRegion = {};
+      actors.forEach(a => {
+        byRole[a.role] = (byRole[a.role] || 0) + 1;
+        byRegion[a.region] = (byRegion[a.region] || 0) + 1;
+      });
+      content = `
+        <div class="drill-grid">
+          <div class="drill-section">
+            <h4>Par Rôle</h4>
+            <div class="drill-list">
+              ${Object.entries(byRole).sort((a,b) => b[1]-a[1]).map(([role, count]) => 
+                `<div class="drill-item" onclick="filterActorsByRole('${role}')">
+                  <span class="drill-label">${role}</span>
+                  <span class="drill-value">${count}</span>
+                </div>`
+              ).join('')}
+            </div>
+          </div>
+          <div class="drill-section">
+            <h4>Par Région</h4>
+            <div class="drill-list">
+              ${Object.entries(byRegion).sort((a,b) => b[1]-a[1]).map(([region, count]) => 
+                `<div class="drill-item" onclick="filterActorsByRegion('${region}')">
+                  <span class="drill-label">${region || 'Non spécifié'}</span>
+                  <span class="drill-value">${count}</span>
+                </div>`
+              ).join('')}
+            </div>
+          </div>
+        </div>
+        <p class="drill-hint">Cliquez sur un élément pour filtrer les acteurs</p>
+      `;
+    } catch(e) {
+      content = '<p class="muted">Chargement des données...</p>';
+    }
+  } else if (type === 'regions') {
+    title = '🗺️ Régions Couvertes';
+    try {
+      const r = await fetch('/api/actors');
+      const actors = await r.json();
+      const byRegion = {};
+      actors.forEach(a => {
+        if (a.region) {
+          if (!byRegion[a.region]) byRegion[a.region] = { count: 0, roles: {} };
+          byRegion[a.region].count++;
+          byRegion[a.region].roles[a.role] = (byRegion[a.region].roles[a.role] || 0) + 1;
+        }
+      });
+      content = `
+        <div class="drill-regions">
+          ${Object.entries(byRegion).sort((a,b) => b[1].count - a[1].count).map(([region, data]) => `
+            <div class="drill-region-card" onclick="filterActorsByRegion('${region}')">
+              <div class="drill-region-name">${region}</div>
+              <div class="drill-region-count">${data.count} acteur${data.count > 1 ? 's' : ''}</div>
+              <div class="drill-region-roles">
+                ${Object.entries(data.roles).map(([role, c]) => `<span class="badge">${role}: ${c}</span>`).join('')}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <p class="drill-hint">Cliquez sur une région pour voir ses acteurs</p>
+      `;
+    } catch(e) {
+      content = '<p class="muted">Chargement...</p>';
+    }
+  } else if (type === 'products') {
+    title = '🌾 Produits Disponibles';
+    try {
+      const r = await fetch('/api/actors');
+      const actors = await r.json();
+      const products = {};
+      actors.forEach(a => {
+        if (a.products && Array.isArray(a.products)) {
+          a.products.forEach(p => {
+            const name = typeof p === 'string' ? p : (p.name || p);
+            if (name) {
+              if (!products[name]) products[name] = { count: 0, actors: [] };
+              products[name].count++;
+              products[name].actors.push(a.name);
+            }
+          });
+        }
+      });
+      content = `
+        <div class="drill-products">
+          ${Object.entries(products).sort((a,b) => b[1].count - a[1].count).map(([name, data]) => `
+            <div class="drill-product-card" onclick="filterActorsByProduct('${name.replace(/'/g, "\\'")}')">
+              <div class="drill-product-name">${name}</div>
+              <div class="drill-product-count">${data.count} vendeur${data.count > 1 ? 's' : ''}</div>
+            </div>
+          `).join('')}
+        </div>
+        <p class="drill-hint">Cliquez sur un produit pour voir les vendeurs</p>
+      `;
+    } catch(e) {
+      content = '<p class="muted">Chargement...</p>';
+    }
+  } else if (type === 'users') {
+    title = '👤 Communauté';
+    content = `
+      <div class="drill-community">
+        <div class="drill-stat-big">
+          <span class="drill-big-number">${document.getElementById('statUsers').textContent}</span>
+          <span class="drill-big-label">Utilisateurs inscrits</span>
+        </div>
+        <div class="drill-features">
+          <div class="drill-feature">
+            <span class="drill-feature-icon">✅</span>
+            <div>
+              <strong>Compte gratuit</strong>
+              <p>Jusqu'à 2 acteurs, accès complet à la carte et aux contacts</p>
+            </div>
+          </div>
+          <div class="drill-feature">
+            <span class="drill-feature-icon">💎</span>
+            <div>
+              <strong>Premium - 1 000 FCFA/mois</strong>
+              <p>Acteurs illimités, statistiques avancées, notifications SMS/WhatsApp</p>
+            </div>
+          </div>
+        </div>
+        <button onclick="document.getElementById('btnLogin').click(); this.closest('dialog').close();" class="btn-primary-large" style="margin-top:20px;">Rejoindre la communauté</button>
+      </div>
+    `;
+  }
+  
+  dlg.innerHTML = `
+    <div class="dialog-body">
+      <h3>${title}</h3>
+      ${content}
+      <div class="dialog-actions">
+        <button type="button" onclick="this.closest('dialog').close()">Fermer</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(dlg);
+  dlg.showModal();
+  dlg.addEventListener('close', () => dlg.remove());
+}
+
+// Fonctions de filtrage depuis drill-down
+function filterActorsByRole(role) {
+  document.querySelectorAll('dialog').forEach(d => d.close());
+  document.querySelector('[data-tab="actors"]').click();
+  document.querySelector('.tabs').scrollIntoView({ behavior: 'smooth' });
+  setTimeout(() => {
+    document.getElementById('aRole').value = role;
+    renderActors();
+  }, 300);
+}
+
+function filterActorsByRegion(region) {
+  document.querySelectorAll('dialog').forEach(d => d.close());
+  document.querySelector('[data-tab="actors"]').click();
+  document.querySelector('.tabs').scrollIntoView({ behavior: 'smooth' });
+  setTimeout(() => {
+    const select = document.getElementById('aRegion');
+    for (let i = 0; i < select.options.length; i++) {
+      if (select.options[i].text === region) {
+        select.selectedIndex = i;
+        break;
+      }
+    }
+    renderActors();
+  }, 300);
+}
+
+function filterActorsByProduct(product) {
+  document.querySelectorAll('dialog').forEach(d => d.close());
+  document.querySelector('[data-tab="actors"]').click();
+  document.querySelector('.tabs').scrollIntoView({ behavior: 'smooth' });
+  setTimeout(() => {
+    document.getElementById('aQ').value = product;
+    renderActors();
+  }, 300);
+}
+
+// Drill-down pour les étapes "Comment ça marche"
+function openStepDetails(step) {
+  const dlg = document.createElement('dialog');
+  dlg.className = 'drill-dialog';
+  
+  const steps = {
+    1: {
+      icon: '📝',
+      title: 'Étape 1 : Inscription',
+      content: `
+        <div class="step-detail">
+          <div class="step-detail-intro">
+            <p>Rejoignez AgriRéseau Pro en quelques clics et commencez à développer votre réseau agricole.</p>
+          </div>
+          <div class="step-detail-list">
+            <div class="step-detail-item">
+              <span class="step-check">✓</span>
+              <div>
+                <strong>Créez votre compte</strong>
+                <p>Email ou téléphone, mot de passe, et c'est parti !</p>
+              </div>
+            </div>
+            <div class="step-detail-item">
+              <span class="step-check">✓</span>
+              <div>
+                <strong>Choisissez votre rôle</strong>
+                <p>Producteur, éleveur, transporteur, transformateur, grossiste...</p>
+              </div>
+            </div>
+            <div class="step-detail-item">
+              <span class="step-check">✓</span>
+              <div>
+                <strong>Ajoutez vos acteurs</strong>
+                <p>Fermes, exploitations, entreprises - jusqu'à 2 en compte gratuit</p>
+              </div>
+            </div>
+          </div>
+          <button onclick="document.getElementById('btnLogin').click(); this.closest('dialog').close();" class="btn-primary-large">Commencer maintenant</button>
+        </div>
+      `
+    },
+    2: {
+      icon: '📦',
+      title: 'Étape 2 : Publication',
+      content: `
+        <div class="step-detail">
+          <div class="step-detail-intro">
+            <p>Rendez vos produits et services visibles sur toute la plateforme.</p>
+          </div>
+          <div class="step-detail-list">
+            <div class="step-detail-item">
+              <span class="step-check">✓</span>
+              <div>
+                <strong>Ajoutez vos produits</strong>
+                <p>Maïs, tomates, poulets, poissons, services de transport...</p>
+              </div>
+            </div>
+            <div class="step-detail-item">
+              <span class="step-check">✓</span>
+              <div>
+                <strong>Indiquez vos prix et quantités</strong>
+                <p>Prix au kg, à la tête, au plateau... avec les stocks disponibles</p>
+              </div>
+            </div>
+            <div class="step-detail-item">
+              <span class="step-check">✓</span>
+              <div>
+                <strong>Apparaissez sur la carte</strong>
+                <p>Votre localisation GPS permet aux acheteurs de vous trouver</p>
+              </div>
+            </div>
+          </div>
+          <button onclick="document.querySelector('[data-tab=&quot;actors&quot;]').click(); document.querySelector('.tabs').scrollIntoView({behavior:'smooth'}); this.closest('dialog').close();" class="btn-primary-large">Voir les acteurs</button>
+        </div>
+      `
+    },
+    3: {
+      icon: '🤝',
+      title: 'Étape 3 : Connexion',
+      content: `
+        <div class="step-detail">
+          <div class="step-detail-intro">
+            <p>Trouvez des partenaires et développez votre activité grâce au réseau.</p>
+          </div>
+          <div class="step-detail-list">
+            <div class="step-detail-item">
+              <span class="step-check">✓</span>
+              <div>
+                <strong>Explorez la carte interactive</strong>
+                <p>Localisez les producteurs, éleveurs et transporteurs près de vous</p>
+              </div>
+            </div>
+            <div class="step-detail-item">
+              <span class="step-check">✓</span>
+              <div>
+                <strong>Contactez directement via WhatsApp</strong>
+                <p>Message pré-rempli pour une prise de contact rapide</p>
+              </div>
+            </div>
+            <div class="step-detail-item">
+              <span class="step-check">✓</span>
+              <div>
+                <strong>Gérez vos coûts et budgets</strong>
+                <p>Outils de gestion intégrés pour optimiser votre rentabilité</p>
+              </div>
+            </div>
+          </div>
+          <button onclick="document.querySelector('[data-tab=&quot;map&quot;]').click(); document.querySelector('.tabs').scrollIntoView({behavior:'smooth'}); this.closest('dialog').close();" class="btn-primary-large">Explorer la carte</button>
+        </div>
+      `
+    }
+  };
+  
+  const s = steps[step];
+  
+  dlg.innerHTML = `
+    <div class="dialog-body">
+      <h3>${s.icon} ${s.title}</h3>
+      ${s.content}
+      <div class="dialog-actions">
+        <button type="button" onclick="this.closest('dialog').close()">Fermer</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(dlg);
+  dlg.showModal();
+  dlg.addEventListener('close', () => dlg.remove());
 }
 
 // Charger les prix du marché (public)
