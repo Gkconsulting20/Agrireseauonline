@@ -4071,4 +4071,12 @@ async function boot(){
   if(window._booted) return; 
   window._booted=true; 
 }
+
+// Exposer les fonctions drill-down au scope global
+window.openStatsDrillDown = openStatsDrillDown;
+window.openStepDetails = openStepDetails;
+window.filterActorsByRole = filterActorsByRole;
+window.filterActorsByRegion = filterActorsByRegion;
+window.filterActorsByProduct = filterActorsByProduct;
+
 await boot();
