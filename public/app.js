@@ -821,8 +821,8 @@ function openProductDrillDown(productName){
               </div>
             </div>
             <div style="margin:10px 0;">
-              <p style="margin:5px 0;">📦 <strong>Quantité disponible:</strong> ${volume.toLocaleString()} kg</p>
-              ${price > 0 ? `<p style="margin:5px 0;">💰 <strong>Prix:</strong> ${price.toLocaleString()} FCFA/kg</p>` : ''}
+              <p style="margin:5px 0;">📦 <strong>Quantité disponible:</strong> ${volume.toLocaleString()} ${a.unit || 'kg'}</p>
+              ${price > 0 ? `<p style="margin:5px 0;">💰 <strong>Prix:</strong> ${price.toLocaleString()} FCFA/${a.unit || 'kg'}</p>` : ''}
               ${a.localite ? `<p style="margin:5px 0;">📍 ${a.localite}</p>` : ''}
             </div>
             <div class="links" style="margin-top:10px;">
@@ -1199,9 +1199,9 @@ async function openAct(a){
           <p style="margin:5px 0;">Frais généraux (${a.overhead_pct||0}%): <strong>${Math.round(S.overhead).toLocaleString()} FCFA</strong></p>
           <hr style="margin:10px 0;border:0;border-top:2px solid #059669;">
           <p style="margin:5px 0;font-size:16px;"><strong>Total prévisionnel: ${Math.round(S.total).toLocaleString()} FCFA</strong></p>
-          <p style="margin:5px 0;">Quantité prévue: <strong>${(a.output_qty||0).toLocaleString()} kg</strong></p>
-          <p style="margin:5px 0;">Coût unitaire prévu: <strong>${S.unit.toFixed(2)} FCFA/kg</strong></p>
-          <p style="margin:5px 0;">PV envisagé: <strong>${(a.price_expected||0).toFixed(2)} FCFA/kg</strong></p>
+          <p style="margin:5px 0;">Quantité prévue: <strong>${(a.output_qty||0).toLocaleString()} ${a.unit||'kg'}</strong></p>
+          <p style="margin:5px 0;">Coût unitaire prévu: <strong>${S.unit.toFixed(2)} FCFA/${a.unit||'kg'}</strong></p>
+          <p style="margin:5px 0;">PV envisagé: <strong>${(a.price_expected||0).toFixed(2)} FCFA/${a.unit||'kg'}</strong></p>
           <p style="margin:5px 0;color:#059669;">Marge prévue: <strong>${S.marge.toFixed(1)}%</strong></p>
         </div>
       </div>
@@ -1213,8 +1213,8 @@ async function openAct(a){
           <p style="margin:5px 0;">Total recettes: <strong>${(S.totalRealIncomes||0).toLocaleString()} FCFA</strong></p>
           <hr style="margin:10px 0;border:0;border-top:2px solid #dc2626;">
           <p style="margin:5px 0;font-size:16px;"><strong>Profit réel: ${(S.profit||0).toLocaleString()} FCFA</strong></p>
-          <p style="margin:5px 0;">Quantité récoltée: <strong>${(S.actual_harvest||0).toLocaleString()} kg</strong></p>
-          <p style="margin:5px 0;">Coût unitaire réel: <strong>${(S.unitReal||0).toFixed(2)} FCFA/kg</strong></p>
+          <p style="margin:5px 0;">Quantité récoltée: <strong>${(S.actual_harvest||0).toLocaleString()} ${a.unit||'kg'}</strong></p>
+          <p style="margin:5px 0;">Coût unitaire réel: <strong>${(S.unitReal||0).toFixed(2)} FCFA/${a.unit||'kg'}</strong></p>
           ${S.actual_harvest>0 ? `<p style="margin:5px 0;color:#dc2626;">Marge réelle: <strong>${S.margeReal.toFixed(1)}%</strong></p>` : '<p style="margin:5px 0;color:#9ca3af;font-style:italic;">Renseignez la récolte réelle</p>'}
         </div>
       </div>
@@ -1728,8 +1728,8 @@ async function showCostSummary(budgetId){
     
     <div style="background:#dcfce7;padding:15px;border-radius:8px;border:2px solid #059669;">
       <h5 style="margin:0 0 10px 0;color:#059669;">💎 Prix de vente suggéré</h5>
-      <p style="margin:0;font-size:28px;font-weight:bold;color:#059669;">${suggestedPrice.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2})} FCFA/kg</p>
-      <p style="margin:5px 0 0 0;font-size:12px;color:#6b7280;">Calcul: ${unitCost.toFixed(2)} FCFA × (1 + ${targetMargin}%) = ${suggestedPrice.toFixed(2)} FCFA/kg</p>
+      <p style="margin:0;font-size:28px;font-weight:bold;color:#059669;">${suggestedPrice.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2})} FCFA/${unit}</p>
+      <p style="margin:5px 0 0 0;font-size:12px;color:#6b7280;">Calcul: ${unitCost.toFixed(2)} FCFA/${unit} × (1 + ${targetMargin}%) = ${suggestedPrice.toFixed(2)} FCFA/${unit}</p>
       <p style="margin:10px 0 0 0;font-size:11px;color:#6b7280;font-style:italic;">💡 Ce prix est indicatif. Le prix final sera négociable avec les acheteurs.</p>
     </div>
   `;
