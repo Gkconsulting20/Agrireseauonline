@@ -16,7 +16,53 @@ tabs.forEach(b=> b.addEventListener('click',()=>{
 const btnLogin=document.getElementById('btnLogin'), btnLogout=document.getElementById('btnLogout'), meEl=document.getElementById('me');
 
 // Variables globales
-let ME=null, ACTORS=[], LOGISTICS=[], PRODUCTS=[], REGIONS=[], BUDGETS=[], CURRENT_BUDGET=null, COSTS=[], CURRENT_COST_BUDGET=null, ADMIN_USERS=[], ADMIN_LOGISTICS=[], STATS_DATA={};
+let ME=null, ACTORS=[], LOGISTICS=[], PRODUCTS=[], REGIONS=[], BUDGETS=[], CURRENT_BUDGET=null, COSTS=[], CURRENT_COST_BUDGET=null, ADMIN_USERS=[], ADMIN_LOGISTICS=[], STATS_DATA={}, MARKET_PRICES=[];
+
+// Charger les statistiques de la plateforme (public)
+async function loadPlatformStats(){
+  try {
+    const r = await fetch('/api/platform/stats');
+    const stats = await r.json();
+    document.getElementById('statActors').textContent = stats.actors || '0';
+    document.getElementById('statRegions').textContent = stats.regions || '0';
+    document.getElementById('statProducts').textContent = stats.products || '0';
+    document.getElementById('statUsers').textContent = stats.users || '0';
+  } catch(e) {
+    console.log('Stats not available');
+  }
+}
+
+// Charger les prix du marché (public)
+async function loadMarketPrices(){
+  try {
+    const r = await fetch('/api/market/prices');
+    MARKET_PRICES = await r.json();
+    renderMarketPrices();
+  } catch(e) {
+    console.log('Market prices not available');
+  }
+}
+
+function renderMarketPrices(){
+  const grid = document.getElementById('priceGrid');
+  if(!grid) return;
+  
+  if(MARKET_PRICES.length === 0){
+    grid.innerHTML = '<p class="muted">Aucun prix disponible pour le moment. Les prix apparaîtront quand les acteurs renseigneront leurs tarifs.</p>';
+    return;
+  }
+  
+  grid.innerHTML = MARKET_PRICES.map(p => {
+    const safeName = (p.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    return `
+    <div class="price-card" onclick="openProductDrillDown('${safeName}')">
+      <div class="product-name">${p.name}</div>
+      <div class="avg-price">${p.avgPrice.toLocaleString()} FCFA/${p.unit}</div>
+      <div class="price-range">${p.minPrice.toLocaleString()} - ${p.maxPrice.toLocaleString()} FCFA</div>
+      <div class="actor-count">${p.actorCount} vendeur${p.actorCount > 1 ? 's' : ''} • ${p.totalVolume.toLocaleString()} ${p.unit} dispo.</div>
+    </div>
+  `;}).join('');
+}
 
 async function openLogin(){
   const dlg=document.createElement('dialog');
@@ -3691,6 +3737,10 @@ async function boot(){
   await loadCosts(); 
   await loadMyActors();
   await loadMyLogistics();
+  
+  // Charger les données publiques (hero section)
+  loadPlatformStats();
+  loadMarketPrices();
   
   checkResetPasswordUrl();
   

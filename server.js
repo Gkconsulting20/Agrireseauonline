@@ -361,6 +361,71 @@ app.get('/api/logistics', async (req,res)=>{
   res.json(rows); 
 });
 
+app.get('/api/market/prices', async (req,res)=>{ 
+  const actors = await db.getAll('SELECT products, price, unit, volume FROM actors WHERE price IS NOT NULL AND price > 0', []);
+  const productPrices = {};
+  
+  for(const actor of actors) {
+    const products = JSON.parse(actor.products || '[]');
+    products.forEach(p => {
+      const productName = typeof p === 'string' ? p.trim() : (p?.name || '').trim();
+      if(!productName) return;
+      
+      if(!productPrices[productName]) {
+        productPrices[productName] = { prices: [], volumes: [], units: [] };
+      }
+      productPrices[productName].prices.push(Number(actor.price));
+      productPrices[productName].volumes.push(Number(actor.volume) || 0);
+      productPrices[productName].units.push(actor.unit || 'kg');
+    });
+  }
+  
+  const result = Object.entries(productPrices)
+    .filter(([name, data]) => data.prices.length > 0)
+    .map(([name, data]) => {
+      const avgPrice = data.prices.reduce((a,b) => a+b, 0) / data.prices.length;
+      const minPrice = Math.min(...data.prices);
+      const maxPrice = Math.max(...data.prices);
+      const totalVolume = data.volumes.reduce((a,b) => a+b, 0);
+      const unit = data.units[0] || 'kg';
+      return { name, avgPrice: Math.round(avgPrice), minPrice, maxPrice, totalVolume: Math.round(totalVolume), unit, actorCount: data.prices.length };
+    })
+    .sort((a,b) => b.totalVolume - a.totalVolume)
+    .slice(0, 12);
+  
+  res.json(result);
+});
+
+app.get('/api/platform/stats', async (req,res)=>{ 
+  try {
+    const actorCount = await db.getOne('SELECT COUNT(*) as c FROM actors', []);
+    const userCount = await db.getOne('SELECT COUNT(*) as c FROM users', []);
+    const regionCount = await db.getOne('SELECT COUNT(DISTINCT region) as c FROM actors', []);
+    
+    // Count unique products - handles both string and object formats
+    const actors = await db.getAll('SELECT products FROM actors WHERE products IS NOT NULL AND products != \'[]\'', []);
+    const uniqueProducts = new Set();
+    actors.forEach(a => {
+      try {
+        const products = JSON.parse(a.products || '[]');
+        products.forEach(p => {
+          const name = typeof p === 'string' ? p.trim() : (p?.name || '').trim();
+          if(name) uniqueProducts.add(name.toLowerCase());
+        });
+      } catch(e) {}
+    });
+    
+    res.json({
+      actors: parseInt(actorCount?.c) || 0,
+      users: parseInt(userCount?.c) || 0,
+      regions: parseInt(regionCount?.c) || 0,
+      products: uniqueProducts.size
+    });
+  } catch(e) {
+    res.json({ actors: 0, users: 0, regions: 0, products: 0 });
+  }
+});
+
 app.post('/api/logistics', requireAuth, blockCommercial, async (req,res)=>{ 
   const b=req.body; 
   const row = await db.insertOne('INSERT INTO logistics (type,title,region,details,contact,whatsapp,owner_id) VALUES ($1,$2,$3,$4,$5,$6,$7)', [b.type,b.title,b.region,b.details||'',b.contact||'',b.whatsapp||'',req.session.user.id]); 
