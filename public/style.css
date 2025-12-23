@@ -461,3 +461,34 @@ details[open] summary {
     width: 100%;
   }
 }
+
+/* Drill-down styles */
+.drill-dialog {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  padding: 0;
+  max-width: 90vw;
+}
+
+.drill-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.tbl tbody tr.budget-row-drill:hover {
+  background: #f0fdf4 !important;
+  transition: background 0.2s ease;
+}
+
+.card[style*="cursor: pointer"]:hover,
+.card[style*="cursor:pointer"]:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  transition: all 0.2s ease;
+}
+
+.product-drill:hover {
+  background: #dcfce7;
+  border-radius: 4px;
+  padding: 2px 4px;
+}

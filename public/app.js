@@ -1572,16 +1572,18 @@ function renderCosts(){
   const filtered = budgetId ? COSTS.filter(c=>c.activity_id==budgetId) : COSTS;
   list.innerHTML='';
   if(filtered.length===0){
-    list.innerHTML='<p class="muted">Aucune dépense enregistrée</p>';
+    list.innerHTML='<p class="muted">Aucune dépense enregistrée. Cliquez sur "+ Nouvelle dépense" pour commencer.</p>';
     return;
   }
+  list.innerHTML='<p style="margin-bottom:10px;color:#6b7280;font-size:13px;">💡 Cliquez sur une ligne pour voir les détails</p>';
   filtered.forEach(c=>{
     const el=document.createElement('div');
     el.className='card';
+    el.style.cursor='pointer';
     el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:start;">
       <div style="flex:1;">
         <div><strong>${c.kind==='income'?'💰 Recette':'💸 Dépense'}</strong> · ${c.category||'-'} · <strong>${Number(c.amount).toLocaleString()} FCFA</strong> <span class="muted">${c.occurred_on}</span></div>
-        <div class="muted">${c.note||''}</div>
+        <div class="muted">${(c.note||'').substring(0,50)}${(c.note||'').length > 50 ? '...' : ''}</div>
       </div>
       <div style="white-space:nowrap;">
         <a href="#" data-id="${c.id}" class="edit-cost" style="margin-right:8px;">✏️</a>
@@ -1596,7 +1598,77 @@ function renderCosts(){
       await fetch('/api/budget/'+c.id,{method:'DELETE'}); 
       await loadCosts(); 
     };
+    // Drill-down on card click
+    el.onclick = (e) => {
+      if(e.target.tagName === 'A' || e.target.closest('a')) return;
+      openCostDrillDown(c);
+    };
   });
+}
+
+// Drill-down: Cost/Income detail modal
+function openCostDrillDown(cost){
+  const budget = BUDGETS.find(b => b.id == cost.activity_id);
+  const dlg = document.createElement('dialog');
+  dlg.className = 'drill-dialog';
+  
+  const isIncome = cost.kind === 'income';
+  const typeLabel = isIncome ? '💰 RECETTE' : '💸 DÉPENSE';
+  const typeColor = isIncome ? '#059669' : '#dc2626';
+  const bgColor = isIncome ? '#f0fdf4' : '#fee2e2';
+  
+  dlg.innerHTML = `
+    <div class="dialog-body" style="max-width:500px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <h2 style="margin:0;color:${typeColor};">${typeLabel}</h2>
+        <span style="font-size:28px;font-weight:bold;color:${typeColor};">${Number(cost.amount).toLocaleString()} FCFA</span>
+      </div>
+      
+      <div class="card" style="background:${bgColor};margin-bottom:15px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+          <div>
+            <p style="margin:0;color:#6b7280;font-size:12px;">📅 Date</p>
+            <p style="margin:5px 0 0 0;font-weight:bold;font-size:16px;">${cost.occurred_on}</p>
+          </div>
+          <div>
+            <p style="margin:0;color:#6b7280;font-size:12px;">📂 Catégorie</p>
+            <p style="margin:5px 0 0 0;font-weight:bold;font-size:16px;">${cost.category || 'Non catégorisé'}</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card" style="margin-bottom:15px;">
+        <p style="margin:0;color:#6b7280;font-size:12px;">📋 Budget associé</p>
+        <p style="margin:5px 0 0 0;font-weight:bold;font-size:16px;">${budget ? budget.label : 'Non associé'}</p>
+        ${budget ? `<p style="margin:5px 0 0 0;"><span class="badge">${budget.filiere}</span> <span class="badge">${budget.periode}</span></p>` : ''}
+      </div>
+      
+      <div class="card" style="margin-bottom:15px;">
+        <p style="margin:0;color:#6b7280;font-size:12px;">📝 Note / Description</p>
+        <p style="margin:10px 0 0 0;white-space:pre-wrap;line-height:1.6;">${cost.note || 'Aucune note'}</p>
+      </div>
+      
+      <div class="dialog-actions" style="margin-top:20px;">
+        <button type="button" id="btnEditThisCost" style="background:#3b82f6;">✏️ Modifier</button>
+        <button type="button" id="btnDeleteThisCost" style="background:#dc2626;">🗑 Supprimer</button>
+        <button type="button" id="closeCostDrill">Fermer</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(dlg);
+  dlg.showModal();
+  dlg.querySelector('#closeCostDrill').onclick = () => dlg.close();
+  dlg.querySelector('#btnEditThisCost').onclick = () => {
+    dlg.close();
+    openEditCostDialog(cost);
+  };
+  dlg.querySelector('#btnDeleteThisCost').onclick = async () => {
+    if(!confirm('Supprimer cette entrée ?')) return;
+    await fetch('/api/budget/'+cost.id, {method:'DELETE'});
+    dlg.close();
+    await loadCosts();
+  };
 }
 async function showCostSummary(budgetId){
   const root=document.getElementById('costSummary');
@@ -1794,10 +1866,17 @@ async function openBudgetDrillDown(budgetId){
   const unit = budget.unit || 'kg';
   const actualHarvest = S.actual_harvest || 0;
   
-  // Get individual costs
-  const costsR = await fetch('/api/budget');
-  const allCosts = await costsR.json();
-  const budgetCosts = allCosts.filter(c => c.activity_id == budgetId);
+  // Get individual costs - fetch fresh to ensure we have data
+  let budgetCosts = [];
+  try {
+    const costsR = await fetch('/api/budget');
+    const costsData = await costsR.json();
+    const allCosts = costsData.rows || costsData || [];
+    budgetCosts = allCosts.filter(c => c.activity_id == budgetId);
+  } catch(e) {
+    // Fallback to global COSTS if available
+    budgetCosts = (COSTS || []).filter(c => c.activity_id == budgetId);
+  }
   const expenses = budgetCosts.filter(c => c.kind === 'expense');
   const incomes = budgetCosts.filter(c => c.kind === 'income');
   
