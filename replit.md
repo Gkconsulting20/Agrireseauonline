@@ -77,7 +77,23 @@ AgriRéseau Pro uses a modern web stack:
         - `requireAdmin` middleware protects all admin commercial management endpoints
         - Profile update endpoint preserves `is_commercial` flag across all session refresh paths
         - Email/phone uniqueness validation prevents duplicate accounts
-    - **Test Commercial Credentials**: koffi.commercial@agrireseau.tg / Commercial2025!
+
+## Test Accounts (Production)
+
+| Type | Email | Password | Notes |
+|------|-------|----------|-------|
+| Admin | admin@agrireseau.online | Admin123! | Full admin access |
+| Commercial | koffi.commercial@agrireseau.tg | Commercial2025! | Code: COM-KOFFIM-5538 |
+| Éleveur | eleveur.test@agrireseau.tg | Test123! | Test user |
+| Transporteur | transport.test@agrireseau.tg | Test123! | Test user |
+| Producteur | producteur.test@agrireseau.tg | Test123! | Test user |
+
+## Recent Updates (December 2025)
+- **Professional UI Redesign**: Inter font, CSS variables, gradient buttons, modern shadows
+- **Interactive Hero Section**: Clickable stats with drill-down modals (actors by role/region, products, users)
+- **Interactive "How It Works"**: Step cards with detailed explanations on click
+- **Improved Badges**: Role-specific colored badges with gradients
+- **Enhanced Dialog Animations**: Smooth entry animations for all modals
 - **Trust & Reputation System**:
     - **Rating System**: 1-5 star ratings with optional comments for actors.
     - **Certification Badges**: Visual badges for Bio, Qualité, and Commerce Équitable certifications.
