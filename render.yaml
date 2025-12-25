@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: agrireseau-pro
+    runtime: node
+    region: frankfurt
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/platform/stats
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: FEDAPAY_SECRET_KEY
+        sync: false
+      - key: FEDAPAY_PUBLIC_KEY
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
