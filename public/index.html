@@ -21,6 +21,7 @@
 </div>
 <div class="actions">
   <span id="me"></span>
+  <button type="button" class="help-button" onclick="document.getElementById('userGuide').scrollIntoView({behavior:'smooth'})">Guide &amp; fonctionnalités</button>
   <button id="btnSubscription" onclick="showPaymentDialog()" style="display:none;background:#fbbf24;color:#000">💎 Abonnement</button>
   <button id="btnLogin">Se connecter</button>
   <button id="btnLogout" style="display:none">Se déconnecter</button>
@@ -72,6 +73,50 @@
       <p>Trouvez des partenaires, négociez via WhatsApp et développez votre activité.</p>
     </div>
   </div>
+</section>
+
+<section id="userGuide" class="guide-section">
+  <div class="guide-heading">
+    <span class="guide-eyebrow">Aide AgriRéseau Pro</span>
+    <h3>Guide de démarrage et fonctionnalités</h3>
+    <p>Les premières étapes pour présenter votre activité, trouver des partenaires et suivre votre exploitation.</p>
+  </div>
+
+  <div class="guide-start card">
+    <div>
+      <h4>Bien démarrer</h4>
+      <ol class="guide-steps">
+        <li><span>1</span><div><strong>Créez votre compte</strong><p>Choisissez « Se connecter », puis indiquez votre nom, un email ou téléphone, un mot de passe, votre rôle et votre région. Acceptez les conditions pour terminer l’inscription.</p></div></li>
+        <li><span>2</span><div><strong>Ajoutez votre activité</strong><p>Après connexion, ouvrez « Paramètres » puis « Mes Acteurs ». Renseignez le nom, les produits, la région et vos coordonnées. Une photo et votre position peuvent aider les partenaires à vous repérer.</p></div></li>
+        <li><span>3</span><div><strong>Explorez le réseau</strong><p>Utilisez « Acteurs » et « Carte » pour chercher par rôle, région ou produit. Consultez les fiches et contactez directement les acteurs qui affichent un numéro ou WhatsApp.</p></div></li>
+        <li><span>4</span><div><strong>Publiez vos besoins</strong><p>Dans « Logistique », créez une offre ou une demande de transport et ajoutez les détails et un moyen de contact.</p></div></li>
+        <li><span>5</span><div><strong>Suivez votre activité</strong><p>Après connexion, créez un budget prévisionnel, puis enregistrez vos recettes et dépenses pour comparer les montants prévus et réels et suivre le coût de revient.</p></div></li>
+      </ol>
+    </div>
+    <aside class="guide-actions">
+      <strong>À savoir</strong>
+      <p>Le compte gratuit permet de gérer jusqu’à 2 acteurs. L’abonnement Premium affiché dans l’application est de 1 000 FCFA par mois et permet de dépasser cette limite.</p>
+      <p>Les paiements Premium sont proposés via FedaPay. Les notifications automatiques SMS/WhatsApp peuvent dépendre de la configuration du service.</p>
+      <button type="button" onclick="document.getElementById('btnLogin').click()">Créer mon compte</button>
+      <button type="button" class="guide-secondary" onclick="document.querySelector('[data-tab=&quot;actors&quot;]').click(); document.querySelector('.tabs').scrollIntoView({behavior:'smooth'})">Parcourir les acteurs</button>
+    </aside>
+  </div>
+
+  <div class="guide-features-heading">
+    <h4>Fonctionnalités disponibles</h4>
+    <p>Les espaces réservés aux utilisateurs connectés apparaissent après la connexion.</p>
+  </div>
+  <div class="guide-feature-grid">
+    <article class="guide-feature-card"><span>🌾</span><h5>Annuaire agricole</h5><p>Consultez et filtrez les profils de producteurs, éleveurs, transporteurs, transformateurs, grossistes, détaillants et institutions, avec leurs produits et coordonnées publiées.</p></article>
+    <article class="guide-feature-card"><span>🗺️</span><h5>Carte interactive</h5><p>Repérez les acteurs par région et consultez leur localisation lorsqu’elle est renseignée.</p></article>
+    <article class="guide-feature-card"><span>🏢</span><h5>Gestion de vos acteurs</h5><p>Créez et modifiez vos fiches, ajoutez produits, quantités, prix, photos, certifications et coordonnées. Limite gratuite : 2 acteurs.</p></article>
+    <article class="guide-feature-card"><span>🚚</span><h5>Logistique</h5><p>Publiez et consultez des offres ou demandes de transport, puis contactez l’annonceur directement.</p></article>
+    <article class="guide-feature-card"><span>📒</span><h5>Budgets et coûts</h5><p>Préparez un budget par activité, consignez les recettes et dépenses et comparez les prévisions aux montants réels.</p></article>
+    <article class="guide-feature-card"><span>⭐</span><h5>Évaluations et statistiques</h5><p>Évaluez les acteurs et consultez vos indicateurs d’activité. L’espace statistiques propose aussi des exports CSV et une impression PDF.</p></article>
+    <article class="guide-feature-card"><span>💎</span><h5>Abonnement Premium</h5><p>Pour 1 000 FCFA par mois selon l’offre affichée dans l’application : davantage d’acteurs et un badge Premium. Le paiement est proposé par FedaPay.</p></article>
+    <article class="guide-feature-card"><span>🛠️</span><h5>Espaces professionnels</h5><p>Les comptes commerciaux disposent d’un suivi des recrutements et de rapports. Les administrateurs disposent d’outils de gestion de la plateforme. Ces comptes ont des accès différents d’un compte d’exploitation.</p></article>
+  </div>
+  <p class="guide-footnote">Les fonctions disponibles peuvent varier selon votre compte et la configuration du service. Les notifications automatiques ne sont pas garanties tant que leur service d’envoi n’est pas configuré.</p>
 </section>
 
 <nav class="tabs">
