@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "n_nHk-8X6-pZZ8ewnFi8L"
+uri = "file://generated-artifacts/guide-demarrage-agrireseau-pro.pdf"
+type = "pdf"
+title = "Guide de démarrage AgriRéseau Pro (PDF)"
+description = "Guide de démarrage et liste des fonctionnalités, en français, prêt à télécharger."
+logical_id = "b9946574-effb-4e04-8b11-f24a088ee1c9"
+content_hash = "sha256:a97c9d51af155c022542d036b8b731b1b2456c07a89908c2432b86bfc0c60cee"
+size = 57110
+mtime_ms = 1794600293995
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:3f234537-b740-44ea-aca6-d127ec1c1697/b9946574-effb-4e04-8b11-f24a088ee1c9/3e0553b4-ddf0-4de7-a383-f0374c6b3c58"
+storage_version_token = "1794600321697892"
+content_type = "application/pdf"
