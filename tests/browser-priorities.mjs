@@ -10,6 +10,7 @@ const actor = { id: 1, owner_id: 42, name: 'Coopérative de test', role: 'cooper
   region: 'Plateaux', products: [{name:'Maïs'}], certifications: [], lat: null, lng: null };
 let user = {id:42, name:'Utilisateur test', role:'producteur', region:'Plateaux'};
 let actors = [actor], budgets = [], failure = '', actorFailure = false, requests = [], plan = 'free';
+let recoveryStatus = 503;
 const server = createServer(async (req, res) => {
   if (req.url.startsWith('/api/')) {
     let raw = '';
@@ -21,6 +22,12 @@ const server = createServer(async (req, res) => {
     if (req.url === '/api/auth/me') result = user;
     else if (req.url === '/api/auth/login') { user = {id:42, name:'Utilisateur test'}; result = user; }
     else if (req.url === '/api/auth/logout') { user = null; result = {ok:true}; }
+    else if (req.url === '/api/auth/forgot-password') {
+      res.statusCode = recoveryStatus;
+      result = recoveryStatus === 503
+        ? {error:'recovery_unavailable',message:'La récupération par email est indisponible. Contactez l’administration.'}
+        : {success:true,message:'Si ce compte possède une adresse email, un lien de récupération lui sera envoyé.'};
+    }
     else if (req.url === '/api/auth/register') {
       user = {id:42, ...body}; result = user;
     }
@@ -120,6 +127,27 @@ try {
   await cdp('Runtime.enable'); await cdp('Page.enable');
   await cdp('Page.navigate',{url});
   await wait('window._booted');
+  assert.equal(await evaluate('document.querySelector("#btnSeed").style.display'), 'none');
+  const originalUser = user;
+  for (const identity of [{id:99,is_admin:false}, {id:99,is_admin:true}, originalUser]) {
+    user = identity;
+    await cdp('Page.reload');
+    await wait('window._booted && !!document.querySelector("#actorList .card")');
+    assert.equal(await evaluate('!!document.querySelector("#actorList .edit")'),identity.id===42 || !!identity.is_admin);
+    assert.equal(await evaluate('!!document.querySelector("#actorList .del")'),identity.id===42 || !!identity.is_admin);
+  }
+  for(const status of [503,200]) {
+    recoveryStatus = status;
+    await click('#btnLogin');
+    await click('#forgotPasswordLink');
+    await fill('#frmForgotPassword [name="email"]','fixture@example.test');
+    await evaluate('document.querySelector("#frmForgotPassword").requestSubmit()');
+    await wait(`document.querySelector("#recoveryMessage").textContent.includes(${JSON.stringify(status===503 ? 'indisponible' : 'Si ce compte')})`);
+    assert.equal(await evaluate('!!document.querySelector("#resetLinkInput, #btnWhatsAppReset, #btnCopyResetLink")'),false);
+    await evaluate('document.querySelector("#frmForgotPassword").closest("dialog").remove()');
+    await evaluate('document.querySelector("#frmLogin").closest("dialog").remove()');
+  }
+  console.log('PASS: droits de gestion des fiches, démonstration masquée et récupération sans lien ni contact exposés');
   for (const currentPlan of ['free','premium']) {
     plan=currentPlan;
     await click('[data-tab="stats"]');

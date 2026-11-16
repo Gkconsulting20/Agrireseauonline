@@ -582,7 +582,16 @@ if(btnLocateMe) {
 }
 
 const btnSeed = document.getElementById('btnSeed');
-if(btnSeed) btnSeed.onclick=async()=>{ if(!confirm('Réinitialiser et charger des données de démo ?')) return; const r=await fetch('/api/seed',{method:'POST'}); if(r.ok){ await loadActors(); await loadLogistics(); renderMap(); renderStockSummary(); } };
+if(btnSeed) btnSeed.onclick=async()=>{
+  if(!ME?.is_admin || !confirm('Supprimer les données acteurs, logistique et avis pour charger la démonstration ? Cette opération est irréversible.')) return;
+  const r=await fetch('/api/seed',{method:'POST'});
+  if(r.ok){ await loadActors(); await loadLogistics(); renderMap(); renderStockSummary(); }
+  else { const err=await r.json(); alert(err.message || 'Opération refusée'); }
+};
+
+function canManageActor(actor) {
+  return ME && !ME.is_commercial && (ME.is_admin || actor.owner_id === ME.id);
+}
 
 let REFS={regions:[],products:[]}, LOGS=[], USER_LOCATION=null;
 
@@ -704,7 +713,8 @@ function actorCard(a){
   <div id="harvests-${a.id}" style="margin-top:8px;font-size:0.9em;color:#059669;"></div>
   <div id="upcoming-${a.id}" style="margin-top:8px;font-size:0.9em;color:#0369a1;"></div>
   <div class="links">${a.whatsapp? `<a target="_blank" href="https://wa.me/${digits(a.whatsapp)}?text=Bonjour, je suis intéressé par vos produits">WhatsApp</a>`:''}${a.email? `<a href="mailto:${a.email}">Email</a>`:''}${a.phone? `<a href="tel:${digits(a.phone)}">Appeler</a>`:''}
-  ${ME? `<a href="#" data-id="${a.id}" class="rate">Noter</a> <a href="#" data-id="${a.id}" class="edit">Modifier</a> <a href="#" data-id="${a.id}" class="del">Supprimer</a>`:`<a href="#" data-id="${a.id}" class="rate">Noter</a>`}</div>`;
+  <a href="#" data-id="${a.id}" class="rate">Noter</a>
+  ${canManageActor(a)? `<a href="#" data-id="${a.id}" class="edit">Modifier</a> <a href="#" data-id="${a.id}" class="del">Supprimer</a>`:''}</div>`;
   
   // Load and display harvests (real quantities available)
   fetch('/api/actors/'+a.id+'/harvests')
@@ -742,7 +752,7 @@ function actorCard(a){
       }
     })
     .catch(()=>{});
-  if(ME){ 
+  if(canManageActor(a)){
     el.querySelector('.edit').onclick=(e)=>{e.preventDefault(); openActorDialog(a);};
     el.querySelector('.del').onclick=async(e)=>{e.preventDefault(); if(!confirm('Supprimer ?')) return; await fetch('/api/actors/'+a.id,{method:'DELETE'}); await loadActors(); renderMap();}; 
   }
@@ -878,6 +888,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 function openActorDialog(a){ 
   if(!ME) return alert('Connecte-toi d\'abord.'); 
+  if(a && !canManageActor(a)) return alert('Seuls le propriétaire et les administrateurs peuvent modifier cette fiche.');
   
   // Normaliser les produits : string → object
   const normalizeProducts = (products) => {
@@ -2962,20 +2973,13 @@ window.deleteAdminLogistic = deleteAdminLogistic;
 function showForgotPasswordDialog(){
   const dlg=document.createElement('dialog');
   dlg.innerHTML=`<form id="frmForgotPassword" class="dialog-body"><h3>🔑 Mot de passe oublié</h3>
-  <p class="muted" style="margin-bottom:15px;">Entrez votre email OU numéro de téléphone pour recevoir un lien de réinitialisation</p>
+  <p class="muted" style="margin-bottom:15px;">Entrez votre email OU numéro de téléphone. Le lien sera envoyé uniquement à l’adresse email enregistrée sur votre compte. Sans email, contactez l’administration.</p>
   <div class="grid2">
     <label>Email <input name="email" type="email" placeholder="exemple@email.com"></label>
     <label>Téléphone <input name="phone" type="tel" placeholder="+228 XX XX XX XX"></label>
   </div>
-  <div id="resetLinkDisplay" style="display:none;margin-top:15px;padding:15px;background:#f0fdf4;border:1px solid #10b981;border-radius:8px;">
-    <p style="margin-bottom:10px;font-weight:500;color:#059669;">✅ Lien de réinitialisation généré :</p>
-    <input id="resetLinkInput" type="text" readonly style="width:100%;padding:8px;margin-bottom:10px;font-size:12px;border:1px solid #d1d5db;border-radius:4px;">
-    <div style="display:flex;gap:10px;">
-      <button type="button" id="btnCopyResetLink" style="flex:1;background:#10b981;color:#fff;">📋 Copier le lien</button>
-      <button type="button" id="btnWhatsAppReset" style="flex:1;background:#25D366;color:#fff;display:none;">📱 Envoyer via WhatsApp</button>
-    </div>
-  </div>
-  <div class="dialog-actions"><button type="submit">🔗 Générer le lien</button><button type="button" id="cancelForgot">Annuler</button></div></form>`;
+  <p id="recoveryMessage" role="status" aria-live="polite"></p>
+  <div class="dialog-actions"><button type="submit">Demander la récupération</button><button type="button" id="cancelForgot">Annuler</button></div></form>`;
   document.body.appendChild(dlg);
   dlg.showModal();
   dlg.querySelector('#cancelForgot').onclick=()=>dlg.close();
@@ -2995,38 +2999,21 @@ function showForgotPasswordDialog(){
 }
 
 async function requestPasswordReset(email, phone, dlg){
-  const r = await fetch('/api/auth/forgot-password',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({email: email||null, phone: phone||null})
-  });
-  
-  if(r.ok){
+  const button = dlg.querySelector('[type="submit"]');
+  const message = dlg.querySelector('#recoveryMessage');
+  button.disabled = true;
+  try {
+    const r = await fetch('/api/auth/forgot-password',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email: email||null, phone: phone||null})
+    });
     const data = await r.json();
-    const resetLinkDisplay = dlg.querySelector('#resetLinkDisplay');
-    const resetLinkInput = dlg.querySelector('#resetLinkInput');
-    const btnWhatsAppReset = dlg.querySelector('#btnWhatsAppReset');
-    
-    resetLinkInput.value = data.resetLink;
-    resetLinkDisplay.style.display = 'block';
-    
-    dlg.querySelector('#btnCopyResetLink').onclick=()=>{
-      resetLinkInput.select();
-      document.execCommand('copy');
-      alert('Lien copié dans le presse-papiers !');
-    };
-    
-    if(data.whatsapp){
-      btnWhatsAppReset.style.display = 'block';
-      const digits = data.whatsapp.replace(/\D/g,'');
-      const message = encodeURIComponent(`Voici votre lien de réinitialisation de mot de passe : ${data.resetLink}`);
-      btnWhatsAppReset.onclick=()=>{
-        window.open(`https://wa.me/${digits}?text=${message}`, '_blank');
-      };
-    }
-  } else {
-    const err = await r.json();
-    alert(err.error || 'Utilisateur non trouvé');
+    message.textContent = data.message || 'La récupération est indisponible. Réessayez plus tard.';
+  } catch {
+    message.textContent = 'Erreur réseau. Réessayez plus tard.';
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -3144,8 +3131,8 @@ function showResetPasswordForm(token){
   dlg.innerHTML=`<form id="frmResetPassword" class="dialog-body"><h3>🔐 Réinitialiser le mot de passe</h3>
   <p class="muted" style="margin-bottom:15px;">Entrez votre nouveau mot de passe</p>
   <div class="grid2">
-    <label>Nouveau mot de passe <input name="newPassword" type="password" required minlength="6"></label>
-    <label>Confirmer le mot de passe <input name="confirmPassword" type="password" required minlength="6"></label>
+    <label>Nouveau mot de passe <input name="newPassword" type="password" required minlength="8" autocomplete="new-password"></label>
+    <label>Confirmer le mot de passe <input name="confirmPassword" type="password" required minlength="8" autocomplete="new-password"></label>
   </div>
   <div class="dialog-actions"><button type="submit">🔒 Réinitialiser le mot de passe</button><button type="button" id="cancelReset">Annuler</button></div></form>`;
   document.body.appendChild(dlg);
@@ -3163,10 +3150,10 @@ function showResetPasswordForm(token){
       return alert('Les mots de passe ne correspondent pas');
     }
     
-    if(data.newPassword.length < 6){
-      return alert('Le mot de passe doit contenir au moins 6 caractères');
+    if(data.newPassword.length < 8 || new TextEncoder().encode(data.newPassword).length > 72){
+      return alert('Le mot de passe doit contenir au moins 8 caractères (72 octets maximum).');
     }
-    
+
     await resetPassword(token, data.newPassword, dlg);
   };
 }
@@ -4025,7 +4012,7 @@ document.getElementById('btnDownloadConsolidatedReport')?.addEventListener('clic
 
 async function boot(){ 
   const me = await fetch('/api/auth/me'); 
-  ME = await me.json(); 
+  ME = me.ok ? await me.json() : null;
   meEl.textContent = ME? `Connecté: ${ME.email || ME.phone || ME.name}`:''; 
   btnLogin.style.display = ME? 'none':'inline-block'; 
   btnLogout.style.display = ME? 'inline-block':'none'; 
@@ -4034,6 +4021,7 @@ async function boot(){
   
   const adminTab = document.getElementById('adminTab');
   if(adminTab) adminTab.style.display = ME && ME.is_admin ? 'inline-block' : 'none';
+  if(btnSeed) btnSeed.style.display = ME?.is_admin ? 'inline-block' : 'none';
   
   const commercialTab = document.getElementById('commercialTab');
   if(commercialTab) commercialTab.style.display = ME && ME.is_commercial ? 'inline-block' : 'none';

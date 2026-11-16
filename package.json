@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --experimental-vm-modules tests/api-priorities.mjs && node --experimental-vm-modules tests/account-security.mjs && node tests/lockfile-portability.mjs"
   },
   "overrides": {
     "proxy-addr": "^2.0.8"
@@ -15,6 +16,7 @@
     "express": "^4.22.3",
     "express-session": "^1.18.2",
     "fedapay": "^1.2.5",
+    "nodemailer": "^10.6.0",
     "pg": "^8.16.3"
   }
 }

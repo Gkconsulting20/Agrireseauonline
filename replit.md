@@ -45,7 +45,8 @@ AgriRéseau Pro uses a modern web stack:
     - **Terms of Service Acceptance** (Added November 2025): Mandatory checkbox during registration requiring users to accept comprehensive terms and conditions. Includes clickable link to view full terms in modal dialog covering service description, account creation rules, subscription plans, data privacy, intellectual property, liability, suspension/termination policies, and contact information.
     - **User Account Settings**: Dedicated "Paramètres" tab for profile management (name, email, phone, WhatsApp, region, role, password change).
     - **My Actors Management**: Self-service section in Settings to view, edit, delete, and add actors.
-    - **Password Recovery System**: Token-based password reset via "Mot de passe oublié" link, with WhatsApp integration and copy-to-clipboard functionality.
+    - **Password Recovery System**: Recovery links are delivered only to the account's stored email via TLS SMTP; never returned by the API, displayed, copied or manually forwarded via WhatsApp. No mail service is currently configured, so recovery fails closed with HTTP 503 and a clear message. See `SECURITE_COMPTES.md` for configuration and isolated tests. Tokens last 30 minutes, are stored as digests, and consumed atomically once. Old public tokens are rejected. Password changes invalidate other sessions; existing sessions from before this security change must sign in again.
+    - **Actor and demo authorization**: Actor edits/deletions require ownership or current admin rights; commercial accounts remain restricted. Ownerless actors are admin-only. Demo reset requires an admin plus both `NODE_ENV=development` and `ENABLE_DEMO_SEED=true`; never enable on a database containing real data.
 - **Subscription System**:
     - **Free Plan**: Limited to 2 actors per user.
     - **Premium Plan**: 1 000 FCFA/month, unlimited actors and premium badge. No search priority or priority support is implemented.

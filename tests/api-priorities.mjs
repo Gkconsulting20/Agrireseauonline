@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 import { TOGO_REGIONS } from '../public/reference-data.js';
+import { mountPasswordRecovery } from '../security/password-recovery.js';
 
 const rows = {users:[], subscriptions:[], actors:[], activities:[]};
 const db = {
@@ -58,6 +59,7 @@ await main.link(async specifier => {
   let exports;
   if (specifier === './db.js') exports={default:db};
   else if (specifier === './public/reference-data.js') exports={TOGO_REGIONS};
+  else if (specifier === './security/password-recovery.js') exports={mountPasswordRecovery};
   else exports=await import(specifier);
   const names=Object.keys(exports);
   return new vm.SyntheticModule(names,function(){for(const name of names)this.setExport(name,exports[name]);},{context});

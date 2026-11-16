@@ -1,1 +1,2 @@
 - [Coopératives et groupements](cooperatives.md) — traiter les organisations agricoles avec un rôle dédié, distinct des institutions.
+- [Dépendances portables](dependency-portability.md) — conserver des archives npm accessibles hors de Replit pour les installations Render.

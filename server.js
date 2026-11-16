@@ -10,6 +10,7 @@ import db from './db.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { TOGO_REGIONS } from './public/reference-data.js';
+import { mountPasswordRecovery } from './security/password-recovery.js';
 
 const { FedaPay } = fedapay;
 
@@ -35,22 +36,55 @@ app.use((req, res, next) => {
 app.use(express.json({limit:'1mb'}));
 app.use(cookieParser());
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'fc9e4438f21650198fa24ac20dac1b47',
+  secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 1000*60*60*24*7 }
+  cookie: { maxAge: 1000*60*60*24*7, httpOnly: true, sameSite: 'lax' }
 }));
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-function requireAuth(req,res,next){ if(!req.session.user) return res.status(401).json({error:'auth_required'}); next(); }
-function requireAdmin(req,res,next){ if(!req.session.user) return res.status(401).json({error:'auth_required'}); if(!req.session.user.is_admin) return res.status(403).json({error:'admin_required'}); next(); }
+const passwordVersion = hash => crypto.createHash('sha256').update(hash).digest('hex');
+async function requireAuth(req,res,next){
+  if(!req.session.user) return res.status(401).json({error:'auth_required'});
+  try {
+    const user = await db.getOne('SELECT id, password_hash, is_admin, is_commercial, status FROM users WHERE id=$1', [req.session.user.id]);
+    if(!user || user.status === 'blocked' || req.session.passwordVersion !== passwordVersion(user.password_hash)){
+      req.session.destroy(()=>{});
+      return res.status(401).json({error:'auth_required'});
+    }
+    Object.assign(req.session.user, {is_admin:user.is_admin, is_commercial:user.is_commercial, status:user.status});
+    next();
+  } catch { return res.status(503).json({error:'authorization_unavailable'}); }
+}
+function requireAdmin(req,res,next){
+  requireAuth(req,res,()=>{
+    if(!req.session.user.is_admin) return res.status(403).json({error:'admin_required'});
+    next();
+  });
+}
+async function requireActorOwner(req,res,next){
+  const id = Number(req.params.id);
+  if(!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({error:'invalid_actor_id'});
+  try {
+    const actor = await db.getOne('SELECT * FROM actors WHERE id=$1', [id]);
+    if(!actor) return res.status(404).json({error:'actor_not_found'});
+    if(!req.session.user.is_admin && actor.owner_id !== req.session.user.id) {
+      return res.status(403).json({error:'actor_owner_required'});
+    }
+    req.actor = actor;
+    next();
+  } catch { return res.status(503).json({error:'authorization_unavailable'}); }
+}
 function blockCommercial(req,res,next){ if(req.session.user && req.session.user.is_commercial) return res.status(403).json({error:'commercial_restricted', message:'Les commerciaux ne peuvent pas effectuer cette action. Ce compte est réservé au suivi des performances.'}); next(); }
 async function requirePremium(req,res,next){ 
-  if(!req.session.user) return res.status(401).json({error:'auth_required'}); 
-  const sub = await db.getOne('SELECT * FROM subscriptions WHERE user_id=$1', [req.session.user.id]);
-  if(!sub || sub.plan !== 'premium' || sub.status !== 'active') return res.status(403).json({error:'premium_required', message:'Cette fonctionnalité est réservée aux utilisateurs Premium'}); 
-  next(); 
+  return requireAuth(req,res,async ()=>{
+    try {
+      const sub = await db.getOne('SELECT * FROM subscriptions WHERE user_id=$1', [req.session.user.id]);
+      if(!sub || sub.plan !== 'premium' || sub.status !== 'active') return res.status(403).json({error:'premium_required', message:'Cette fonctionnalité est réservée aux utilisateurs Premium'});
+      next();
+    } catch { return res.status(503).json({error:'authorization_unavailable'}); }
+  });
 }
 
 app.post('/api/auth/register', async (req,res)=>{ 
@@ -78,6 +112,7 @@ app.post('/api/auth/register', async (req,res)=>{
     const user = await db.insertOne('INSERT INTO users (email,name,password_hash,region,role,phone,whatsapp,lat,lng,recruited_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)', [email?(email.trim().toLowerCase()):null,name||'',hash,region||'',role||'',normalizedPhone,normalizedWhatsapp,lat||null,lng||null,recruitedBy]); 
     const userId=user.id; 
     await db.query('INSERT INTO subscriptions (user_id,plan,status) VALUES ($1,$2,$3)', [userId,'free','active']); 
+    req.session.passwordVersion = passwordVersion(hash);
     req.session.user={id:userId,email,name,region,role,phone:normalizedPhone,whatsapp:normalizedWhatsapp,lat,lng,is_admin:user.is_admin||false,is_commercial:user.is_commercial||false,status:user.status||'active',recruited_by:recruitedBy}; 
     res.status(201).json(req.session.user); 
   } catch(e){ 
@@ -97,12 +132,13 @@ app.post('/api/auth/login', async (req,res)=>{
   if(!u) return res.status(400).json({error:'invalid_credentials'}); 
   if(u.status === 'blocked') return res.status(403).json({error:'account_blocked',message:'Votre compte a été bloqué'}); 
   if(!bcrypt.compareSync(password||'',u.password_hash)) return res.status(400).json({error:'invalid_credentials'}); 
+  req.session.passwordVersion = passwordVersion(u.password_hash);
   req.session.user={id:u.id,email:u.email,name:u.name,region:u.region,role:u.role,phone:u.phone,whatsapp:u.whatsapp,lat:u.lat,lng:u.lng,is_admin:u.is_admin,is_commercial:u.is_commercial,status:u.status}; 
   res.json(req.session.user); 
 });
 
 app.post('/api/auth/logout',(req,res)=> req.session.destroy(()=>res.json({ok:true})));
-app.get('/api/auth/me',(req,res)=> res.json(req.session.user||null));
+app.get('/api/auth/me',(req,res,next)=>req.session.user ? requireAuth(req,res,next) : res.json(null), (req,res)=>res.json(req.session.user));
 
 app.put('/api/user/profile', requireAuth, async (req,res)=>{
   const {name, email, phone, whatsapp, region, role, currentPassword, newPassword} = req.body;
@@ -118,6 +154,7 @@ app.put('/api/user/profile', requireAuth, async (req,res)=>{
       }
       const newHash = bcrypt.hashSync(newPassword, 10);
       await db.query('UPDATE users SET password_hash=$1 WHERE id=$2', [newHash, userId]);
+      req.session.passwordVersion = passwordVersion(newHash);
     }
     
     const normalizedPhone = phone ? phone.replace(/\s+/g, '') : null;
@@ -137,58 +174,7 @@ app.put('/api/user/profile', requireAuth, async (req,res)=>{
   }
 });
 
-app.post('/api/auth/forgot-password', async (req,res)=>{
-  const {email, phone} = req.body;
-  if(!email && !phone) return res.status(400).json({error:'email_or_phone_required'});
-  
-  let user = null;
-  if(email) {
-    user = await db.getOne('SELECT id, email, phone, whatsapp FROM users WHERE email=$1', [(email||'').trim().toLowerCase()]);
-  } else if(phone) {
-    user = await db.getOne('SELECT id, email, phone, whatsapp FROM users WHERE phone=$1', [phone.trim()]);
-  }
-  
-  if(!user) return res.status(404).json({error:'user_not_found', message:'Utilisateur non trouvé'});
-  
-  await db.query('DELETE FROM password_reset_tokens WHERE user_id=$1', [user.id]);
-  
-  const token = crypto.randomBytes(32).toString('hex');
-  const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 1);
-  
-  await db.query(
-    'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
-    [user.id, token, expiresAt]
-  );
-  
-  const resetLink = `${req.protocol}://${req.get('host')}/#reset-password?token=${token}`;
-  
-  res.json({
-    success: true,
-    resetLink,
-    message: user.whatsapp ? 'Lien de réinitialisation généré. Envoyez-le via WhatsApp.' : 'Lien de réinitialisation généré.',
-    whatsapp: user.whatsapp,
-    phone: user.phone
-  });
-});
-
-app.post('/api/auth/reset-password', async (req,res)=>{
-  const {token, newPassword} = req.body;
-  if(!token || !newPassword) return res.status(400).json({error:'token_and_password_required'});
-  
-  const resetToken = await db.getOne(
-    'SELECT * FROM password_reset_tokens WHERE token=$1 AND expires_at > NOW()',
-    [token]
-  );
-  
-  if(!resetToken) return res.status(400).json({error:'invalid_or_expired_token', message:'Token invalide ou expiré'});
-  
-  const newHash = bcrypt.hashSync(newPassword, 10);
-  await db.query('UPDATE users SET password_hash=$1 WHERE id=$2', [newHash, resetToken.user_id]);
-  await db.query('DELETE FROM password_reset_tokens WHERE user_id=$1', [resetToken.user_id]);
-  
-  res.json({success: true, message: 'Mot de passe réinitialisé avec succès'});
-});
+mountPasswordRecovery(app, db);
 
 app.get('/api/refs', async (req,res)=>{ 
   const regions = await db.getAll('SELECT name FROM regions', []); 
@@ -227,7 +213,12 @@ app.get('/api/refs', async (req,res)=>{
   }); 
 });
 
-app.post('/api/seed', async (req,res)=>{ 
+app.post('/api/seed', requireAdmin, (req,res,next)=>{
+  if(process.env.NODE_ENV !== 'development' || process.env.ENABLE_DEMO_SEED !== 'true') {
+    return res.status(403).json({error:'demo_disabled', message:'Les opérations de démonstration sont désactivées.'});
+  }
+  next();
+}, async (req,res)=>{
   await db.query('DELETE FROM actors', []); 
   await db.query('DELETE FROM logistics', []); 
   await db.query('DELETE FROM ratings', []); 
@@ -299,7 +290,7 @@ app.post('/api/actors', requireAuth, blockCommercial, async (req,res)=>{
   res.status(201).json(row); 
 });
 
-app.put('/api/actors/:id', requireAuth, blockCommercial, async (req,res)=>{ 
+app.put('/api/actors/:id', requireAuth, blockCommercial, requireActorOwner, async (req,res)=>{
   const id=Number(req.params.id), b=req.body; 
   await db.query(`UPDATE actors SET name=$1,role=$2,region=$3,localite=$4,products=$5,need=$6,volume=$7,unit=$8,price=$9,photo_url=$10,certifications=$11,lat=$12,lng=$13,phone=$14,whatsapp=$15,email=$16,verified=$17 WHERE id=$18`, [b.name,b.role,b.region,b.localite||'',JSON.stringify(b.products||[]),b.need||'',b.volume||null,b.unit||'kg',b.price||null,b.photo_url||'',JSON.stringify(b.certifications||[]),b.lat||null,b.lng||null,b.phone||'',b.whatsapp||'',b.email||'',b.verified||false,id]); 
   const row = await db.getOne('SELECT * FROM actors WHERE id=$1', [id]); 
@@ -308,7 +299,7 @@ app.put('/api/actors/:id', requireAuth, blockCommercial, async (req,res)=>{
   res.json(row); 
 });
 
-app.delete('/api/actors/:id', requireAuth, blockCommercial, async (req,res)=>{ 
+app.delete('/api/actors/:id', requireAuth, blockCommercial, requireActorOwner, async (req,res)=>{
   await db.query('DELETE FROM actors WHERE id=$1', [Number(req.params.id)]); 
   res.status(204).end(); 
 });
