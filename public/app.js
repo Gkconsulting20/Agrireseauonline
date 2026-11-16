@@ -17,6 +17,20 @@ const btnLogin=document.getElementById('btnLogin'), btnLogout=document.getElemen
 
 // Variables globales
 let ME=null, ACTORS=[], LOGISTICS=[], PRODUCTS=[], REGIONS=[], BUDGETS=[], CURRENT_BUDGET=null, COSTS=[], CURRENT_COST_BUDGET=null, ADMIN_USERS=[], ADMIN_LOGISTICS=[], STATS_DATA={}, MARKET_PRICES=[];
+const TOGO_REGIONS = ['Maritime', 'Plateaux', 'Centrale', 'Kara', 'Savanes'];
+const ROLE_OPTIONS = [
+  {value:'producteur', label:'Producteur'},
+  {value:'éleveur', label:'Éleveur'},
+  {value:'cooperative', label:'Coopérative / groupement'},
+  {value:'transporteur', label:'Transporteur'},
+  {value:'transformateur', label:'Transformateur'},
+  {value:'grossiste', label:'Grossiste'},
+  {value:'detaillant', label:'Détaillant'},
+  {value:'institution', label:'Institution'}
+];
+function roleLabel(role) {
+  return ROLE_OPTIONS.find(option => option.value === role)?.label || role || 'Non précisé';
+}
 
 // Charger les statistiques de la plateforme (public)
 let PLATFORM_STATS_DETAILS = null;
@@ -60,7 +74,7 @@ async function openStatsDrillDown(type) {
             <div class="drill-list">
               ${Object.entries(byRole).sort((a,b) => b[1]-a[1]).map(([role, count]) => 
                 `<div class="drill-item" onclick="filterActorsByRole('${role}')">
-                  <span class="drill-label">${role}</span>
+                  <span class="drill-label">${roleLabel(role)}</span>
                   <span class="drill-value">${count}</span>
                 </div>`
               ).join('')}
@@ -398,8 +412,8 @@ async function openLogin(){
     <label>Nom complet <input name="name" placeholder="(pour inscription)"></label>
     <label>Téléphone <input name="phone" type="tel" placeholder="+228 XX XX XX XX"></label>
     <label>WhatsApp <input name="whatsapp" type="tel" placeholder="+228 XX XX XX XX"></label>
-    <label>Région <input name="region" placeholder="ex: Plateaux"></label>
-    <label>Rôle <select name="role"><option></option>${['producteur','éleveur','transporteur','transformateur','grossiste','detaillant','institution'].map(r=>`<option>${r}</option>`).join('')}</select></label>
+    <label>Région <select name="region" required><option value="">Sélectionner une région</option>${TOGO_REGIONS.map(region=>`<option value="${region}">${region}</option>`).join('')}</select></label>
+    <label>Rôle <select name="role"><option value="">Sélectionner...</option>${ROLE_OPTIONS.map(({value,label})=>`<option value="${value}">${label}</option>`).join('')}</select></label>
     <label>Code commercial <input name="commercial_code" placeholder="Ex: COM-JOHN-1234 (optionnel)"></label>
     <label>Latitude <input name="lat" type="number" step="0.0001" placeholder="Ex: 6.1375"></label>
     <label>Longitude <input name="lng" type="number" step="0.0001" placeholder="Ex: 1.2123"></label>
@@ -452,6 +466,7 @@ async function openLogin(){
     if(!data.password) return alert('Mot de passe requis');
     if(!data.email && !data.phone) return alert('Email OU Téléphone requis');
     if(!data.name) return alert('Nom requis');
+    if(!TOGO_REGIONS.includes(data.region)) return alert('Choisissez une région administrative du Togo dans la liste.');
     if(!dlg.querySelector('#acceptTerms').checked) return alert('Vous devez accepter les conditions d\'utilisation pour créer un compte');
     // Convertir lat/lng en nombres
     if(data.lat) data.lat = Number(data.lat);
@@ -880,7 +895,7 @@ function openActorDialog(a){
   dlg.innerHTML=`<form id="frmActor" class="dialog-body" style="max-width:800px;"><h3>${a?'Modifier':'Nouvel'} acteur</h3>
   <div class="grid2">
     <label>Nom <input name="name" required value="${a?.name||''}"></label>
-    <label>Rôle <select name="role" required>${['producteur','éleveur','transporteur','transformateur','grossiste','detaillant','institution'].map(r=>`<option ${a?.role===r?'selected':''}>${r}</option>`).join('')}</select></label>
+    <label>Rôle <select name="role" required>${ROLE_OPTIONS.map(({value,label})=>`<option value="${value}" ${a?.role===value?'selected':''}>${label}</option>`).join('')}</select></label>
     <label>Région <select name="region" required>${(REFS.regions||[]).map(r=>`<option ${a?.region===r?'selected':''}>${r}</option>`).join('')}</select></label>
     <label>Localité <input name="localite" value="${a?.localite||''}"></label>
     

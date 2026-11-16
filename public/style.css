@@ -278,6 +278,49 @@ button:active {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
+.map-panel {
+  position: relative;
+}
+
+.map-location-control {
+  position: absolute;
+  top: 36px;
+  right: 36px;
+  z-index: 1000;
+  width: min(320px, calc(100% - 72px));
+  text-align: right;
+}
+
+.map-location-control button {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #1f2937;
+}
+
+.map-location-control p,
+.form-status {
+  min-height: 1.3em;
+  margin-top: 6px;
+  color: var(--gray-700);
+  font-size: 13px;
+}
+
+.map-location-control p:not(:empty) {
+  display: inline-block;
+  padding: 6px 9px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-status:not(:empty) {
+  margin-bottom: 12px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #1e40af;
+}
+
 .badge {
   display: inline-block;
   padding: 5px 12px;
@@ -735,6 +778,12 @@ details[open] summary {
 
   .guide-actions {
     width: 100%;
+  }
+
+  .map-location-control {
+    top: 36px;
+    right: 24px;
+    width: min(320px, calc(100% - 48px));
   }
 }
 

@@ -107,7 +107,7 @@
     <p>Les espaces réservés aux utilisateurs connectés apparaissent après la connexion.</p>
   </div>
   <div class="guide-feature-grid">
-    <article class="guide-feature-card"><span>🌾</span><h5>Annuaire agricole</h5><p>Consultez et filtrez les profils de producteurs, éleveurs, transporteurs, transformateurs, grossistes, détaillants et institutions, avec leurs produits et coordonnées publiées.</p></article>
+    <article class="guide-feature-card"><span>🌾</span><h5>Annuaire agricole</h5><p>Consultez et filtrez les profils de producteurs, éleveurs, coopératives et groupements, transporteurs, transformateurs, grossistes, détaillants et institutions, avec leurs produits et coordonnées publiées.</p></article>
     <article class="guide-feature-card"><span>🗺️</span><h5>Carte interactive</h5><p>Repérez les acteurs par région et consultez leur localisation lorsqu’elle est renseignée.</p></article>
     <article class="guide-feature-card"><span>🏢</span><h5>Gestion de vos acteurs</h5><p>Créez et modifiez vos fiches, ajoutez produits, quantités, prix, photos, certifications et coordonnées. Limite gratuite : 2 acteurs.</p></article>
     <article class="guide-feature-card"><span>🚚</span><h5>Logistique</h5><p>Publiez et consultez des offres ou demandes de transport, puis contactez l’annonceur directement.</p></article>
@@ -138,7 +138,7 @@
     </div>
   </div>
   <div class="filters">
-    <select id="aRole"><option value="">Tous rôles</option><option>producteur</option><option>éleveur</option><option>transporteur</option><option>transformateur</option><option>grossiste</option><option>detaillant</option><option>institution</option></select>
+    <select id="aRole"><option value="">Tous les rôles</option><option value="producteur">Producteur</option><option value="éleveur">Éleveur</option><option value="cooperative">Coopérative / groupement</option><option value="transporteur">Transporteur</option><option value="transformateur">Transformateur</option><option value="grossiste">Grossiste</option><option value="detaillant">Détaillant</option><option value="institution">Institution</option></select>
     <select id="aRegion"><option value="">Toutes régions</option></select>
     <select id="aCategory"><option value="">Toutes catégories</option></select>
     <input id="aQ" placeholder="Recherche (nom, produit, besoin…)">
@@ -146,9 +146,10 @@
   </div>
   <div id="actorList" class="cards"></div>
 </section>
-<section id="map" class="tab">
-  <div style="position: absolute; top: 10px; right: 10px; z-index: 1000;">
-    <button id="btnLocateMe" style="padding: 8px 12px; background: white; border: 2px solid #ccc; border-radius: 4px; cursor: pointer;">📍 Me localiser</button>
+<section id="map" class="tab map-panel">
+  <div class="map-location-control">
+    <button id="btnLocateMe" type="button">📍 Me localiser</button>
+    <p id="mapLocationStatus" role="status" aria-live="polite"></p>
   </div>
   <div id="leaflet"></div>
 </section>
@@ -161,7 +162,8 @@
     <div class="card">
       <h3>📋 Mes budgets prévisionnels</h3>
       <p class="muted" style="margin:10px 0;">Créez votre budget prévisionnel au début de la saison agricole</p>
-      <button id="btnAddBudget">+ Nouveau budget</button>
+      <button id="btnAddBudget" type="button">+ Nouveau budget</button>
+      <p id="budgetActionStatus" class="form-status" role="status" aria-live="polite"></p>
       <div id="budgetList" class="cards"></div>
     </div>
     <div class="card">
@@ -252,6 +254,7 @@
             <option value="">Sélectionner...</option>
             <option value="producteur">Producteur</option>
             <option value="éleveur">Éleveur</option>
+            <option value="cooperative">Coopérative / groupement</option>
             <option value="transporteur">Transporteur</option>
             <option value="transformateur">Transformateur</option>
             <option value="grossiste">Grossiste</option>
