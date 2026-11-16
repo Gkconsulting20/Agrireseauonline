@@ -1,3 +1,5 @@
+import { TOGO_REGIONS, ROLE_OPTIONS } from './reference-data.js';
+
 const tabs=document.querySelectorAll('.tabs button'), sections=document.querySelectorAll('.tab');
 tabs.forEach(b=> b.addEventListener('click',()=>{ 
   tabs.forEach(x=>x.classList.remove('active')); 
@@ -17,17 +19,6 @@ const btnLogin=document.getElementById('btnLogin'), btnLogout=document.getElemen
 
 // Variables globales
 let ME=null, ACTORS=[], LOGISTICS=[], PRODUCTS=[], REGIONS=[], BUDGETS=[], CURRENT_BUDGET=null, COSTS=[], CURRENT_COST_BUDGET=null, ADMIN_USERS=[], ADMIN_LOGISTICS=[], STATS_DATA={}, MARKET_PRICES=[];
-const TOGO_REGIONS = ['Maritime', 'Plateaux', 'Centrale', 'Kara', 'Savanes'];
-const ROLE_OPTIONS = [
-  {value:'producteur', label:'Producteur'},
-  {value:'éleveur', label:'Éleveur'},
-  {value:'cooperative', label:'Coopérative / groupement'},
-  {value:'transporteur', label:'Transporteur'},
-  {value:'transformateur', label:'Transformateur'},
-  {value:'grossiste', label:'Grossiste'},
-  {value:'detaillant', label:'Détaillant'},
-  {value:'institution', label:'Institution'}
-];
 function roleLabel(role) {
   return ROLE_OPTIONS.find(option => option.value === role)?.label || role || 'Non précisé';
 }
@@ -117,7 +108,7 @@ async function openStatsDrillDown(type) {
               <div class="drill-region-name">${region}</div>
               <div class="drill-region-count">${data.count} acteur${data.count > 1 ? 's' : ''}</div>
               <div class="drill-region-roles">
-                ${Object.entries(data.roles).map(([role, c]) => `<span class="badge">${role}: ${c}</span>`).join('')}
+                ${Object.entries(data.roles).map(([role, c]) => `<span class="badge">${roleLabel(role)}: ${c}</span>`).join('')}
               </div>
             </div>
           `).join('')}
@@ -472,7 +463,7 @@ async function openLogin(){
     if(data.lat) data.lat = Number(data.lat);
     if(data.lng) data.lng = Number(data.lng);
     const r = await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),credentials:'include'});
-    if(r.ok){ dlg.close(); await boot(); } else { const err = await r.json(); alert(err.error || 'Erreur lors de l\'inscription'); }
+    if(r.ok){ dlg.close(); await boot(); } else { const err = await r.json(); alert(err.message || err.error || 'Erreur lors de l\'inscription'); }
   };
   
   dlg.querySelector('#termsLink').onclick=(e)=>{
@@ -571,17 +562,21 @@ btnLogout.onclick=async()=>{ await fetch('/api/auth/logout',{method:'POST'}); aw
 const btnLocateMe = document.getElementById('btnLocateMe');
 if(btnLocateMe) {
   btnLocateMe.onclick = async () => {
+    const status = document.getElementById('mapLocationStatus');
     btnLocateMe.disabled = true;
     btnLocateMe.textContent = '⏳ Localisation...';
+    status.textContent = 'Recherche de votre position. Autorisez la localisation si votre navigateur le demande.';
     try {
-      const loc = await getUserLocation();
+      await getUserLocation();
       await renderMap();
+      USER_MARKER.openPopup();
+      status.textContent = 'Position trouvée : le repère bleu indique votre position sur la carte.';
       btnLocateMe.textContent = '✓ Localisé';
-      setTimeout(() => { btnLocateMe.disabled = false; btnLocateMe.textContent = '📍 Me localiser'; }, 2000);
     } catch(err) {
-      alert(err.message);
+      status.textContent = err.message || 'Impossible de localiser votre position. Réessayez.';
+      btnLocateMe.textContent = '📍 Réessayer';
+    } finally {
       btnLocateMe.disabled = false;
-      btnLocateMe.textContent = '📍 Me localiser';
     }
   };
 }
@@ -593,6 +588,10 @@ let REFS={regions:[],products:[]}, LOGS=[], USER_LOCATION=null;
 
 async function getUserLocation() {
   return new Promise((resolve, reject) => {
+    if (!window.isSecureContext) {
+      reject(new Error('La localisation nécessite une connexion HTTPS. Ouvrez le site avec une adresse sécurisée.'));
+      return;
+    }
     if (!navigator.geolocation) {
       reject(new Error('Géolocalisation non supportée par ce navigateur'));
       return;
@@ -608,9 +607,9 @@ async function getUserLocation() {
       },
       (error) => {
         let msg = 'Erreur de géolocalisation';
-        if (error.code === 1) msg = 'Permission de géolocalisation refusée';
-        else if (error.code === 2) msg = 'Position indisponible';
-        else if (error.code === 3) msg = 'Délai de géolocalisation dépassé';
+        if (error.code === 1) msg = 'Localisation refusée ou bloquée par le navigateur. Autorisez-la dans les paramètres du site puis réessayez. Si vous êtes dans un aperçu intégré, ouvrez le site dans un nouvel onglet.';
+        else if (error.code === 2) msg = 'Position indisponible. Activez la localisation de votre appareil puis réessayez.';
+        else if (error.code === 3) msg = 'La recherche de position a dépassé le délai. Vérifiez la localisation de votre appareil puis réessayez.';
         reject(new Error(msg));
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
@@ -699,7 +698,7 @@ function actorCard(a){
   }).join('');
   
   el.innerHTML=`${photoHtml}<div class="name"><strong>${a.name}</strong> ${a.verified?'<span class="badge">✔︎ vérifié</span>':''} ${premiumBadge} ${ratingText}${distanceText}</div>
-  <div><span class="badge">${a.role}</span> <span class="badge">${a.region}</span> ${a.localite? '· '+a.localite:''} ${certBadges}</div>
+   <div><span class="badge">${roleLabel(a.role)}</span> <span class="badge">${a.region}</span> ${a.localite? '· '+a.localite:''} ${certBadges}</div>
   <div style="margin-top:8px;">${productsHtml}</div>
   <div>${a.need||''}</div>
   <div id="harvests-${a.id}" style="margin-top:8px;font-size:0.9em;color:#059669;"></div>
@@ -802,7 +801,7 @@ function openActorProfile(actor){
         <div style="flex:1;">
           <h2 style="margin:0 0 5px 0;">${actor.name}</h2>
           <div style="margin-bottom:10px;">
-            <span class="badge" style="font-size:14px;">${actor.role}</span>
+            <span class="badge" style="font-size:14px;">${roleLabel(actor.role)}</span>
             <span class="badge" style="font-size:14px;">${actor.region}</span>
             ${actor.verified ? '<span class="badge" style="background:#10b981;color:white;">✔︎ Vérifié</span>' : ''}
             ${actor.owner_plan === 'premium' ? '<span class="badge" style="background:#fbbf24;color:#000">💎 PREMIUM</span>' : ''}
@@ -1197,7 +1196,7 @@ function openProductDrillDown(productName){
             <div style="display:flex;justify-content:space-between;align-items:start;">
               <div>
                 <strong style="font-size:16px;">${a.name}</strong> 
-                <span class="badge">${a.role}</span>
+                <span class="badge">${roleLabel(a.role)}</span>
                 <span class="badge">${a.region}</span>
                 ${a.verified ? '<span class="badge" style="background:#10b981;color:white;">✔︎ Vérifié</span>' : ''}
               </div>
@@ -1331,10 +1330,12 @@ function openLogDialog(item){ if(!ME) return alert('Connecte-toi d’abord.'); c
 
 let MAP, USER_MARKER; 
 async function renderMap(){ 
+  if (!window.L) throw new Error('La carte n’a pas pu être chargée. Vérifiez votre connexion puis rechargez la page.');
   if(!MAP){ 
     MAP=L.map('leaflet').setView([8.65,1.05],7); 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'&copy; OpenStreetMap'}).addTo(MAP);
   } 
+  MAP.invalidateSize();
   (window._markers||[]).forEach(m=>MAP.removeLayer(m)); 
   window._markers=[]; 
   ACTORS.forEach(a=>{ 
@@ -1457,7 +1458,27 @@ const CROP_TEMPLATES = {
 };
 
 const btnAddBudget = document.getElementById('btnAddBudget');
-if(btnAddBudget) btnAddBudget.onclick=()=> openBudgetDialog();
+if(btnAddBudget) btnAddBudget.onclick=async()=>{
+  const status = document.getElementById('budgetActionStatus');
+  status.textContent = '';
+  if (!ME) { status.textContent = 'Connectez-vous pour créer un budget.'; return; }
+  if (ME.is_commercial) { status.textContent = 'Le compte commercial est réservé au suivi des recrutements.'; return; }
+  btnAddBudget.disabled = true;
+  status.textContent = 'Chargement de vos acteurs…';
+  try {
+    const response = await fetch('/api/actors');
+    if (!response.ok) throw new Error('Impossible de charger vos acteurs. Réessayez.');
+    const actors = await response.json();
+    if (!Array.isArray(actors)) throw new Error('Les données des acteurs sont indisponibles. Réessayez.');
+    ACTORS = actors;
+    status.textContent = '';
+    openBudgetDialog();
+  } catch(error) {
+    status.textContent = error.message || 'Impossible d’ouvrir le budget. Réessayez.';
+  } finally {
+    btnAddBudget.disabled = false;
+  }
+};
 async function loadBudgets(){ 
   const r=await fetch('/api/activities'); 
   if(r.status===401){ BUDGETS=[]; renderBudgets(); return; } 
@@ -1786,9 +1807,16 @@ async function initiatePayment(){
 
 // Nouvelles fonctions pour Budget (module prévisionnel)
 function openBudgetDialog(){ 
-  if(!ME) return alert("Connecte-toi d'abord.");
-  const myActors = ACTORS.filter(a=>a.owner_id===ME.id);
-  if(myActors.length === 0) return alert("Vous devez d'abord créer un acteur avant de créer un budget.");
+  const status = document.getElementById('budgetActionStatus');
+  if(!ME) { status.textContent = 'Connectez-vous pour créer un budget.'; return; }
+  const myActors = ACTORS.filter(a=>a.owner_id != null && String(a.owner_id)===String(ME.id));
+  if(myActors.length === 0) {
+    status.textContent = 'Créez d’abord votre acteur dans « Paramètres » → « Mes Acteurs », puis revenez créer votre budget.';
+    return;
+  }
+  const existing = document.querySelector('#frmBudget')?.closest('dialog');
+  if (existing?.open) return;
+  existing?.remove();
   
   const dlg=document.createElement('dialog');
   const actorsOptions = myActors.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
@@ -1833,14 +1861,16 @@ function openBudgetDialog(){
       <p style="margin:0;">CA prévu: <span id="previewCA">0</span> FCFA · Profit: <span id="previewProfit">0</span> FCFA</p>
       <p style="margin:5px 0 0 0;color:#059669;" id="previewAvailability"></p>
     </div>
+    <p id="budgetSaveStatus" class="form-status" role="alert"></p>
     <div class="dialog-actions"><button type="submit">💾 Créer</button><button type="button" id="cancelB">Annuler</button></div></form>`;
   document.body.appendChild(dlg); dlg.showModal(); dlg.querySelector('#cancelB').onclick=()=> dlg.close();
+  dlg.addEventListener('close', () => dlg.remove(), {once:true});
   const f=dlg.querySelector('#frmBudget'); 
   
   // Fonction pour charger les produits de l'acteur sélectionné
   const loadActorProducts = () => {
     const actorId = Number(f.actor_id.value);
-    const actor = myActors.find(a => a.id === actorId);
+    const actor = myActors.find(a => Number(a.id) === actorId);
     const productDatalist = dlg.querySelector('#productList');
     
     if(actor && actor.products && actor.products.length > 0){
@@ -1880,19 +1910,35 @@ function openBudgetDialog(){
   f.output_qty.oninput=up;f.price_expected.oninput=up;f.transport.oninput=up;f.started_at.oninput=up;f.production_cycle_days.oninput=up;up();
   f.onsubmit=async(e)=>{
     e.preventDefault();
-    const d=Object.fromEntries(new FormData(e.target).entries());
-    d.output_qty=Number(d.output_qty||0);
-    d.price_expected=Number(d.price_expected||0);
-    d.transport=Number(d.transport||0);
-    d.target_margin=0;
-    d.autres=0;
-    d.overhead_pct=0;
-    d.actor_id=d.actor_id?Number(d.actor_id):null;
-    d.production_cycle_days=Number(d.production_cycle_days||0);
-    const r=await fetch('/api/activities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
-    if(!r.ok){alert('Erreur');return;}
-    dlg.close();
-    await loadBudgets();
+    const submitButton = f.querySelector('[type="submit"]');
+    if (submitButton.disabled) return;
+    const saveStatus = dlg.querySelector('#budgetSaveStatus');
+    submitButton.disabled = true;
+    saveStatus.textContent = 'Enregistrement…';
+    try {
+      const d=Object.fromEntries(new FormData(e.target).entries());
+      d.output_qty=Number(d.output_qty||0);
+      d.price_expected=Number(d.price_expected||0);
+      d.transport=Number(d.transport||0);
+      d.target_margin=0;
+      d.autres=0;
+      d.overhead_pct=0;
+      d.actor_id=d.actor_id?Number(d.actor_id):null;
+      d.production_cycle_days=Number(d.production_cycle_days||0);
+      const r=await fetch('/api/activities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+      if(!r.ok){
+        const error = await r.json().catch(()=>({}));
+        throw new Error(r.status === 401 ? 'Votre session a expiré. Reconnectez-vous.' : error.message || 'Le budget n’a pas pu être enregistré. Réessayez.');
+      }
+      dlg.close();
+      status.textContent = 'Votre budget a été créé.';
+      try { await loadBudgets(); }
+      catch { status.textContent = 'Budget créé, mais la liste n’a pas pu être actualisée. Rechargez la page pour le retrouver.'; }
+    } catch(error) {
+      saveStatus.textContent = error.message || 'Erreur réseau. Vérifiez votre connexion puis réessayez.';
+    } finally {
+      submitButton.disabled = false;
+    }
   };
 }
 async function openBudget(b){
@@ -2626,7 +2672,7 @@ function renderAdminUsers(){
       <td>${u.email || '-'}</td>
       <td>${u.phone || '-'}</td>
       <td>${u.region || '-'}</td>
-      <td><span class="badge">${u.role || '-'}</span></td>
+      <td><span class="badge">${roleLabel(u.role)}</span></td>
       <td>${statusBadge}</td>
       <td>${adminBadge}</td>
       <td>
@@ -2655,8 +2701,8 @@ async function openEditUserDialog(userId){
       <label>Région <input name="region" value="${user.region || ''}"></label>
       <label>Rôle <select name="role">
         <option value="">-</option>
-        ${['producteur','transporteur','transformateur','grossiste','detaillant','institution'].map(r => 
-          `<option value="${r}" ${user.role === r ? 'selected' : ''}>${r}</option>`
+        ${ROLE_OPTIONS.map(({value,label}) =>
+          `<option value="${value}" ${user.role === value ? 'selected' : ''}>${label}</option>`
         ).join('')}
       </select></label>
       <label>Statut <select name="status" required>
@@ -3268,7 +3314,7 @@ function renderActorStats(){
           <div>
             <strong style="font-size:16px;color:#1f2937;">${actor.name}</strong>
             <div style="margin-top:5px;">
-              <span class="badge" style="background:#3b82f6;color:white;">${actor.role}</span>
+              <span class="badge" style="background:#3b82f6;color:white;">${roleLabel(actor.role)}</span>
               <span class="badge" style="background:#10b981;color:white;">${actor.region}</span>
             </div>
           </div>
@@ -3664,7 +3710,7 @@ async function loadMyActors(){
         <div>
           <h4 style="margin:0 0 8px 0;">${a.name}</h4>
           <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
-            <span class="badge">${a.role || ''}</span>
+            <span class="badge">${roleLabel(a.role)}</span>
             <span class="badge" style="background:#e0f2fe;color:#0369a1;">${a.region || ''}</span>
             ${a.verified ? '<span class="badge" style="background:#10b981;color:white;">✓ vérifié</span>' : ''}
           </div>
@@ -3801,7 +3847,7 @@ function renderCommercialRecruits(users){
       <td>${u.id}</td>
       <td>${u.name || '-'}</td>
       <td>${u.email || u.phone || '-'}</td>
-      <td>${u.role || '-'}</td>
+      <td>${roleLabel(u.role)}</td>
       <td>${u.region || '-'}</td>
       <td>${planBadge}</td>
       <td>${u.actors_count || 0}</td>

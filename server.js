@@ -9,6 +9,7 @@ import fedapay from 'fedapay';
 import db from './db.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { TOGO_REGIONS } from './public/reference-data.js';
 
 const { FedaPay } = fedapay;
 
@@ -57,6 +58,10 @@ app.post('/api/auth/register', async (req,res)=>{
   if(!password) return res.status(400).json({error:'password_required'}); 
   if(!email && !phone) return res.status(400).json({error:'email_or_phone_required'}); 
   if(!name) return res.status(400).json({error:'name_required'}); 
+  if(!TOGO_REGIONS.includes(region)) return res.status(400).json({
+    error:'invalid_region',
+    message:'Choisissez une région administrative du Togo : Maritime, Plateaux, Centrale, Kara ou Savanes.'
+  });
   const hash=bcrypt.hashSync(password,10); 
   const normalizedPhone = phone ? phone.replace(/\s+/g, '') : null;
   const normalizedWhatsapp = whatsapp ? whatsapp.replace(/\s+/g, '') : null;

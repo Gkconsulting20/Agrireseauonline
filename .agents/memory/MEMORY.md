@@ -1,0 +1,1 @@
+- [Coopératives et groupements](cooperatives.md) — traiter les organisations agricoles avec un rôle dédié, distinct des institutions.
