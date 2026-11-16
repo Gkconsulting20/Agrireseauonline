@@ -170,7 +170,7 @@ async function openStatsDrillDown(type) {
             <span class="drill-feature-icon">💎</span>
             <div>
               <strong>Premium - 1 000 FCFA/mois</strong>
-              <p>Acteurs illimités, statistiques avancées, notifications SMS/WhatsApp</p>
+              <p>Plus de 2 acteurs et badge Premium sur vos fiches. Statistiques accessibles aussi en gratuit. Envoi automatique SMS/WhatsApp indisponible.</p>
             </div>
           </div>
         </div>
@@ -504,7 +504,7 @@ function showTermsDialog(){
       
       <h4>5. Plans d'abonnement</h4>
       <p>• <strong>Plan Gratuit</strong> : Limité à 2 acteurs par utilisateur<br>
-      • <strong>Plan Premium</strong> : 1 000 FCFA/mois, acteurs illimités, statistiques avancées et notifications<br>
+      • <strong>Plan Premium</strong> : 1 000 FCFA/mois, plus de 2 acteurs et badge Premium. Les statistiques et exports sont aussi accessibles en gratuit. Les vues, les envois automatiques SMS/WhatsApp/email, la priorité de recherche et le support prioritaire sont indisponibles.<br>
       • Les paiements sont traités via FedaPay (Mobile Money et cartes bancaires)<br>
       • Aucun remboursement n'est possible après activation du service Premium</p>
       
@@ -1721,11 +1721,9 @@ window.showPaymentDialog = async function(){
         <ul style="margin:0;padding-left:20px;line-height:1.8;">
           <li>✨ <strong>Acteurs illimités</strong> (vs 2 max gratuit)</li>
           <li>💎 <strong>Badge Premium</strong> visible sur vos fiches</li>
-          <li>📊 <strong>Tableau de bord</strong> et statistiques avancées</li>
-          <li>🏆 <strong>Priorité</strong> dans les résultats de recherche</li>
-          <li>📱 <strong>Notifications SMS</strong> pour les opportunités</li>
-          <li>💬 <strong>Support prioritaire</strong> par WhatsApp</li>
         </ul>
+        <p>Le tableau de bord, les données enregistrées, les exports CSV et l’impression PDF sont aussi accessibles en gratuit.</p>
+        <p><strong>Non disponibles :</strong> comptage des vues, envoi automatique SMS/WhatsApp/email, priorité dans la recherche et support prioritaire. Ces services ne sont pas inclus dans l’abonnement actuel.</p>
       </div>
       
       <div style="background:#eff6ff;padding:20px;border-radius:12px;margin-bottom:20px;">
@@ -3254,7 +3252,7 @@ function renderStatsOverview(){
     {
       icon: '👁️',
       label: 'Vues',
-      value: stats.views_count || 0,
+      value: stats.views_available === true && Number.isFinite(stats.views_count) ? stats.views_count : 'Indisponible',
       color: '#10b981',
       bg: '#f0fdf4'
     },
@@ -3319,7 +3317,7 @@ function renderActorStats(){
             </div>
           </div>
           <div style="text-align:right;">
-            <div style="font-size:24px;font-weight:bold;color:#3b82f6;">${actor.views}</div>
+            <div style="font-size:18px;font-weight:bold;color:#3b82f6;">${actor.views_available === true && Number.isFinite(actor.views) ? actor.views : 'Indisponible'}</div>
             <div style="font-size:12px;color:#6b7280;">vues</div>
           </div>
         </div>
@@ -3566,17 +3564,13 @@ async function loadNotifications(){
     const r = await fetch('/api/notifications/history');
     
     if(r.status === 403){
-      const err = await r.json();
       container.innerHTML = `
         <div style="text-align:center;padding:40px 20px;background:#fef3c7;border-radius:8px;">
-          <h3 style="color:#92400e;margin-bottom:15px;">💎 Fonctionnalité Premium</h3>
+          <h3 style="color:#92400e;margin-bottom:15px;">Envoi automatique indisponible</h3>
           <p style="color:#92400e;margin-bottom:20px;">
-            Les notifications SMS et WhatsApp sont réservées aux utilisateurs Premium.<br>
-            Passez Premium pour envoyer des notifications automatiques à vos clients.
+            Aucun service d’envoi SMS/WhatsApp/email automatique n’est actif, même avec Premium.
+            L’historique des anciennes demandes est réservé aux comptes Premium.
           </p>
-          <button onclick="document.getElementById('btnSubscription').click()" style="background:#fbbf24;color:#000;padding:12px 24px;border:none;border-radius:6px;cursor:pointer;font-weight:bold;">
-            ✨ Passer Premium (1,000 FCFA/mois)
-          </button>
         </div>
       `;
       return;
@@ -3590,13 +3584,13 @@ async function loadNotifications(){
     const notifications = await r.json();
     
     if(notifications.length === 0){
-      container.innerHTML = '<p class="muted">Aucune notification pour le moment</p>';
+      container.innerHTML = '<p class="muted">Aucune ancienne demande enregistrée. L’envoi automatique est indisponible.</p>';
       return;
     }
     
     const statusBadge = (status) => {
-      if(status === 'sent') return '<span class="badge" style="background:#10b981;color:white">✓ Envoyé</span>';
-      if(status === 'pending') return '<span class="badge" style="background:#fbbf24;color:#000">⏳ En attente</span>';
+      if(status === 'sent') return '<span class="badge">Statut historique : envoyé (livraison non vérifiée)</span>';
+      if(status === 'pending') return '<span class="badge" style="background:#fbbf24;color:#000">Non envoyée — service indisponible</span>';
       if(status === 'failed') return '<span class="badge" style="background:#ef4444;color:white">✖ Échoué</span>';
       return '<span class="badge">'+status+'</span>';
     };
@@ -3626,43 +3620,7 @@ async function loadNotifications(){
 
 const btnSendTestNotification = document.getElementById('btnSendTestNotification');
 if(btnSendTestNotification){
-  btnSendTestNotification.onclick = async () => {
-    if(!ME) return alert('Connectez-vous d\'abord');
-    
-    const recipient = prompt('Entrez le numéro de téléphone (format: +228XXXXXXXX) :');
-    if(!recipient) return;
-    
-    try {
-      const r = await fetch('/api/notifications/send', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          type: 'test',
-          channel: 'sms',
-          recipient: recipient,
-          message: '🌾 Test AgriRéseau Pro : Vos notifications fonctionnent parfaitement !'
-        })
-      });
-      
-      if(r.status === 403){
-        const err = await r.json();
-        alert('💎 Cette fonctionnalité est réservée aux utilisateurs Premium.\n\nPassez Premium pour 1,000 FCFA/mois et bénéficiez de notifications SMS et WhatsApp illimitées !');
-        document.getElementById('btnSubscription').click();
-        return;
-      }
-      
-      if(r.ok){
-        alert('✓ Notification test envoyée avec succès !');
-        await loadNotifications();
-      } else {
-        const err = await r.json();
-        alert('Erreur: ' + (err.message || err.error || 'Impossible d\'envoyer la notification'));
-      }
-    } catch(e) {
-      console.error('Erreur:', e);
-      alert('Erreur lors de l\'envoi de la notification test');
-    }
-  };
+  btnSendTestNotification.disabled = true;
 }
 
 async function loadMyActors(){

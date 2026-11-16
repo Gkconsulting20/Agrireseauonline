@@ -9,7 +9,7 @@ const root = fileURLToPath(new URL('../public/', import.meta.url));
 const actor = { id: 1, owner_id: 42, name: 'Coopérative de test', role: 'cooperative',
   region: 'Plateaux', products: [{name:'Maïs'}], certifications: [], lat: null, lng: null };
 let user = {id:42, name:'Utilisateur test', role:'producteur', region:'Plateaux'};
-let actors = [actor], budgets = [], failure = '', actorFailure = false, requests = [];
+let actors = [actor], budgets = [], failure = '', actorFailure = false, requests = [], plan = 'free';
 const server = createServer(async (req, res) => {
   if (req.url.startsWith('/api/')) {
     let raw = '';
@@ -43,7 +43,19 @@ const server = createServer(async (req, res) => {
     }
     else if (req.url.endsWith('/summary')) result = {totalRealExpenses:0,totalRealIncomes:0};
     else if (req.url === '/api/budget') result = {rows:[],totals:{income:0,expense:0,balance:0}};
-    else if (req.url === '/api/subscription') result = {subscription:{plan:'free'},limit:2,count:actors.length};
+    else if (req.url === '/api/subscription') result = {subscription:{plan},limit:plan==='free'?2:999,count:actors.length};
+    else if (req.url === '/api/stats/overview') result = {
+      actors_count:1,budgets_count:0,total_expenses:1500,total_harvests:25,ratings_received:1,
+      views_count:null,views_available:false
+    };
+    else if (req.url === '/api/stats/actors') result = [{
+      ...actor,views:null,views_available:false,harvests:{'Maïs':25},rating_avg:4,rating_count:1,products:['Maïs']
+    }];
+    else if (req.url === '/api/stats/budgets') result = [];
+    else if (req.url === '/api/notifications/history') {
+      if(plan==='free') {res.statusCode=403;result={error:'premium_required'};}
+      else result=[{id:1,status:'pending',message:'Ancienne demande',created_at:'2026-01-01'}];
+    }
     else if (req.url === '/api/platform/stats') result = {actors:1,users:1,products:1,regions:1};
     else if (req.url === '/api/user/profile') { user = {...user,...body}; result = user; }
     res.end(JSON.stringify(result));
@@ -108,6 +120,29 @@ try {
   await cdp('Runtime.enable'); await cdp('Page.enable');
   await cdp('Page.navigate',{url});
   await wait('window._booted');
+  for (const currentPlan of ['free','premium']) {
+    plan=currentPlan;
+    await click('[data-tab="stats"]');
+    await wait('document.querySelector("#statsOverview").textContent.includes("Indisponible")');
+    assert.ok((await evaluate('document.querySelector("#actorStatsContent").textContent')).includes('Indisponible'));
+    await wait(currentPlan==='free'
+      ? 'document.querySelector("#notificationsContainer").textContent.includes("même avec Premium")'
+      : 'document.querySelector("#notificationsContainer").textContent.includes("Non envoyée")');
+    assert.equal(await evaluate('document.querySelector("#btnSendTestNotification").disabled'),true);
+    assert.equal(await evaluate('!!document.querySelector("#notificationsContainer button")'),false);
+  }
+  await evaluate('showPaymentDialog()');
+  await wait('!!document.querySelector("#frmPayment")');
+  const offer=await evaluate('document.querySelector("#frmPayment").textContent');
+  assert.ok(offer.includes('1 000 FCFA / mois'));
+  assert.ok(offer.includes('Badge Premium'));
+  assert.ok(offer.includes('aussi accessibles en gratuit'));
+  assert.ok(offer.includes('Non disponibles'));
+  assert.ok(!offer.includes('statistiques avancées'));
+  await click('#cancelPayment');
+  assert.equal(requests.some(r=>r.url==='/api/notifications/send'||r.url.startsWith('/api/payments/')),false);
+  plan='free';
+  console.log('PASS: offre Premium honnête, vues indisponibles et aucun envoi proposé, gratuit et Premium');
   await click('[data-tab="budget"]');
   await click('#btnAddBudget');
   await wait('!!document.querySelector("#frmBudget")');

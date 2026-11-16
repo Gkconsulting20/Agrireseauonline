@@ -101,7 +101,8 @@
 - [x] Webhook paiement automatique
 - [x] Badge Premium visible
 
-### 8. Dashboard Statistiques (Premium)
+### 8. Dashboard Statistiques (gratuit et Premium, hors commerciaux)
+- État actuel : les vues ne sont pas mesurées et affichent « Indisponible ». Aucun envoi automatique SMS/WhatsApp/email, aucune priorité de recherche ni support prioritaire n’est opérationnel ou inclus dans le Premium. Les indicateurs ci-dessous utilisent les données enregistrées.
 - [x] KPIs globaux
 - [x] Analyse performance acteurs
 - [x] Comparaison budgets

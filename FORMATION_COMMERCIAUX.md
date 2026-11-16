@@ -56,10 +56,10 @@ Ce qui est inclus :
 Tout le gratuit PLUS :
 - Acteurs ILLIMITÉS
 - Badge PREMIUM visible
-- Dashboard statistiques complet
-- Notifications SMS et WhatsApp
-- Rapports détaillés
-- Support prioritaire
+
+Les statistiques issues des données enregistrées, les exports CSV et l’impression PDF sont aussi accessibles en gratuit. Ne pas les vendre comme une exclusivité Premium.
+
+**Non disponibles et non inclus** : notifications automatiques SMS/WhatsApp/email, comptage des vues, priorité dans la recherche, support prioritaire. Le contact WhatsApp est manuel.
 
 **Cible** : Professionnels, coopératives, grossistes, éleveurs avec plusieurs sites
 
@@ -224,8 +224,8 @@ Aidez le nouveau utilisateur à créer son premier acteur :
 Je vois que vous avez déjà créé 2 acteurs. Avec l'offre Premium à seulement 1 000 FCFA par mois, vous pourriez :
 - Ajouter TOUS vos sites (fermes, entrepôts, points de vente)
 - Avoir le badge Premium qui inspire confiance
-- Recevoir des notifications par SMS
-- Voir des statistiques détaillées sur votre activité
+
+Les statistiques et exports restent aussi accessibles avec le compte gratuit. L’envoi automatique de SMS/WhatsApp, les vues et les services prioritaires ne sont pas disponibles.
 
 1 000 FCFA, c'est même pas le prix d'un sac de ciment. Mais ça peut vous aider à gérer une activité de millions.
 
@@ -329,8 +329,8 @@ Je voulais vous informer que l'offre Premium est disponible pour seulement 1 000
 Avec Premium, vous avez :
 - Acteurs illimités
 - Badge Premium visible
-- Notifications SMS
-- Statistiques complètes
+
+Les statistiques et exports sont aussi accessibles gratuitement. Aucun envoi automatique SMS/WhatsApp ni service prioritaire n’est inclus.
 
 Intéressé(e) ? Je peux vous aider à activer.
 ```

@@ -8,11 +8,18 @@ import { TOGO_REGIONS } from '../public/reference-data.js';
 const rows = {users:[], subscriptions:[], actors:[], activities:[]};
 const db = {
   async getAll(sql) {
+    if (sql.includes('FROM notifications')) return [{id:1,status:'pending',message:'Ancienne demande'}];
+    if (sql.includes('FROM budget_entries')) return [{amount:'1200'},{amount:'300'}];
+    if (sql.includes('FROM ratings')) return [{rating:4}];
+    if (sql.includes('SELECT actual_harvest FROM activities')) return [{actual_harvest:'25'}];
+    if (sql.includes('SELECT harvest_product, actual_harvest')) return [{harvest_product:'Maïs',actual_harvest:25}];
     if (sql.includes('FROM actors')) return structuredClone(rows.actors);
     if (sql.includes('FROM activities')) return structuredClone(rows.activities);
     throw new Error('Unexpected test query: ' + sql);
   },
   async getOne(sql, params) {
+    if (sql.includes('COUNT(*) as count FROM actors')) return {count:rows.actors.length};
+    if (sql.includes('COUNT(*) as count FROM activities')) return {count:rows.activities.length};
     if (sql.includes('COUNT(*) as c FROM actors')) return {c:rows.actors.length};
     if (sql.includes('AVG(rating)')) return {avg:null,count:0};
     if (sql.includes('FROM subscriptions')) return rows.subscriptions.find(s=>s.user_id===params[0]);
@@ -94,6 +101,49 @@ try {
   assert.equal(saved.body[0].label,'Budget local');
   assert.equal(saved.body[0].user_id,valid.body.id);
   console.log('PASS: budget enregistré et relu via les vraies routes authentifiées');
+
+  for (const plan of ['free','premium']) {
+    rows.subscriptions[0].plan=plan;
+    const overview=await request('/api/stats/overview');
+    assert.equal(overview.status,200);
+    assert.equal(overview.body.views_count,null);
+    assert.equal(overview.body.views_available,false);
+    assert.equal(overview.body.actors_count,1);
+    assert.equal(overview.body.budgets_count,1);
+    assert.equal(overview.body.total_expenses,1500);
+    assert.equal(overview.body.total_harvests,25);
+    assert.equal(overview.body.ratings_received,1);
+    assert.deepEqual((await request('/api/stats/overview')).body,overview.body);
+    const actors=await request('/api/stats/actors');
+    assert.equal(actors.status,200);
+    assert.equal(actors.body[0].views,null);
+    assert.equal(actors.body[0].views_available,false);
+    assert.equal(actors.body[0].harvests['Maïs'],25);
+    assert.deepEqual((await request('/api/stats/actors')).body,actors.body);
+
+    for (const channel of ['sms','whatsapp','email']) {
+      // Any INSERT or provider call would fail this isolated test.
+      const sent=await request('/api/notifications/send','POST',{
+        channel,recipient:'fixture@example.test',message:'Ne pas envoyer'
+      });
+      assert.equal(sent.status,plan==='premium' ? 503 : 403);
+      if(plan==='premium') {
+        assert.equal(sent.body.success,false);
+        assert.equal(sent.body.error,'notifications_unavailable');
+      }
+    }
+    const history=await request('/api/notifications/history');
+    assert.equal(history.status,plan==='premium' ? 200 : 403);
+    if(plan==='premium') assert.equal(history.body[0].status,'pending');
+  }
+  console.log('PASS: vues nulles et stables, indicateurs enregistrés accessibles en gratuit et Premium');
+  console.log('PASS: aucun envoi SMS/WhatsApp/email ni écriture, historique Premium conservé');
+  cookie='';
+  assert.equal((await request('/api/stats/overview')).status,401);
+  assert.equal((await request('/api/stats/actors')).status,401);
+  assert.equal((await request('/api/notifications/history')).status,401);
+  assert.equal((await request('/api/notifications/send','POST',{})).status,401);
+  console.log('PASS: authentification toujours requise pour statistiques et notifications');
 } finally {
   server.closeAllConnections();
   await new Promise(resolve=>server.close(resolve));

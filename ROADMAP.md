@@ -33,12 +33,13 @@
 
 #### 💎 Système d'Abonnement
 - ✅ **Freemium** : 2 acteurs gratuits par utilisateur
-- ✅ **Premium** : Acteurs illimités + statistiques avancées (1,000 FCFA/mois)
+- ✅ **Premium** : Acteurs illimités et badge (1 000 FCFA/mois). Pas de priorité de recherche ni de support prioritaire.
 - ✅ **Interface de paiement** : T-Money et Flooz (backend prêt, nécessite clés API)
 - ✅ **Historique des paiements** : Suivi des transactions avec statuts
 
-#### 📊 Statistiques & Analytics (Premium)
-- ✅ **KPIs** : Acteurs, budgets, vues, dépenses, récoltes, notes
+#### 📊 Statistiques & Analytics (comptes connectés gratuits et Premium, hors commerciaux)
+- ✅ **KPIs enregistrés** : Acteurs, budgets, dépenses, récoltes, notes
+- ⏳ **Vues indisponibles** : Aucun comptage réel ; valeurs nulles, sans simulation.
 - ✅ **Métriques par acteur** : Performance individuelle
 - ✅ **Analyse budgétaire** : Variance, profit, statut
 - ✅ **Export** : CSV et PDF
@@ -53,7 +54,7 @@
 - ✅ **Mon Profil** : Modification des informations personnelles
 - ✅ **Mes Acteurs** : Gestion self-service (voir, modifier, supprimer, ajouter)
 - ✅ **Changement de mot de passe** : Sécurisé avec vérification
-- ✅ **Historique notifications** : Suivi des SMS/WhatsApp envoyés
+- ✅ **Historique notifications Premium** : Anciennes demandes uniquement, sans preuve de livraison. Aucun service SMS/WhatsApp/email automatique actif ; envoi désactivé et API en 503 sans nouvelle mise en attente.
 
 #### 🛠️ Infrastructure Technique
 - ✅ **Backend** : Node.js + Express + PostgreSQL (Neon)
@@ -84,6 +85,8 @@
 - [ ] Valider webhook de callback
 
 **Twilio (Notifications SMS/WhatsApp)** :
+
+Travaux futurs : aucune intégration d’envoi n’existe actuellement. Les clés seules ne suffisent pas. Ces notifications ne sont pas un avantage Premium disponible. Ne pas activer de fournisseur payant ni effectuer de paiement réel sans autorisation.
 - [ ] Créer compte Twilio
 - [ ] Obtenir Account SID, Auth Token, Numéro Twilio
 - [ ] Configurer variables d'environnement :

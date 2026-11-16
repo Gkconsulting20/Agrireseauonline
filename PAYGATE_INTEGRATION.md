@@ -1,5 +1,7 @@
 # Guide d'Intégration PayGate - T-Money & Flooz
 
+> **Document historique, non représentatif du parcours actuel.** L’application utilise FedaPay et affiche 1 000 FCFA/mois, pas les montants d’exemple ci-dessous. L’offre actuelle comprend le dépassement de la limite de deux acteurs et le badge Premium ; statistiques et exports sont aussi gratuits. Vues, envois automatiques SMS/WhatsApp/email et services prioritaires indisponibles. Ne pas activer de fournisseur payant ni effectuer de paiement réel sans autorisation. Voir README.md pour l’état actuel.
+
 ## 📋 Vue d'ensemble
 
 Ce document décrit comment intégrer **PayGate Global** pour accepter les paiements automatiques via **T-Money** et **Flooz** au Togo.

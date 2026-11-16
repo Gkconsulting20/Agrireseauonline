@@ -48,10 +48,10 @@ AgriRéseau Pro uses a modern web stack:
     - **Password Recovery System**: Token-based password reset via "Mot de passe oublié" link, with WhatsApp integration and copy-to-clipboard functionality.
 - **Subscription System**:
     - **Free Plan**: Limited to 2 actors per user.
-    - **Premium Plan**: Unlimited actors, premium badge, and advanced features.
-        - **Statistics & Analytics Dashboard**: Comprehensive KPIs, actor performance metrics, budget variance analysis, visual charts, and export functionality.
+    - **Premium Plan**: 1 000 FCFA/month, unlimited actors and premium badge. No search priority or priority support is implemented.
+        - **Statistics & Analytics Dashboard (also Free)**: Authenticated non-commercial accounts can access recorded actor/budget/expense/harvest/rating data, CSV export and print/PDF. Views are not measured: APIs return null with views_available=false and the UI displays “Indisponible”.
         - **Mobile Money & Card Payment Integration**: FedaPay integration for T-Money, Flooz, and Visa/MasterCard, with webhook processing for automatic premium activation.
-        - **Notification System (Premium Only)**: Twilio-based SMS and WhatsApp notifications with history and test functionality.
+        - **Notifications unavailable**: No SMS/WhatsApp/email delivery service is implemented. Send returns HTTP 503 without saving or sending; the test button is disabled. Premium can read historical requests, not delivery receipts. Pending requests were not sent. Manual WhatsApp contact links remain available.
 - **Admin System**:
     - **Role-Based Authorization**: `is_admin` flag for admin privileges.
     - **Admin Panel**: Dedicated "Administration" tab for user and logistics management.
@@ -99,7 +99,7 @@ AgriRéseau Pro uses a modern web stack:
     - **Certification Badges**: Visual badges for Bio, Qualité, and Commerce Équitable certifications.
 - **Product Presentation**: Support for product photos and display of harvest quantities on actor cards, with prices hidden.
 - **Enhanced Communication**: WhatsApp integration with pre-filled message templates.
-- **Monetization Infrastructure**: Complete FedaPay API integration for mobile money and card payments, including payment initiation, webhook processing, and transaction history. Twilio integration for SMS/WhatsApp notifications.
+- **Monetization Infrastructure**: FedaPay payment initiation, webhook processing, and transaction history. Automatic notifications are unavailable; Twilio is a future integration, not a current Premium benefit. Do not enable paid providers or make real payments without authorization.
 
 **System Design Choices**:
 - Separation of concerns.
@@ -114,4 +114,4 @@ AgriRéseau Pro uses a modern web stack:
 - **Leaflet.js**: Interactive maps.
 - **bcryptjs**: Password hashing.
 - **FedaPay**: Pan-African payment gateway for mobile money (T-Money, Flooz) and Visa/MasterCard.
-- **Twilio**: SMS and WhatsApp notification service (Premium only).
+- **Twilio (not integrated)**: Future SMS/WhatsApp provider option only; configuration keys alone do not implement delivery.

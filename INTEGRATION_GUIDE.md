@@ -4,7 +4,9 @@ Ce guide explique comment configurer les intégrations tierces pour activer tout
 
 ---
 
-## 📱 Intégration Twilio (SMS & WhatsApp)
+## 📱 Intégration Twilio (SMS & WhatsApp) — à développer
+
+**État actuel : indisponible.** Les exemples ci-dessous sont des pistes d’intégration, pas du code actif. Aucun fournisseur d’envoi SMS/WhatsApp/email n’est implémenté. L’API d’envoi refuse en HTTP 503, sans enregistrer ni envoyer de message. L’historique Premium contient d’anciennes demandes, sans preuve de livraison. Ajouter des clés ne suffit pas à activer l’envoi. Ne pas activer de fournisseur payant ni effectuer de paiement réel sans autorisation. Voir le README pour les avantages Premium réellement disponibles.
 
 ### Prérequis
 1. Créer un compte Twilio : https://www.twilio.com/try-twilio
@@ -203,7 +205,7 @@ if (!process.env.PAYGATE_API_KEY) {
 - [ ] Compte Twilio créé et vérifié
 - [ ] API Keys Twilio ajoutées dans Replit Secrets
 - [ ] Package Twilio installé
-- [ ] Test d'envoi SMS réussi
+- [ ] Après implémentation et autorisation explicite seulement : test d’envoi SMS avec preuve de livraison
 - [ ] Test d'envoi WhatsApp réussi
 - [ ] Compte PayGate créé et approuvé
 - [ ] API Keys PayGate ajoutées dans Replit Secrets

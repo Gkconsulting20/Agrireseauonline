@@ -308,9 +308,9 @@ Voici des durées réalistes à tester :
 
 ---
 
-### **Test 6 : Statistiques Premium** 📊
+### **Test 6 : Statistiques des comptes connectés** 📊
 
-**Uniquement pour comptes Premium**
+**Comptes gratuits et Premium (hors commerciaux dédiés)**. Vérifier que les vues affichent « Indisponible » et ne varient pas aléatoirement ; les autres chiffres doivent correspondre aux données enregistrées. L’envoi automatique SMS/WhatsApp/email est indisponible même avec Premium, le bouton test est désactivé et l’API d’envoi refuse sans nouvelle demande en base. Aucun paiement réel ni activation de fournisseur payant pendant les tests.
 
 1. Aller dans l'onglet **"📊 Statistiques"**
 2. Vérifier les KPIs :
@@ -339,9 +339,9 @@ Voici des durées réalistes à tester :
 3. Voir les transactions (si activées)
 
 #### Notifications
-1. Section **"📱 Notifications & Alertes"**
-2. Cliquer **"🔔 Envoyer une notification test"**
-3. Voir l'historique des notifications
+1. Section **"📱 Notifications SMS & WhatsApp"** : vérifier la mention d’indisponibilité même avec Premium.
+2. Le bouton d’envoi test doit être désactivé ; aucune confirmation d’envoi ne doit apparaître.
+3. En Premium, consulter l’historique : les anciennes demandes en attente doivent être indiquées comme non envoyées. En gratuit, aucun bouton de passage Premium ne doit promettre l’envoi.
 
 ---
 
@@ -372,7 +372,7 @@ Voici des durées réalistes à tester :
 - [ ] ✅ Affichage "En production" avec date estimée
 - [ ] ✅ Changement vers "Disponible" après récolte
 - [ ] ✅ Interface de paiement (1 000 FCFA)
-- [ ] ✅ Statistiques premium
+- [ ] ✅ Statistiques gratuites et Premium sur données enregistrées, vues indisponibles
 - [ ] ✅ Panel admin
 
 ### Affichages Spéciaux

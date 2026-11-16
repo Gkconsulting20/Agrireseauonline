@@ -119,7 +119,7 @@ git commit -m "Initial commit: AgriRéseau Pro - MVP complet
 - Carte interactive avec géolocalisation
 - Système d'abonnement freemium/premium
 - Infrastructure paiement mobile money (PayGate)
-- Infrastructure notifications (Twilio)
+- Historique des anciennes demandes de notification ; aucun envoi Twilio implémenté (indisponible même avec Premium)
 - Panel d'administration
 - Prêt pour déploiement Render"
 

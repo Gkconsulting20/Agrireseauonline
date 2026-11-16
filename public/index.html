@@ -97,7 +97,7 @@
     <aside class="guide-actions">
       <strong>À savoir</strong>
       <p>Le compte gratuit permet de gérer jusqu’à 2 acteurs. L’abonnement Premium affiché dans l’application est de 1 000 FCFA par mois et permet de dépasser cette limite.</p>
-      <p>Les paiements Premium sont proposés via FedaPay. Les notifications automatiques SMS/WhatsApp peuvent dépendre de la configuration du service.</p>
+      <p>Les paiements Premium sont proposés via FedaPay. Le Premium ajoute un badge sur vos fiches. L’envoi automatique SMS/WhatsApp/email, la priorité de recherche et le support prioritaire ne sont pas disponibles.</p>
       <button type="button" onclick="document.getElementById('btnLogin').click()">Créer mon compte</button>
       <button type="button" class="guide-secondary" onclick="document.querySelector('[data-tab=&quot;actors&quot;]').click(); document.querySelector('.tabs').scrollIntoView({behavior:'smooth'})">Parcourir les acteurs</button>
     </aside>
@@ -113,11 +113,11 @@
     <article class="guide-feature-card"><span>🏢</span><h5>Gestion de vos acteurs</h5><p>Créez et modifiez vos fiches, ajoutez produits, quantités, prix, photos, certifications et coordonnées. Limite gratuite : 2 acteurs.</p></article>
     <article class="guide-feature-card"><span>🚚</span><h5>Logistique</h5><p>Publiez et consultez des offres ou demandes de transport, puis contactez l’annonceur directement.</p></article>
     <article class="guide-feature-card"><span>📒</span><h5>Budgets et coûts</h5><p>Préparez un budget par activité, consignez les recettes et dépenses et comparez les prévisions aux montants réels.</p></article>
-    <article class="guide-feature-card"><span>⭐</span><h5>Évaluations et statistiques</h5><p>Évaluez les acteurs et consultez vos indicateurs d’activité. L’espace statistiques propose aussi des exports CSV et une impression PDF.</p></article>
+    <article class="guide-feature-card"><span>⭐</span><h5>Évaluations et statistiques</h5><p>Avec un compte gratuit ou Premium, consultez les indicateurs issus de vos données enregistrées, exportez en CSV ou imprimez en PDF. Le comptage des vues est indisponible.</p></article>
     <article class="guide-feature-card"><span>💎</span><h5>Abonnement Premium</h5><p>Pour 1 000 FCFA par mois selon l’offre affichée dans l’application : davantage d’acteurs et un badge Premium. Le paiement est proposé par FedaPay.</p></article>
     <article class="guide-feature-card"><span>🛠️</span><h5>Espaces professionnels</h5><p>Les comptes commerciaux disposent d’un suivi des recrutements et de rapports. Les administrateurs disposent d’outils de gestion de la plateforme. Ces comptes ont des accès différents d’un compte d’exploitation.</p></article>
   </div>
-  <p class="guide-footnote">Les fonctions disponibles peuvent varier selon votre compte et la configuration du service. Les notifications automatiques ne sont pas garanties tant que leur service d’envoi n’est pas configuré.</p>
+  <p class="guide-footnote">Les liens de contact WhatsApp ouvrent une conversation à envoyer vous-même ; ce ne sont pas des notifications automatiques. Aucun service d’envoi automatique n’est actif, même avec Premium.</p>
 </section>
 
 <nav class="tabs">
@@ -297,7 +297,7 @@
 <section id="stats" class="tab">
   <div class="card" style="margin-bottom:20px;background:linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);">
     <h3>📊 Statistiques & Analyses</h3>
-    <p class="muted">Visualisez vos performances et suivez l'évolution de vos activités agricoles</p>
+    <p class="muted">Indicateurs issus de vos données enregistrées, accessibles en gratuit comme en Premium. Le comptage des vues est indisponible : aucune mesure de consultation n’est collectée.</p>
   </div>
   
   <div id="statsOverview" class="grid3" style="margin-bottom:30px;"></div>
@@ -329,9 +329,9 @@
   
   <div class="card" style="margin-top:20px;">
     <h3>📱 Notifications SMS & WhatsApp</h3>
-    <p class="muted" style="margin-bottom:15px;">💎 <strong>Fonctionnalité Premium</strong> - Envoyez des notifications automatiques à vos clients</p>
+    <p class="muted" style="margin-bottom:15px;"><strong>Envoi indisponible, même avec Premium.</strong> Aucun service d’envoi automatique n’est actif. L’historique conserve uniquement les anciennes demandes ; une demande en attente n’a pas été envoyée.</p>
     <div style="margin-bottom:15px;">
-      <button id="btnSendTestNotification" style="background:#3b82f6;color:white;">🔔 Envoyer une notification test</button>
+      <button id="btnSendTestNotification" disabled title="Aucun service d’envoi actif">Envoi test indisponible</button>
     </div>
     <div id="notificationsContainer">
       <p class="muted">Chargement...</p>

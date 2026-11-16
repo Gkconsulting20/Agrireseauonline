@@ -52,8 +52,8 @@
 - [ ] `SESSION_SECRET` - Secret pour les sessions (générer une chaîne aléatoire sécurisée)
 - [ ] `NODE_ENV=production` - Mode production
 
-**OPTIONNELLES (Fonctionnalités Premium)** :
-- [ ] `TWILIO_ACCOUNT_SID` - Pour notifications SMS/WhatsApp
+**OPTIONNELLES (intégration future, indisponible actuellement)** :
+- [ ] `TWILIO_ACCOUNT_SID` - Ne suffit pas à activer les notifications SMS/WhatsApp : aucun envoi n’est implémenté. Autorisation requise avant toute activation payante.
 - [ ] `TWILIO_AUTH_TOKEN` - Pour Twilio
 - [ ] `TWILIO_PHONE_NUMBER` - Numéro Twilio (format: +1234567890)
 - [ ] `PAYGATE_API_KEY` - Pour paiements mobile money (UUID)
@@ -87,7 +87,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 ### ✅ Système d'Abonnement
 - [x] **Freemium** : 2 acteurs max
-- [x] **Premium** : Acteurs illimités, statistiques, badge 💎
+- [x] **Premium** : Acteurs illimités et badge 💎. Statistiques et exports aussi gratuits ; vues, envois automatiques et services prioritaires indisponibles.
 - [x] **Paiement** : Interface T-Money/Flooz (backend prêt, nécessite clés API)
 
 ### ✅ Fonctionnalités Avancées
@@ -168,7 +168,7 @@ NODE_ENV=production
 
 ### Limitations Actuelles
 1. **Paiements** : Infrastructure prête mais nécessite clés API PayGate
-2. **Notifications** : Infrastructure prête mais nécessite clés API Twilio
+2. **Notifications** : Envoi automatique indisponible. Une implémentation, des tests et une autorisation avant activation payante sont nécessaires, pas seulement des clés API.
 3. **Premium** : Activation manuelle possible via panel admin
 
 ### Performance

@@ -41,23 +41,24 @@ Port: 5000
 - Toutes les fonctionnalités de base
 - Stock public, carte, logistique, coûts, budget
 
-### 💎 PREMIUM (5 000 FCFA/mois)
+### 💎 PREMIUM (1 000 FCFA/mois)
 - Acteurs illimités
 - Badge Premium visible
-- Analytics (à venir)
-- Messagerie interne (à venir)
-- Alertes SMS/Email (à venir)
+- Les statistiques basées sur les données enregistrées, les exports CSV et l’impression PDF sont aussi accessibles aux comptes gratuits connectés (hors comptes commerciaux dédiés).
+- **Indisponibles, non inclus dans le Premium actuel** : comptage des vues, notifications automatiques SMS/WhatsApp/email, priorité dans les recherches, support prioritaire et messagerie interne.
+- Les liens WhatsApp permettent un contact manuel, sans envoi automatique.
 
-## 💳 Activer les Paiements (T-Money & Flooz)
+## 💳 Paiements Premium
 
-**Infrastructure prête, en attente de clés API PayGate**
+Le parcours actuel utilise **FedaPay** pour proposer un abonnement à **1 000 FCFA/mois**. Les anciens exemples PayGate ne décrivent pas le parcours actif. Aucun paiement réel ne doit être effectué pour vérifier les avantages de l’offre.
 
-1. Créer compte sur [PayGate](https://www.paygateglobal.com/)
-2. Obtenir API keys depuis dashboard PayGate
-3. Ajouter les secrets dans Replit :
-   - `PAYGATE_API_KEY`
-   - `PAYGATE_MERCHANT_ID`
-4. Activer endpoint de paiement (code déjà préparé)
+### Notifications et mesures
+
+Aucun fournisseur d’envoi automatique n’est implémenté. L’API d’envoi répond `503 notifications_unavailable`, sans enregistrer ni envoyer de nouveau message. Les anciennes demandes restent consultables par les comptes Premium ; `pending` ne signifie pas « envoyé » et un ancien statut `sent` ne prouve pas la livraison.
+
+Les API statistiques renvoient `views_count: null` ou `views: null`, avec `views_available: false`. L’interface affiche **Indisponible**, jamais un nombre simulé ni un faux zéro. Les autres indicateurs proviennent des fiches, budgets, dépenses, récoltes et évaluations enregistrés ; ils ne constituent pas une mesure d’audience.
+
+Les guides d’intégration décrivent des travaux futurs : ajouter des clés ne suffit pas à rendre l’envoi opérationnel. Ne pas activer de fournisseur payant ni effectuer de paiement réel sans autorisation.
 
 ## 🧪 Tester en Local
 

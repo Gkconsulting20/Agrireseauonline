@@ -134,6 +134,8 @@ https://agrireseau-pro.replit.app/api/payments/webhook
 
 ## 📱 TWILIO (Notifications SMS & WhatsApp)
 
+**Intégration future, non disponible dans l’offre actuelle.** Aucun envoi automatique SMS/WhatsApp/email n’est implémenté. Les exemples de configuration et estimations ci-dessous ne prouvent pas un service actif ; les clés seules ne suffisent pas. Ne pas activer de fournisseur payant ni effectuer de paiement réel sans autorisation.
+
 ### ✅ Pourquoi Twilio ?
 - **15 USD de crédit gratuit** à l'inscription (200+ SMS ou 3,000 messages WhatsApp)
 - **WhatsApp** : 15x moins cher que SMS (~3 FCFA vs 45 FCFA)
@@ -314,12 +316,10 @@ Pour vérifier que tout fonctionne :
 - Date d'expiration : N'importe quelle date future
 - CVV : N'importe quels 3 chiffres
 
-### Twilio :
-1. Connectez-vous en tant qu'utilisateur Premium
-2. Allez dans l'onglet **Statistiques**
-3. Descendez à **"📱 Notifications SMS & WhatsApp"**
-4. Cliquez sur **"🔔 Envoyer une notification test"**
-5. Vérifiez la réception
+### Notifications actuellement indisponibles :
+1. Vérifier que la section **Notifications SMS & WhatsApp** indique l’indisponibilité, même avec Premium.
+2. Vérifier que le bouton d’envoi test est désactivé.
+3. Un appel isolé à l’API d’envoi avec un compte Premium doit recevoir HTTP 503, sans nouvelle demande enregistrée ni message envoyé. Utiliser une base de test, pas un fournisseur réel.
 
 ---
 

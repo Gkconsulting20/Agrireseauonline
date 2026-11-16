@@ -1,5 +1,7 @@
 # 💳 Guide d'Utilisation du Système de Paiement Premium
 
+> État actuel de l’offre : 1 000 FCFA/mois pour dépasser la limite de deux acteurs et afficher le badge Premium. Statistiques sur les données enregistrées, exports CSV et impression PDF aussi accessibles gratuitement. Vues, envoi automatique SMS/WhatsApp/email, priorité de recherche et support prioritaire indisponibles. Le parcours utilisateur actuel propose FedaPay ; les instructions manuelles ci-dessous concernent l’administration. Aucun paiement réel ni activation de fournisseur payant sans autorisation.
+
 ## 🎯 Ce qui a été implémenté
 
 ### ✅ Paiement Manuel (ACTIF MAINTENANT)

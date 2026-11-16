@@ -1063,29 +1063,13 @@ app.get('/api/payments/history', requireAuth, async (req,res)=>{
   res.json(payments);
 });
 
-// Notification endpoints - Twilio integration for SMS/WhatsApp (Premium only)
+// No delivery provider is implemented. Keep history, but do not queue new messages.
 app.post('/api/notifications/send', requirePremium, async (req,res)=>{
-  const {type, channel, recipient, message} = req.body;
-  const userId = req.session.user.id;
-  
-  if(!['sms', 'whatsapp', 'email'].includes(channel)) return res.status(400).json({error:'Invalid channel'});
-  if(!recipient || !message) return res.status(400).json({error:'Recipient and message required'});
-  
-  try {
-    await db.query(
-      'INSERT INTO notifications (user_id, type, channel, recipient, message, status) VALUES ($1, $2, $3, $4, $5, $6)',
-      [userId, type || 'custom', channel, recipient, message, 'pending']
-    );
-    
-    res.json({
-      success: true,
-      message: 'Notification enregistrée. Envoi en cours...',
-      note: 'Configuration Twilio requise pour envoi automatique'
-    });
-  } catch(e) {
-    console.error('Notification error:', e);
-    res.status(500).json({error: 'Notification failed'});
-  }
+  res.status(503).json({
+    success: false,
+    error: 'notifications_unavailable',
+    message: 'Envoi indisponible : aucun service SMS, WhatsApp ou email automatique n’est actif. Aucun message enregistré ni envoyé.'
+  });
 });
 
 app.get('/api/notifications/history', requirePremium, async (req,res)=>{
@@ -1111,7 +1095,8 @@ app.get('/api/stats/overview', requireAuth, async (req,res)=>{
     total_expenses: totalExpenses,
     total_harvests: totalHarvests,
     ratings_received: ratings.length,
-    views_count: Math.floor(Math.random() * 500) + 100
+    views_count: null,
+    views_available: false
   });
 });
 
@@ -1138,7 +1123,8 @@ app.get('/api/stats/actors', requireAuth, async (req,res)=>{
       products: JSON.parse(actor.products || '[]'),
       rating_avg: ratings?.avg ? parseFloat(ratings.avg) : 0,
       rating_count: ratings?.count ? parseInt(ratings.count) : 0,
-      views: Math.floor(Math.random() * 100) + 10,
+      views: null,
+      views_available: false,
       harvests: harvestsByProduct
     });
   }

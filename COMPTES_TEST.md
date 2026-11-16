@@ -19,7 +19,7 @@ Mot de passe: Test2025
 - ✅ Voir les statistiques de base
 - ✅ Noter les autres acteurs
 - ✅ Consulter la carte
-- ❌ Statistiques avancées (nécessite Premium)
+- ✅ Statistiques sur les données enregistrées et exports ; vues indisponibles
 
 ---
 
@@ -37,7 +37,7 @@ Mot de passe: Admin2025!
 - ✅ Activation/blocage de comptes
 - ✅ Activation manuelle du Premium
 - ✅ Accès à tous les acteurs
-- ✅ Statistiques avancées
+- ✅ Statistiques sur les données enregistrées (aussi accessibles en gratuit)
 
 ---
 
@@ -108,7 +108,7 @@ Avec le compte `test@agrireseau.tg` :
    - Transaction ID : TEST-001
    - → Activer Premium
    - Reconnectez-vous avec le compte test
-   - **Maintenant** : acteurs illimités + statistiques avancées !
+   - **Maintenant** : acteurs illimités + badge Premium. Les statistiques et exports sont aussi gratuits ; les vues, envois automatiques SMS/WhatsApp/email et services prioritaires restent indisponibles.
 
 ---
 
