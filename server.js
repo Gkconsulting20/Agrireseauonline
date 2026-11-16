@@ -11,6 +11,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { TOGO_REGIONS } from './public/reference-data.js';
 import { mountPasswordRecovery } from './security/password-recovery.js';
+import { createActorViews, excludedViewRequest, sameOriginViewRequest } from './analytics/actor-views.js';
 
 const { FedaPay } = fedapay;
 
@@ -19,6 +20,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const actorViews = createActorViews(db, { secret: process.env.SESSION_SECRET });
 
 // Configure FedaPay
 if (process.env.FEDAPAY_SECRET_KEY) {
@@ -272,6 +274,24 @@ app.get('/api/actors', async (req,res)=>{
     result.push(actor);
   }
   res.json(result); 
+});
+
+// Only the explicit profile-opening action records a consultation, never listing/prefetching.
+app.post('/api/actors/:id/views', requireAuth, blockCommercial, async (req,res)=>{
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({error:'invalid_actor_id'});
+  if (!sameOriginViewRequest(req)) return res.status(403).json({error:'invalid_view_origin'});
+  try {
+    const actor = await db.getOne('SELECT id, owner_id FROM actors WHERE id=$1', [id]);
+    if (!actor) return res.status(404).json({error:'actor_not_found'});
+    if (actor.owner_id === req.session.user.id || excludedViewRequest(req)) {
+      return res.json({counted:false});
+    }
+    const counted = await actorViews.record(id, req.session.user.id);
+    res.json({counted});
+  } catch {
+    res.status(503).json({error:'views_unavailable', views:null, views_available:false});
+  }
 });
 
 app.post('/api/actors', requireAuth, blockCommercial, async (req,res)=>{ 
@@ -1078,6 +1098,7 @@ app.get('/api/stats/overview', requireAuth, async (req,res)=>{
   const harvests = await db.getAll('SELECT actual_harvest FROM activities WHERE user_id=$1 AND actual_harvest > 0', [userId]);
   const totalHarvests = harvests.reduce((sum, h) => sum + Number(h.actual_harvest || 0), 0);
   const ratings = await db.getAll('SELECT r.* FROM ratings r JOIN actors a ON r.actor_id=a.id WHERE a.owner_id=$1', [userId]);
+  const views = await actorViews.countsForOwner(userId);
   
   res.json({
     actors_count: Number(actorsCount.count || 0),
@@ -1086,14 +1107,15 @@ app.get('/api/stats/overview', requireAuth, async (req,res)=>{
     total_expenses: totalExpenses,
     total_harvests: totalHarvests,
     ratings_received: ratings.length,
-    views_count: null,
-    views_available: false
+    views_count: views.total,
+    views_available: views.available
   });
 });
 
 app.get('/api/stats/actors', requireAuth, async (req,res)=>{
   const userId = req.session.user.id;
   const actors = await db.getAll('SELECT * FROM actors WHERE owner_id=$1 ORDER BY id DESC', [userId]);
+  const views = await actorViews.countsForOwner(userId);
   
   const actorStats = [];
   for(const actor of actors){
@@ -1114,8 +1136,8 @@ app.get('/api/stats/actors', requireAuth, async (req,res)=>{
       products: JSON.parse(actor.products || '[]'),
       rating_avg: ratings?.avg ? parseFloat(ratings.avg) : 0,
       rating_count: ratings?.count ? parseInt(ratings.count) : 0,
-      views: null,
-      views_available: false,
+      views: views.available ? (views.counts.get(actor.id) ?? null) : null,
+      views_available: views.available && views.counts.has(actor.id),
       harvests: harvestsByProduct
     });
   }

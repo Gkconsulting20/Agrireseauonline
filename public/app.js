@@ -504,7 +504,7 @@ function showTermsDialog(){
       
       <h4>5. Plans d'abonnement</h4>
       <p>• <strong>Plan Gratuit</strong> : Limité à 2 acteurs par utilisateur<br>
-      • <strong>Plan Premium</strong> : 1 000 FCFA/mois, plus de 2 acteurs et badge Premium. Les statistiques et exports sont aussi accessibles en gratuit. Les vues, les envois automatiques SMS/WhatsApp/email, la priorité de recherche et le support prioritaire sont indisponibles.<br>
+      • <strong>Plan Premium</strong> : 1 000 FCFA/mois, plus de 2 acteurs et badge Premium. Les statistiques, consultations mesurées et exports sont aussi accessibles en gratuit. Les envois automatiques SMS/WhatsApp/email, la priorité de recherche et le support prioritaire sont indisponibles.<br>
       • Les paiements sont traités via FedaPay (Mobile Money et cartes bancaires)<br>
       • Aucun remboursement n'est possible après activation du service Premium</p>
       
@@ -870,10 +870,27 @@ function openActorProfile(actor){
   document.body.appendChild(dlg);
   dlg.showModal();
   dlg.querySelector('#closeProfile').onclick = () => dlg.close();
+  // No request on list rendering, map loading, edits or anonymous browsing.
+  recordActorProfileView(actor.id);
   dlg.querySelector('#btnRateActor').onclick = () => {
     dlg.close();
     openRatingDialog(actor);
   };
+}
+
+async function recordActorProfileView(actorId) {
+  if (!ME || ME.is_commercial || document.visibilityState === 'hidden'
+      || navigator.doNotTrack === '1' || navigator.globalPrivacyControl === true) return;
+  try {
+    const response = await fetch(`/api/actors/${actorId}/views`, {
+      method: 'POST',
+      headers: {'X-Actor-View': 'profile'}
+    });
+    if (!response.ok) console.warn('Mesure de consultation indisponible.');
+  } catch {
+    // A measurement failure must not prevent access to the profile, or invent a view.
+    console.warn('Mesure de consultation indisponible.');
+  }
 }
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -1734,7 +1751,8 @@ window.showPaymentDialog = async function(){
           <li>💎 <strong>Badge Premium</strong> visible sur vos fiches</li>
         </ul>
         <p>Le tableau de bord, les données enregistrées, les exports CSV et l’impression PDF sont aussi accessibles en gratuit.</p>
-        <p><strong>Non disponibles :</strong> comptage des vues, envoi automatique SMS/WhatsApp/email, priorité dans la recherche et support prioritaire. Ces services ne sont pas inclus dans l’abonnement actuel.</p>
+        <p>Les consultations mesurées des fiches sont accessibles en gratuit et en Premium : autres comptes connectés, une fois par fiche et par jour UTC, hors refus de suivi.</p>
+        <p><strong>Non disponibles :</strong> envoi automatique SMS/WhatsApp/email, priorité dans la recherche et support prioritaire. Ces services ne sont pas inclus dans l’abonnement actuel.</p>
       </div>
       
       <div style="background:#eff6ff;padding:20px;border-radius:12px;margin-bottom:20px;">
@@ -3238,7 +3256,7 @@ function renderStatsOverview(){
     },
     {
       icon: '👁️',
-      label: 'Vues',
+      label: 'Consultations mesurées',
       value: stats.views_available === true && Number.isFinite(stats.views_count) ? stats.views_count : 'Indisponible',
       color: '#10b981',
       bg: '#f0fdf4'
@@ -3266,7 +3284,7 @@ function renderStatsOverview(){
     }
   ];
   
-  container.innerHTML = kpis.map(kpi => `
+  container.innerHTML = '<p class="muted" style="grid-column:1/-1;">Consultations depuis l’activation de la mesure : ouvertures de fiches par d’autres comptes connectés, une fois par fiche et par jour UTC. Propriétaire, visites anonymes, robots identifiables et refus de suivi exclus. Aucun historique antérieur reconstitué.</p>' + kpis.map(kpi => `
     <div class="card" style="background:${kpi.bg};border:2px solid ${kpi.color}20;text-align:center;">
       <div style="font-size:48px;margin-bottom:10px;">${kpi.icon}</div>
       <div style="font-size:28px;font-weight:bold;color:${kpi.color};margin-bottom:5px;">${kpi.value}</div>
@@ -3305,7 +3323,7 @@ function renderActorStats(){
           </div>
           <div style="text-align:right;">
             <div style="font-size:18px;font-weight:bold;color:#3b82f6;">${actor.views_available === true && Number.isFinite(actor.views) ? actor.views : 'Indisponible'}</div>
-            <div style="font-size:12px;color:#6b7280;">vues</div>
+            <div style="font-size:12px;color:#6b7280;">consultations mesurées</div>
           </div>
         </div>
         

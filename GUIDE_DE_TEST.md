@@ -310,7 +310,7 @@ Voici des durées réalistes à tester :
 
 ### **Test 6 : Statistiques des comptes connectés** 📊
 
-**Comptes gratuits et Premium (hors commerciaux dédiés)**. Vérifier que les vues affichent « Indisponible » et ne varient pas aléatoirement ; les autres chiffres doivent correspondre aux données enregistrées. L’envoi automatique SMS/WhatsApp/email est indisponible même avec Premium, le bouton test est désactivé et l’API d’envoi refuse sans nouvelle demande en base. Aucun paiement réel ni activation de fournisseur payant pendant les tests.
+**Comptes gratuits et Premium (hors commerciaux dédiés)**. Les consultations mesurées correspondent aux ouvertures volontaires par d'autres comptes connectés, une fois par fiche et par jour UTC, hors propriétaire, robots identifiables et refus de suivi. Un rechargement ou une liste seule ne compte pas ; une deuxième ouverture admissible le même jour ne doit pas incrémenter. Vérifier que le total égale la somme des fiches du compte et qu'aucune fiche d'un autre propriétaire n'apparaît. Zéro est une valeur mesurée ; une mesure impossible doit afficher « Indisponible » (API : null et views_available=false). Voir `CONSULTATIONS_FICHES.md` et les tests isolés, sans utiliser de base de production. L’envoi automatique SMS/WhatsApp/email reste indisponible même avec Premium, le bouton test est désactivé et l’API d’envoi refuse sans nouvelle demande en base. Aucun paiement réel ni activation de fournisseur payant pendant les tests.
 
 1. Aller dans l'onglet **"📊 Statistiques"**
 2. Vérifier les KPIs :
@@ -372,7 +372,7 @@ Voici des durées réalistes à tester :
 - [ ] ✅ Affichage "En production" avec date estimée
 - [ ] ✅ Changement vers "Disponible" après récolte
 - [ ] ✅ Interface de paiement (1 000 FCFA)
-- [ ] ✅ Statistiques gratuites et Premium sur données enregistrées, vues indisponibles
+- [ ] ✅ Statistiques gratuites et Premium, consultations persistantes dédupliquées ou indisponibilité explicite
 - [ ] ✅ Panel admin
 
 ### Affichages Spéciaux

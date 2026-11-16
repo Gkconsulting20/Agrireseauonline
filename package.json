@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "test": "node --experimental-vm-modules tests/api-priorities.mjs && node --experimental-vm-modules tests/account-security.mjs && node tests/lockfile-portability.mjs"
+    "test": "node --experimental-vm-modules tests/api-priorities.mjs && node --experimental-vm-modules tests/account-security.mjs && node --experimental-vm-modules tests/actor-views.mjs && node tests/lockfile-portability.mjs",
+    "test:views:postgres": "node tests/actor-views-postgres.mjs"
   },
   "overrides": {
     "proxy-addr": "^2.0.8"

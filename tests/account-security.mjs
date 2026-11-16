@@ -94,6 +94,7 @@ async function start({delivery='sink', env={}} = {}) {
     else if (specifier === './security/password-recovery.js') exports = {
       mountPasswordRecovery:(app, database)=>mountPasswordRecovery(app,database,{deliver})
     };
+    else if (specifier === './analytics/actor-views.js') exports=await import('../analytics/actor-views.js');
     else exports = await import(specifier);
     return new vm.SyntheticModule(Object.keys(exports), function(){
       for (const key of Object.keys(exports)) this.setExport(key,exports[key]);

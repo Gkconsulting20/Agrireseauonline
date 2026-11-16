@@ -11,6 +11,7 @@ const actor = { id: 1, owner_id: 42, name: 'Coopérative de test', role: 'cooper
 let user = {id:42, name:'Utilisateur test', role:'producteur', region:'Plateaux'};
 let actors = [actor], budgets = [], failure = '', actorFailure = false, requests = [], plan = 'free';
 let recoveryStatus = 503;
+let viewsAvailable = false, viewsCount = 0;
 const server = createServer(async (req, res) => {
   if (req.url.startsWith('/api/')) {
     let raw = '';
@@ -53,10 +54,10 @@ const server = createServer(async (req, res) => {
     else if (req.url === '/api/subscription') result = {subscription:{plan},limit:plan==='free'?2:999,count:actors.length};
     else if (req.url === '/api/stats/overview') result = {
       actors_count:1,budgets_count:0,total_expenses:1500,total_harvests:25,ratings_received:1,
-      views_count:null,views_available:false
+      views_count:viewsAvailable ? viewsCount : null,views_available:viewsAvailable
     };
     else if (req.url === '/api/stats/actors') result = [{
-      ...actor,views:null,views_available:false,harvests:{'Maïs':25},rating_avg:4,rating_count:1,products:['Maïs']
+      ...actor,views:viewsAvailable ? viewsCount : null,views_available:viewsAvailable,harvests:{'Maïs':25},rating_avg:4,rating_count:1,products:['Maïs']
     }];
     else if (req.url === '/api/stats/budgets') result = [];
     else if (req.url === '/api/notifications/history') {
@@ -150,6 +151,7 @@ try {
   console.log('PASS: droits de gestion des fiches, démonstration masquée et récupération sans lien ni contact exposés');
   for (const currentPlan of ['free','premium']) {
     plan=currentPlan;
+    viewsAvailable=false;
     await click('[data-tab="stats"]');
     await wait('document.querySelector("#statsOverview").textContent.includes("Indisponible")');
     assert.ok((await evaluate('document.querySelector("#actorStatsContent").textContent')).includes('Indisponible'));
@@ -158,6 +160,18 @@ try {
       : 'document.querySelector("#notificationsContainer").textContent.includes("Non envoyée")');
     assert.equal(await evaluate('document.querySelector("#btnSendTestNotification").disabled'),true);
     assert.equal(await evaluate('!!document.querySelector("#notificationsContainer button")'),false);
+    viewsAvailable=true;
+    for (const value of [0,7]) {
+      viewsCount=value;
+      await click('[data-tab="stats"]');
+      await wait(`document.querySelectorAll("#statsOverview .card")[2]?.children[1]?.textContent === "${value}"`);
+      assert.equal(await evaluate('document.querySelector("#statsOverview").textContent.includes("Indisponible")'),false);
+      assert.equal(await evaluate('document.querySelector("#actorStatsContent").textContent.includes("Indisponible")'),false);
+      assert.equal(await evaluate('Number(document.querySelectorAll("#statsOverview .card")[2].children[1].textContent)'),value);
+      assert.equal(await evaluate('Number(document.querySelector("#actorStatsContent > div > div > div:last-child > div").textContent)'),value);
+      assert.ok((await evaluate('document.querySelector("#statsOverview").textContent')).includes('Consultations mesurées'));
+      assert.ok((await evaluate('document.querySelector("#actorStatsContent").textContent')).includes('consultations mesurées'));
+    }
   }
   await evaluate('showPaymentDialog()');
   await wait('!!document.querySelector("#frmPayment")');
@@ -170,7 +184,18 @@ try {
   await click('#cancelPayment');
   assert.equal(requests.some(r=>r.url==='/api/notifications/send'||r.url.startsWith('/api/payments/')),false);
   plan='free';
-  console.log('PASS: offre Premium honnête, vues indisponibles et aucun envoi proposé, gratuit et Premium');
+  console.log('PASS: consultations nulles, zéro et positives, offre et notifications honnêtes, gratuit et Premium');
+  assert.equal(requests.some(r=>r.url.endsWith('/views')),false);
+  await click('#actorList .card .name');
+  await wait('!!document.querySelector("#closeProfile")');
+  for(let attempt=0; attempt<100 && !requests.some(r=>r.url.endsWith('/views')); attempt++) {
+    await new Promise(resolve=>setTimeout(resolve,10));
+  }
+  const recorded = requests.filter(r=>r.url.endsWith('/views'));
+  assert.equal(recorded.length,1);
+  assert.equal(recorded[0].method,'POST');
+  await click('#closeProfile');
+  console.log('PASS: aucune mesure au chargement ; une demande après ouverture volontaire du profil');
   await click('[data-tab="budget"]');
   await click('#btnAddBudget');
   await wait('!!document.querySelector("#frmBudget")');

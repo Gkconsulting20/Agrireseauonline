@@ -50,7 +50,7 @@ AgriRéseau Pro uses a modern web stack:
 - **Subscription System**:
     - **Free Plan**: Limited to 2 actors per user.
     - **Premium Plan**: 1 000 FCFA/month, unlimited actors and premium badge. No search priority or priority support is implemented.
-        - **Statistics & Analytics Dashboard (also Free)**: Authenticated non-commercial accounts can access recorded actor/budget/expense/harvest/rating data, CSV export and print/PDF. Views are not measured: APIs return null with views_available=false and the UI displays “Indisponible”.
+        - **Statistics & Analytics Dashboard (also Free)**: Authenticated non-commercial accounts can access recorded actor/budget/expense/harvest/rating data, CSV export and print/PDF. Actor profile consultations are persisted for other authenticated non-commercial viewers, once per actor/account/UTC day, excluding owners, identifiable bots and DNT/GPC. No anonymous tracking. See `CONSULTATIONS_FICHES.md` for rules, privacy, automatic schema setup and isolated tests. Unavailable measurement remains null with views_available=false.
         - **Mobile Money & Card Payment Integration**: FedaPay integration for T-Money, Flooz, and Visa/MasterCard, with webhook processing for automatic premium activation.
         - **Notifications unavailable**: No SMS/WhatsApp/email delivery service is implemented. Send returns HTTP 503 without saving or sending; the test button is disabled. Premium can read historical requests, not delivery receipts. Pending requests were not sent. Manual WhatsApp contact links remain available.
 - **Admin System**:

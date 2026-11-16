@@ -60,6 +60,7 @@ await main.link(async specifier => {
   if (specifier === './db.js') exports={default:db};
   else if (specifier === './public/reference-data.js') exports={TOGO_REGIONS};
   else if (specifier === './security/password-recovery.js') exports={mountPasswordRecovery};
+  else if (specifier === './analytics/actor-views.js') exports=await import('../analytics/actor-views.js');
   else exports=await import(specifier);
   const names=Object.keys(exports);
   return new vm.SyntheticModule(names,function(){for(const name of names)this.setExport(name,exports[name]);},{context});
