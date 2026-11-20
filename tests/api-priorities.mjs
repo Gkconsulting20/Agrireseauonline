@@ -126,21 +126,30 @@ try {
 
     for (const channel of ['sms','whatsapp','email']) {
       // Any INSERT or provider call would fail this isolated test.
+      // Offre actuelle : envoi indisponible pour tous les plans (aucun service d'envoi actif), sans contrôle Premium.
       const sent=await request('/api/notifications/send','POST',{
         channel,recipient:'fixture@example.test',message:'Ne pas envoyer'
       });
-      assert.equal(sent.status,plan==='premium' ? 503 : 403);
-      if(plan==='premium') {
-        assert.equal(sent.body.success,false);
-        assert.equal(sent.body.error,'notifications_unavailable');
-      }
+      assert.equal(sent.status,503);
+      assert.equal(sent.body.success,false);
+      assert.equal(sent.body.error,'notifications_unavailable');
     }
+    // Offre actuelle : l'historique des anciennes demandes est accessible à tous les comptes.
     const history=await request('/api/notifications/history');
-    assert.equal(history.status,plan==='premium' ? 200 : 403);
-    if(plan==='premium') assert.equal(history.body[0].status,'pending');
+    assert.equal(history.status,200);
+    assert.equal(history.body[0].status,'pending');
   }
-  console.log('PASS: vues nulles et stables, indicateurs enregistrés accessibles en gratuit et Premium');
-  console.log('PASS: aucun envoi SMS/WhatsApp/email ni écriture, historique Premium conservé');
+  console.log('PASS: vues nulles et stables, indicateurs enregistrés accessibles à tous les comptes');
+  console.log('PASS: aucun envoi SMS/WhatsApp/email ni écriture, historique accessible à tous les comptes');
+  // Offre actuelle : acteurs illimités pour tous les utilisateurs, même en gratuit.
+  rows.subscriptions[0].plan='free';
+  for (const n of [2,3]) {
+    const extra=await request('/api/actors','POST',{...actorPayload,name:`Groupement local ${n}`});
+    assert.equal(extra.status,201);
+  }
+  const allActors=await request('/api/actors');
+  assert.equal(allActors.body.length,3);
+  console.log('PASS: 3 acteurs créés par un compte gratuit, sans plafond');
   cookie='';
   assert.equal((await request('/api/stats/overview')).status,401);
   assert.equal((await request('/api/stats/actors')).status,401);

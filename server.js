@@ -79,15 +79,8 @@ async function requireActorOwner(req,res,next){
   } catch { return res.status(503).json({error:'authorization_unavailable'}); }
 }
 function blockCommercial(req,res,next){ if(req.session.user && req.session.user.is_commercial) return res.status(403).json({error:'commercial_restricted', message:'Les commerciaux ne peuvent pas effectuer cette action. Ce compte est réservé au suivi des performances.'}); next(); }
-async function requirePremium(req,res,next){ 
-  return requireAuth(req,res,async ()=>{
-    try {
-      const sub = await db.getOne('SELECT * FROM subscriptions WHERE user_id=$1', [req.session.user.id]);
-      if(!sub || sub.plan !== 'premium' || sub.status !== 'active') return res.status(403).json({error:'premium_required', message:'Cette fonctionnalité est réservée aux utilisateurs Premium'});
-      next();
-    } catch { return res.status(503).json({error:'authorization_unavailable'}); }
-  });
-}
+// Offre actuelle : toutes les fonctionnalités sont gratuites pour tous les utilisateurs.
+// Plus aucun contrôle Premium : l'ancien middleware requirePremium a été retiré.
 
 app.post('/api/auth/register', async (req,res)=>{ 
   const {email,password,name,region,role,phone,whatsapp,lat,lng,commercial_code}=req.body; 
@@ -295,11 +288,7 @@ app.post('/api/actors/:id/views', requireAuth, blockCommercial, async (req,res)=
 });
 
 app.post('/api/actors', requireAuth, blockCommercial, async (req,res)=>{ 
-  const sub = await db.getOne('SELECT * FROM subscriptions WHERE user_id=$1', [req.session.user.id]);
-  const actorCountRow = await db.getOne('SELECT COUNT(*) as c FROM actors WHERE owner_id=$1', [req.session.user.id]);
-  const actorCount = actorCountRow.c;
-  if(sub && sub.plan==='free' && actorCount>=2) return res.status(403).json({error:'limit_reached',message:'Version gratuite limitée à 2 acteurs. Passez à Premium pour plus !'});
-  
+  // Offre actuelle : acteurs illimités pour tous les utilisateurs (plus de plafond gratuit à 2 acteurs).
   const currentUser = await db.getOne('SELECT recruited_by FROM users WHERE id=$1', [req.session.user.id]);
   const recruitedBy = currentUser?.recruited_by || null;
   
@@ -599,7 +588,8 @@ app.get('/api/subscription', requireAuth, async (req,res)=>{
   const sub = await db.getOne('SELECT * FROM subscriptions WHERE user_id=$1', [req.session.user.id]); 
   const actorCountRow = await db.getOne('SELECT COUNT(*) as c FROM actors WHERE owner_id=$1', [req.session.user.id]); 
   const actorCount = actorCountRow.c;
-  const limit=sub?.plan==='premium'?999:2; 
+  // Offre actuelle : acteurs illimités pour tous les utilisateurs (limit: null = illimité).
+  const limit=null; 
   res.json({subscription:sub||{plan:'free',status:'active'},actorCount,limit}); 
 });
 
@@ -969,6 +959,12 @@ app.delete('/api/admin/commercials/:id', requireAdmin, async (req,res)=>{
 
 // Payment endpoints - FedaPay integration for T-Money, Flooz, and Credit Cards
 app.post('/api/payments/initiate', requireAuth, async (req,res)=>{
+  // Offre actuelle : paiements suspendus — toutes les fonctionnalités sont gratuites pour le moment.
+  // L'intégration FedaPay ci-dessous est conservée intacte pour une réactivation ultérieure.
+  return res.status(503).json({
+    error: 'payments_suspended',
+    message: 'Les paiements sont suspendus : toutes les fonctionnalités sont gratuites pour le moment.'
+  });
   const {amount, description} = req.body;
   const userId = req.session.user.id;
   const user = await db.getOne('SELECT * FROM users WHERE id=$1', [userId]);
@@ -1075,7 +1071,7 @@ app.get('/api/payments/history', requireAuth, async (req,res)=>{
 });
 
 // No delivery provider is implemented. Keep history, but do not queue new messages.
-app.post('/api/notifications/send', requirePremium, async (req,res)=>{
+app.post('/api/notifications/send', requireAuth, async (req,res)=>{
   res.status(503).json({
     success: false,
     error: 'notifications_unavailable',
@@ -1083,7 +1079,7 @@ app.post('/api/notifications/send', requirePremium, async (req,res)=>{
   });
 });
 
-app.get('/api/notifications/history', requirePremium, async (req,res)=>{
+app.get('/api/notifications/history', requireAuth, async (req,res)=>{
   const notifications = await db.getAll('SELECT * FROM notifications WHERE user_id=$1 ORDER BY created_at DESC LIMIT 50', [req.session.user.id]);
   res.json(notifications);
 });

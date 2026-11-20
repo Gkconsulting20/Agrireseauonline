@@ -22,7 +22,6 @@
 <div class="actions">
   <span id="me"></span>
   <button type="button" class="help-button" onclick="document.getElementById('userGuide').scrollIntoView({behavior:'smooth'})">Guide &amp; fonctionnalités</button>
-  <button id="btnSubscription" onclick="showPaymentDialog()" style="display:none;background:#fbbf24;color:#000">💎 Abonnement</button>
   <button id="btnLogin">Se connecter</button>
   <button id="btnLogout" style="display:none">Se déconnecter</button>
 </div></header>
@@ -96,8 +95,8 @@
     </div>
     <aside class="guide-actions">
       <strong>À savoir</strong>
-      <p>Le compte gratuit permet de gérer jusqu’à 2 acteurs. L’abonnement Premium affiché dans l’application est de 1 000 FCFA par mois et permet de dépasser cette limite.</p>
-      <p>Les paiements Premium sont proposés via FedaPay. Le Premium ajoute un badge sur vos fiches. L’envoi automatique SMS/WhatsApp/email, la priorité de recherche et le support prioritaire ne sont pas disponibles.</p>
+      <p>Le compte gratuit donne accès à toutes les fonctionnalités : acteurs illimités, carte, statistiques et exports. Aucun abonnement payant n'est proposé pour le moment.</p>
+      <p>L’envoi automatique SMS/WhatsApp/email n’est pas disponible : aucun service d’envoi automatique n’est actif.</p>
       <button type="button" onclick="document.getElementById('btnLogin').click()">Créer mon compte</button>
       <button type="button" class="guide-secondary" onclick="document.querySelector('[data-tab=&quot;actors&quot;]').click(); document.querySelector('.tabs').scrollIntoView({behavior:'smooth'})">Parcourir les acteurs</button>
     </aside>
@@ -110,14 +109,14 @@
   <div class="guide-feature-grid">
     <article class="guide-feature-card"><span>🌾</span><h5>Annuaire agricole</h5><p>Consultez et filtrez les profils de producteurs, éleveurs, coopératives et groupements, transporteurs, transformateurs, grossistes, détaillants et institutions, avec leurs produits et coordonnées publiées.</p></article>
     <article class="guide-feature-card"><span>🗺️</span><h5>Carte interactive</h5><p>Repérez les acteurs par région et consultez leur localisation lorsqu’elle est renseignée.</p></article>
-    <article class="guide-feature-card"><span>🏢</span><h5>Gestion de vos acteurs</h5><p>Créez et modifiez vos fiches, ajoutez produits, quantités, prix, photos, certifications et coordonnées. Limite gratuite : 2 acteurs.</p></article>
+    <article class="guide-feature-card"><span>🏢</span><h5>Gestion de vos acteurs</h5><p>Créez et modifiez vos fiches, ajoutez produits, quantités, prix, photos, certifications et coordonnées. Nombre d’acteurs illimité.</p></article>
     <article class="guide-feature-card"><span>🚚</span><h5>Logistique</h5><p>Publiez et consultez des offres ou demandes de transport, puis contactez l’annonceur directement.</p></article>
     <article class="guide-feature-card"><span>📒</span><h5>Budgets et coûts</h5><p>Préparez un budget par activité, consignez les recettes et dépenses et comparez les prévisions aux montants réels.</p></article>
-    <article class="guide-feature-card"><span>⭐</span><h5>Évaluations et statistiques</h5><p>Avec un compte gratuit ou Premium, consultez les indicateurs issus de vos données enregistrées, exportez en CSV ou imprimez en PDF. Les consultations mesurées comptent les ouvertures de fiches par d’autres comptes connectés, une fois par jour UTC et hors refus de suivi.</p></article>
-    <article class="guide-feature-card"><span>💎</span><h5>Abonnement Premium</h5><p>Pour 1 000 FCFA par mois selon l’offre affichée dans l’application : davantage d’acteurs et un badge Premium. Le paiement est proposé par FedaPay.</p></article>
+    <article class="guide-feature-card"><span>⭐</span><h5>Évaluations et statistiques</h5><p>Avec votre compte, consultez les indicateurs issus de vos données enregistrées, exportez en CSV ou imprimez en PDF. Les consultations mesurées comptent les ouvertures de fiches par d’autres comptes connectés, une fois par jour UTC et hors refus de suivi.</p></article>
+    <article class="guide-feature-card"><span>🎉</span><h5>Tout est gratuit pour le moment</h5><p>Toutes les fonctionnalités sont accessibles gratuitement à tous les utilisateurs : acteurs illimités, carte, statistiques et exports. Aucun abonnement payant n’est proposé pour le moment.</p></article>
     <article class="guide-feature-card"><span>🛠️</span><h5>Espaces professionnels</h5><p>Les comptes commerciaux disposent d’un suivi des recrutements et de rapports. Les administrateurs disposent d’outils de gestion de la plateforme. Ces comptes ont des accès différents d’un compte d’exploitation.</p></article>
   </div>
-  <p class="guide-footnote">Les liens de contact WhatsApp ouvrent une conversation à envoyer vous-même ; ce ne sont pas des notifications automatiques. Aucun service d’envoi automatique n’est actif, même avec Premium.</p>
+  <p class="guide-footnote">Les liens de contact WhatsApp ouvrent une conversation à envoyer vous-même ; ce ne sont pas des notifications automatiques. Aucun service d’envoi automatique n’est actif.</p>
 </section>
 
 <nav class="tabs">
@@ -297,7 +296,7 @@
 <section id="stats" class="tab">
   <div class="card" style="margin-bottom:20px;background:linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);">
     <h3>📊 Statistiques & Analyses</h3>
-    <p class="muted">Indicateurs enregistrés, accessibles en gratuit comme en Premium. Consultations mesurées depuis l’activation : autres comptes connectés, une fois par fiche et par jour UTC. Visites anonymes, propriétaire, robots identifiables et refus de suivi exclus. Aucune IP ni identité de visiteur conservée dans les statistiques. « Indisponible » signifie que la mesure ne peut pas être produite.</p>
+    <p class="muted">Indicateurs enregistrés, accessibles à tous les comptes. Consultations mesurées depuis l’activation : autres comptes connectés, une fois par fiche et par jour UTC. Visites anonymes, propriétaire, robots identifiables et refus de suivi exclus. Aucune IP ni identité de visiteur conservée dans les statistiques. « Indisponible » signifie que la mesure ne peut pas être produite.</p>
   </div>
   
   <div id="statsOverview" class="grid3" style="margin-bottom:30px;"></div>
@@ -329,7 +328,7 @@
   
   <div class="card" style="margin-top:20px;">
     <h3>📱 Notifications SMS & WhatsApp</h3>
-    <p class="muted" style="margin-bottom:15px;"><strong>Envoi indisponible, même avec Premium.</strong> Aucun service d’envoi automatique n’est actif. L’historique conserve uniquement les anciennes demandes ; une demande en attente n’a pas été envoyée.</p>
+    <p class="muted" style="margin-bottom:15px;"><strong>Envoi indisponible.</strong> Aucun service d’envoi automatique n’est actif. L’historique conserve uniquement les anciennes demandes ; une demande en attente n’a pas été envoyée.</p>
     <div style="margin-bottom:15px;">
       <button id="btnSendTestNotification" disabled title="Aucun service d’envoi actif">Envoi test indisponible</button>
     </div>

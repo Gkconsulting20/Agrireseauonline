@@ -51,7 +51,7 @@ const server = createServer(async (req, res) => {
     }
     else if (req.url.endsWith('/summary')) result = {totalRealExpenses:0,totalRealIncomes:0};
     else if (req.url === '/api/budget') result = {rows:[],totals:{income:0,expense:0,balance:0}};
-    else if (req.url === '/api/subscription') result = {subscription:{plan},limit:plan==='free'?2:999,count:actors.length};
+    else if (req.url === '/api/subscription') result = {subscription:{plan},limit:null,count:actors.length};
     else if (req.url === '/api/stats/overview') result = {
       actors_count:1,budgets_count:0,total_expenses:1500,total_harvests:25,ratings_received:1,
       views_count:viewsAvailable ? viewsCount : null,views_available:viewsAvailable
@@ -61,8 +61,7 @@ const server = createServer(async (req, res) => {
     }];
     else if (req.url === '/api/stats/budgets') result = [];
     else if (req.url === '/api/notifications/history') {
-      if(plan==='free') {res.statusCode=403;result={error:'premium_required'};}
-      else result=[{id:1,status:'pending',message:'Ancienne demande',created_at:'2026-01-01'}];
+      result=[{id:1,status:'pending',message:'Ancienne demande',created_at:'2026-01-01'}];
     }
     else if (req.url === '/api/platform/stats') result = {actors:1,users:1,products:1,regions:1};
     else if (req.url === '/api/user/profile') { user = {...user,...body}; result = user; }
@@ -155,9 +154,7 @@ try {
     await click('[data-tab="stats"]');
     await wait('document.querySelector("#statsOverview").textContent.includes("Indisponible")');
     assert.ok((await evaluate('document.querySelector("#actorStatsContent").textContent')).includes('Indisponible'));
-    await wait(currentPlan==='free'
-      ? 'document.querySelector("#notificationsContainer").textContent.includes("même avec Premium")'
-      : 'document.querySelector("#notificationsContainer").textContent.includes("Non envoyée")');
+    await wait('document.querySelector("#notificationsContainer").textContent.includes("Non envoyée")');
     assert.equal(await evaluate('document.querySelector("#btnSendTestNotification").disabled'),true);
     assert.equal(await evaluate('!!document.querySelector("#notificationsContainer button")'),false);
     viewsAvailable=true;
@@ -173,18 +170,12 @@ try {
       assert.ok((await evaluate('document.querySelector("#actorStatsContent").textContent')).includes('consultations mesurées'));
     }
   }
-  await evaluate('showPaymentDialog()');
-  await wait('!!document.querySelector("#frmPayment")');
-  const offer=await evaluate('document.querySelector("#frmPayment").textContent');
-  assert.ok(offer.includes('1 000 FCFA / mois'));
-  assert.ok(offer.includes('Badge Premium'));
-  assert.ok(offer.includes('aussi accessibles en gratuit'));
-  assert.ok(offer.includes('Non disponibles'));
-  assert.ok(!offer.includes('statistiques avancées'));
-  await click('#cancelPayment');
+  // Offre actuelle : plus de fenêtre de paiement Premium ni de bouton Abonnement.
+  assert.equal(await evaluate('!!document.querySelector("#btnSubscription")'),false);
+  assert.equal(await evaluate('typeof showPaymentDialog'),'undefined');
   assert.equal(requests.some(r=>r.url==='/api/notifications/send'||r.url.startsWith('/api/payments/')),false);
   plan='free';
-  console.log('PASS: consultations nulles, zéro et positives, offre et notifications honnêtes, gratuit et Premium');
+  console.log('PASS: consultations nulles, zéro et positives, notifications honnêtes pour tous les comptes, sans offre Premium');
   assert.equal(requests.some(r=>r.url.endsWith('/views')),false);
   await click('#actorList .card .name');
   await wait('!!document.querySelector("#closeProfile")');

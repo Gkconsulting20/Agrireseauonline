@@ -162,15 +162,8 @@ async function openStatsDrillDown(type) {
           <div class="drill-feature">
             <span class="drill-feature-icon">✅</span>
             <div>
-              <strong>Compte gratuit</strong>
-              <p>Jusqu'à 2 acteurs, accès complet à la carte et aux contacts</p>
-            </div>
-          </div>
-          <div class="drill-feature">
-            <span class="drill-feature-icon">💎</span>
-            <div>
-              <strong>Premium - 1 000 FCFA/mois</strong>
-              <p>Plus de 2 acteurs et badge Premium sur vos fiches. Statistiques accessibles aussi en gratuit. Envoi automatique SMS/WhatsApp indisponible.</p>
+              <strong>Compte gratuit — tout inclus</strong>
+              <p>Acteurs illimités, accès complet à la carte, aux contacts, aux statistiques et aux exports</p>
             </div>
           </div>
         </div>
@@ -502,11 +495,10 @@ function showTermsDialog(){
       • Les informations sur les produits et prix doivent être exactes<br>
       • Vous êtes responsable de toutes les activités effectuées depuis votre compte</p>
       
-      <h4>5. Plans d'abonnement</h4>
-      <p>• <strong>Plan Gratuit</strong> : Limité à 2 acteurs par utilisateur<br>
-      • <strong>Plan Premium</strong> : 1 000 FCFA/mois, plus de 2 acteurs et badge Premium. Les statistiques, consultations mesurées et exports sont aussi accessibles en gratuit. Les envois automatiques SMS/WhatsApp/email, la priorité de recherche et le support prioritaire sont indisponibles.<br>
-      • Les paiements sont traités via FedaPay (Mobile Money et cartes bancaires)<br>
-      • Aucun remboursement n'est possible après activation du service Premium</p>
+      <h4>5. Accès aux fonctionnalités</h4>
+      <p>• Toutes les fonctionnalités sont accessibles gratuitement à tous les utilisateurs : acteurs illimités, carte, statistiques, consultations mesurées et exports.<br>
+      • Aucun abonnement payant n'est proposé pour le moment.<br>
+      • L'envoi automatique SMS/WhatsApp/email n'est pas disponible : aucun service d'envoi automatique n'est actif.</p>
       
       <h4>6. Données personnelles</h4>
       <p>• Vos données sont collectées et traitées conformément à notre politique de confidentialité<br>
@@ -1732,105 +1724,8 @@ async function refreshBudgetActs(){
 const bAdd = document.getElementById('bAdd');
 if(bAdd) bAdd.onclick=async()=>{ if(!ME) return alert('Connecte-toi d’abord.'); const payload={ kind:document.getElementById('bKind').value, occurred_on:document.getElementById('bDate').value || new Date().toISOString().slice(0,10), amount:Number(document.getElementById('bAmount').value||0), category:document.getElementById('bCat').value, activity_id: document.getElementById('bAct').value || null, note: document.getElementById('bNote').value }; const r=await fetch('/api/budget',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) return alert('Erreur'); await loadBudget(); };
 
-window.showPaymentDialog = async function(){
-  if(!ME) return alert('Connectez-vous d\'abord');
-  
-  const dlg = document.createElement('dialog');
-  dlg.innerHTML = `
-    <form id="frmPayment" class="dialog-body">
-      <h3 style="color:#fbbf24;">💎 Passer à Premium</h3>
-      
-      <div style="background:linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);padding:20px;border-radius:12px;margin-bottom:20px;color:#000;">
-        <p style="font-size:24px;font-weight:bold;margin:0 0 10px 0;text-align:center;">1 000 FCFA / mois</p>
-      </div>
-      
-      <div style="background:#f0fdf4;padding:15px;border-radius:8px;margin-bottom:20px;border:2px solid #10b981;">
-        <p style="font-weight:bold;margin:0 0 10px 0;color:#059669;">✨ Bénéfices Premium :</p>
-        <ul style="margin:0;padding-left:20px;line-height:1.8;">
-          <li>✨ <strong>Acteurs illimités</strong> (vs 2 max gratuit)</li>
-          <li>💎 <strong>Badge Premium</strong> visible sur vos fiches</li>
-        </ul>
-        <p>Le tableau de bord, les données enregistrées, les exports CSV et l’impression PDF sont aussi accessibles en gratuit.</p>
-        <p>Les consultations mesurées des fiches sont accessibles en gratuit et en Premium : autres comptes connectés, une fois par fiche et par jour UTC, hors refus de suivi.</p>
-        <p><strong>Non disponibles :</strong> envoi automatique SMS/WhatsApp/email, priorité dans la recherche et support prioritaire. Ces services ne sont pas inclus dans l’abonnement actuel.</p>
-      </div>
-      
-      <div style="background:#eff6ff;padding:20px;border-radius:12px;margin-bottom:20px;">
-        <p style="font-weight:bold;margin:0 0 15px 0;color:#1e40af;">💳 Méthodes de paiement acceptées :</p>
-        <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px;">
-          <div style="padding:12px;background:white;border-radius:8px;border:2px solid #dbeafe;text-align:center;">
-            <div style="font-size:28px;margin-bottom:5px;">📱</div>
-            <div style="font-weight:bold;color:#fbbf24;">T-Money</div>
-            <div style="font-size:11px;color:#6b7280;">Togocom</div>
-          </div>
-          <div style="padding:12px;background:white;border-radius:8px;border:2px solid #dbeafe;text-align:center;">
-            <div style="font-size:28px;margin-bottom:5px;">💰</div>
-            <div style="font-weight:bold;color:#10b981;">Flooz</div>
-            <div style="font-size:11px;color:#6b7280;">Moov Africa</div>
-          </div>
-          <div style="padding:12px;background:white;border-radius:8px;border:2px solid #dbeafe;text-align:center;grid-column:1/-1;">
-            <div style="font-size:28px;margin-bottom:5px;">💳</div>
-            <div style="font-weight:bold;color:#3b82f6;">Visa / MasterCard</div>
-            <div style="font-size:11px;color:#6b7280;">Paiement international</div>
-          </div>
-        </div>
-        <p style="margin:15px 0 0 0;font-size:13px;color:#6b7280;text-align:center;">
-          ✅ Paiement sécurisé par <strong>FedaPay</strong>
-        </p>
-      </div>
-      
-      <div class="dialog-actions">
-        <button type="submit" style="background:#fbbf24;color:#000;font-weight:bold;flex:1;">💎 Payer 1 000 FCFA</button>
-        <button type="button" id="cancelPayment">Annuler</button>
-      </div>
-    </form>
-  `;
-  
-  document.body.appendChild(dlg);
-  dlg.showModal();
-  
-  dlg.querySelector('#cancelPayment').onclick = () => dlg.close();
-  
-  dlg.querySelector('#frmPayment').onsubmit = async (e) => {
-    e.preventDefault();
-    dlg.close();
-    await initiatePayment();
-  };
-}
-
-async function initiatePayment(){
-  try {
-    const r = await fetch('/api/payments/initiate', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        amount: 1000,
-        description: 'Abonnement Premium AgriRéseau Pro - 1 mois'
-      })
-    });
-    
-    if(!r.ok){
-      const err = await r.json();
-      alert(err.message || err.error || 'Erreur lors de l\'initiation du paiement');
-      return;
-    }
-    
-    const data = await r.json();
-    
-    if(data.paymentUrl){
-      const confirmed = confirm('Vous allez être redirigé vers la page de paiement sécurisée FedaPay.\n\nVous pourrez payer avec T-Money, Flooz ou Carte bancaire.\n\nContinuer ?');
-      if(confirmed){
-        window.location.href = data.paymentUrl;
-      }
-    } else {
-      alert('Erreur: URL de paiement non reçue');
-    }
-  } catch(e) {
-    console.error('Erreur:', e);
-    alert('Erreur lors de l\'initiation du paiement');
-  }
-}
-
+// Offre actuelle : toutes les fonctionnalités sont gratuites — la fenêtre de paiement Premium
+// (showPaymentDialog / initiatePayment) a été retirée. L'intégration FedaPay côté serveur est conservée.
 
 // Nouvelles fonctions pour Budget (module prévisionnel)
 function openBudgetDialog(){ 
@@ -3568,19 +3463,6 @@ async function loadNotifications(){
   try {
     const r = await fetch('/api/notifications/history');
     
-    if(r.status === 403){
-      container.innerHTML = `
-        <div style="text-align:center;padding:40px 20px;background:#fef3c7;border-radius:8px;">
-          <h3 style="color:#92400e;margin-bottom:15px;">Envoi automatique indisponible</h3>
-          <p style="color:#92400e;margin-bottom:20px;">
-            Aucun service d’envoi SMS/WhatsApp/email automatique n’est actif, même avec Premium.
-            L’historique des anciennes demandes est réservé aux comptes Premium.
-          </p>
-        </div>
-      `;
-      return;
-    }
-    
     if(!r.ok){
       container.innerHTML = '<p class="muted">Erreur lors du chargement des notifications</p>';
       return;
@@ -3644,15 +3526,11 @@ async function loadMyActors(){
   
   const subRes = await fetch('/api/subscription');
   const subData = await subRes.json();
-  const limit = subData.limit || 2;
-  const isPremium = subData.subscription?.plan === 'premium';
+  // Offre actuelle : acteurs illimités pour tous les utilisateurs (limit: null = illimité).
+  const limit = subData.limit ?? null;
   
   if(limitEl){
-    if(isPremium){
-      limitEl.innerHTML = '<span style="color:#fbbf24;">💎 Premium - Illimité</span>';
-    } else {
-      limitEl.innerHTML = `<span style="color:${count >= limit ? '#dc2626' : '#6b7280'};">sur ${limit} max (gratuit)</span>`;
-    }
+    limitEl.innerHTML = '<span style="color:#059669;">Acteurs illimités</span>';
   }
   
   if(myActors.length === 0){
