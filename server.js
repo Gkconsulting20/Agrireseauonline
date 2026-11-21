@@ -47,6 +47,22 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const passwordVersion = hash => crypto.createHash('sha256').update(hash).digest('hex');
+// Normalise un numéro de téléphone togolais pour que l'inscription et la
+// connexion retrouvent le même compte quelle que soit la saisie :
+// "90 12 34 56", "90123456", "22890123456" et "+22890123456" -> "+22890123456".
+// Le téléphone est l'identifiant principal dans l'environnement africain
+// (beaucoup d'utilisateurs n'ont pas d'email) : il doit donc être unique
+// en base (index users_phone_key) et normalisé à l'inscription comme à la
+// connexion. Un numéro non togolais est conservé tel quel (espaces retirés).
+function normalizePhone(value){
+  if(!value) return null;
+  const digits = String(value).replace(/[^\d+]/g, '');
+  if(!digits) return null;
+  if(digits.startsWith('+')) return digits;
+  if(digits.length === 8) return '+228' + digits;
+  if(digits.length === 11 && digits.startsWith('228')) return '+' + digits;
+  return digits;
+}
 async function requireAuth(req,res,next){
   if(!req.session.user) return res.status(401).json({error:'auth_required'});
   try {
@@ -92,8 +108,19 @@ app.post('/api/auth/register', async (req,res)=>{
     message:'Choisissez une région administrative du Togo : Maritime, Plateaux, Centrale, Kara ou Savanes.'
   });
   const hash=bcrypt.hashSync(password,10); 
-  const normalizedPhone = phone ? phone.replace(/\s+/g, '') : null;
-  const normalizedWhatsapp = whatsapp ? whatsapp.replace(/\s+/g, '') : null;
+  const normalizedEmail = email ? email.trim().toLowerCase() : null;
+  const normalizedPhone = normalizePhone(phone);
+  const normalizedWhatsapp = normalizePhone(whatsapp);
+  if(!normalizedEmail && !normalizedPhone) return res.status(400).json({error:'email_or_phone_required'});
+  // Vérifier l'unicité avant l'insertion (message clair au lieu de l'erreur base)
+  if(normalizedEmail){
+    const existingEmail = await db.getOne('SELECT id FROM users WHERE email=$1', [normalizedEmail]);
+    if(existingEmail) return res.status(400).json({error:'email_exists', message:'Cet email est déjà utilisé par un autre compte.'});
+  }
+  if(normalizedPhone){
+    const existingPhone = await db.getOne('SELECT id FROM users WHERE phone=$1', [normalizedPhone]);
+    if(existingPhone) return res.status(400).json({error:'phone_exists', message:'Ce numéro de téléphone est déjà utilisé par un autre compte.'});
+  }
   
   let recruitedBy = null;
   if(commercial_code){
@@ -104,7 +131,7 @@ app.post('/api/auth/register', async (req,res)=>{
   }
   
   try{ 
-    const user = await db.insertOne('INSERT INTO users (email,name,password_hash,region,role,phone,whatsapp,lat,lng,recruited_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)', [email?(email.trim().toLowerCase()):null,name||'',hash,region||'',role||'',normalizedPhone,normalizedWhatsapp,lat||null,lng||null,recruitedBy]); 
+    const user = await db.insertOne('INSERT INTO users (email,name,password_hash,region,role,phone,whatsapp,lat,lng,recruited_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)', [normalizedEmail,name||'',hash,region||'',role||'',normalizedPhone,normalizedWhatsapp,lat||null,lng||null,recruitedBy]); 
     const userId=user.id; 
     await db.query('INSERT INTO subscriptions (user_id,plan,status) VALUES ($1,$2,$3)', [userId,'free','active']); 
     req.session.passwordVersion = passwordVersion(hash);
@@ -119,10 +146,15 @@ app.post('/api/auth/login', async (req,res)=>{
   const {email,phone,password}=req.body; 
   if(!email && !phone) return res.status(400).json({error:'email_or_phone_required'}); 
   let u = null;
-  if(email) {
-    u = await db.getOne('SELECT * FROM users WHERE email=$1', [(email||'').trim().toLowerCase()]); 
+  // L'identifiant peut être un email ou un téléphone, dans l'un ou l'autre champ
+  // (beaucoup d'utilisateurs saisissent leur numéro dans le champ email).
+  const identifier = (email || '').trim();
+  if(identifier.includes('@')) {
+    u = await db.getOne('SELECT * FROM users WHERE email=$1', [identifier.toLowerCase()]); 
+  } else if(identifier) {
+    u = await db.getOne('SELECT * FROM users WHERE phone=$1', [normalizePhone(identifier)]); 
   } else if(phone) {
-    u = await db.getOne('SELECT * FROM users WHERE phone=$1', [phone.trim()]); 
+    u = await db.getOne('SELECT * FROM users WHERE phone=$1', [normalizePhone(phone)]); 
   }
   if(!u) return res.status(400).json({error:'invalid_credentials'}); 
   if(u.status === 'blocked') return res.status(403).json({error:'account_blocked',message:'Votre compte a été bloqué'}); 
